@@ -27,6 +27,109 @@ A demonstration and experimental Flask web application for uploading, parsing, e
 
 ---
 
+## 🖼️ Visual Application Feature Showcase
+
+### 1. 💬 Offline AI Natural Language Search (Text-to-SQL)
+Translates plain English queries into validated read-only SQL queries using local GGUF model inference with real-time CPU system load reporting and execution metrics breakdown.
+
+```
++-----------------------------------------------------------------------------------+
+| 💬 AI Natural Language Search                                                     |
+| Prompt: "Show Starlink satellites with inclination > 53 degrees"                  |
+| [ 🔍 Ask AI Assistant ]                                                          |
++-----------------------------------------------------------------------------------+
+| ⚙️ Processing prompt... (Local GGUF AI inference active — CPU load expected)      |
+| Elapsed: 4.2s                                                                     |
++-----------------------------------------------------------------------------------+
+| ⚡ System Performance: Total 19.74s (LLM Inference: 19.72s · DB: 0.012s)          |
+| 🛠️ Generated SQL:                                                                 |
+| SELECT s.norad_cat_id, s.name, t.inclination_deg, t.mean_motion_rev_day           |
+| FROM satellites s JOIN tle_elements t ON s.id = t.satellite_id                    |
+| WHERE t.inclination_deg > 53.0 LIMIT 50;                                          |
++-----------------------------------------------------------------------------------+
+| NORAD ID | Name        | Inclination | Mean Motion (rev/day) | Actions            |
+| 44713    | STARLINK-10 | 53.05°      | 15.06                 | [ Track Orbit 🛰️ ] |
+| 44714    | STARLINK-11 | 53.06°      | 15.06                 | [ Track Orbit 🛰️ ] |
++-----------------------------------------------------------------------------------+
+```
+
+---
+
+### 2. 🌍 Geo-Spatial Country Proximity & SGP4 Orbital Propagation
+Calculates real-time satellite locations using SGP4 orbit mechanics algorithms to discover satellites passing over specific geographic bounding boxes (e.g. United States).
+
+```
++-----------------------------------------------------------------------------------+
+| 🌍 Spatial & Geo-Proximity Filter                                                  |
+| Country Bounding Box: [ United States (Contiguous) ]                              |
+| [ 📡 Filter Active Satellites Overhead ]                                         |
++-----------------------------------------------------------------------------------+
+| 🛰️ Satellites Currently Passing Overhead: 42 Matched                              |
+| NORAD ID | Name         | Sub-Satellite Lat/Lon | Altitude (km) | Velocity (km/s)  |
+| 25544    | ISS (ZARYA)  | 38.89° N, 77.03° W     | 418.5 km      | 7.66 km/s        |
+| 44714    | STARLINK-11  | 34.05° N, 118.24° W    | 550.2 km      | 7.59 km/s        |
++-----------------------------------------------------------------------------------+
+```
+
+---
+
+### 3. 🛰️ Live 2D Ground Track & 3D Globe Satellite Tracker
+Interactive 2D Leaflet ground track map and 3D globe visualization rendering real-time orbital path projections, ground station footings, and position vectors.
+
+```
++-----------------------------------------------------------------------------------+
+| 🛰️ Live Satellite Orbital Tracker: STARLINK-11 (NORAD #44714)                     |
+| Latitude: 34.05° N | Longitude: 118.24° W | Altitude: 550.2 km | Velocity: 7.59 km/s|
++-----------------------------------------------------------------------------------+
+|  [ 2D Ground Track Map ]                  |  [ 3D Globe Projection View ]         |
+|  . . . . . . . . . . . . . . . . . . . .  |          .---.                        |
+|  . . . . . . . (🛰️ STARLINK) . . . . . .  |        /       \                      |
+|  . . . . . ./~/~~\~\. . . . . . . . . . . |       |    🌍   |  (🛰️ Orbit Vector)  |
+|  . . . . . /~/    \~\ . . . . . . . . . . |        \       /                      |
+|  . . . . . . . . . . . . . . . . . . . .  |          '---'                        |
++-----------------------------------------------------------------------------------+
+```
+
+---
+
+### 4. 📥 3-Line TLE Ingestion & Deduplication Upload Interface
+Parses 3-line and 2-line TLE dataset files, verifies modulo-10 checksums, extracts Keplerian elements, and prevents duplicate epoch ingestion.
+
+```
++-----------------------------------------------------------------------------------+
+| 📥 Upload & Ingest TLE Data File                                                  |
+| Select File: [ starlink_tle.txt ]                                                 |
+| Session Label: [ April 2025 Constellation Batch ]                                 |
+| [ 🚀 Parse & Import TLE Dataset ]                                                |
++-----------------------------------------------------------------------------------+
+| 📊 Ingestion Audit Summary Report:                                                |
+| Total Records Processed : 1,540                                                   |
+| New Satellites Created  : 85                                                      |
+| Updated Satellites      : 1,455                                                    |
+| Duplicate Epochs Skipped: 0                                                       |
++-----------------------------------------------------------------------------------+
+```
+
+---
+
+### 5. 🔐 Protected Admin Dashboard & OAuth Access Control
+Administrative interface for managing upload sessions, triggering local GGUF model downloads, clearing seed flags, and monitoring system resource allocations.
+
+```
++-----------------------------------------------------------------------------------+
+| 🔐 Admin Control Center                                    Logged in as: admin    |
++-----------------------------------------------------------------------------------+
+| 🤖 Offline AI Model Status: qwen2.5-coder-1.5b-instruct-q4_k_m.gguf [ Active ]    |
+| [ 🔄 Re-Download Model ]  [ 🗑️ Wipe Database ]  [ ⚡ Reset Seed Flag ]             |
++-----------------------------------------------------------------------------------+
+| Upload History Log:                                                               |
+| ID | Filename         | Upload Time          | Records | Source      | Actions   |
+| 1  | kaggle_tle.txt   | 2026-09-02 10:00 UTC | 1,540   | user_upload | [Delete]  |
++-----------------------------------------------------------------------------------+
+```
+
+---
+
 ## 📚 Domain Terminology Reference Guide
 
 For detailed explanations of space domain, orbital mechanics, and artificial intelligence terminology used in this application, please refer to the following authoritative resources:
