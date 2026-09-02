@@ -86,12 +86,15 @@
         <div class="ai-msg ai-msg--assistant" id="ai-welcome-msg">
           <div class="ai-msg__avatar">🛰️</div>
           <div class="ai-msg__bubble">
-            <p style="margin:0 0 8px;">Hi! Ask me anything about the satellites in the database.</p>
+            <p style="margin:0 0 8px;font-weight:600;">Hi! Ask me anything about the satellites in the database.</p>
             <p style="margin:0 0 6px;font-size:0.82rem;color:var(--text-muted);">Try things like:</p>
-            <div class="ai-suggestions">
+            <div class="ai-suggestions" style="display:flex;flex-wrap:wrap;gap:6px;">
               <button class="ai-suggestion" onclick="usePrompt(this)">Starlink satellites over United States right now</button>
+              <button class="ai-suggestion" onclick="usePrompt(this)">Show me Starlink satellites with inclination greater than 53</button>
               <button class="ai-suggestion" onclick="usePrompt(this)">Satellites with mean motion greater than 15 rev/day</button>
-              <button class="ai-suggestion" onclick="usePrompt(this)">Satellites with inclination greater than 95 degrees</button>
+              <button class="ai-suggestion" onclick="usePrompt(this)">Satellites in polar orbit with inclination near 90 degrees</button>
+              <button class="ai-suggestion" onclick="usePrompt(this)">Satellites with high orbital eccentricity greater than 0.01</button>
+              <button class="ai-suggestion" onclick="usePrompt(this)">Find ISS or Space Station satellites</button>
               <button class="ai-suggestion" onclick="usePrompt(this)">GPS satellites over the United States</button>
             </div>
           </div>
@@ -567,7 +570,13 @@ async function runAiSearch() {
     }
 
     let summaryHtml = '';
-    if (isGeo) {
+    if (data.cached) {
+      summaryHtml = `
+        <div style="margin-bottom:6px;">
+          <span style="display:inline-block;padding:2px 8px;border-radius:12px;background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.4);color:#10b981;font-size:0.75rem;font-weight:600;">⚡ Verified Query Cache Hit (0.0s LLM Overhead)</span>
+        </div>
+        <span style="font-weight:600;">⚡ Found <strong>${count}</strong> satellite${count !== 1 ? 's' : ''} (Instant Cached SQL)</span>`;
+    } else if (isGeo) {
       const g = data.geo;
       const filterNote = g.name_filter ? ` · filter: <strong>${g.name_filter}</strong>` : '';
       summaryHtml = `
@@ -595,16 +604,31 @@ async function runAiSearch() {
       const perfBadge = `
         <div class="metrics-badge" style="margin-top:10px; margin-bottom:6px;">
           ⚡ <strong>System Performance:</strong> Total ${p.total_time_sec}s
-          ${p.mode === 'offline_llm' ? `(LLM Inference: <strong>${p.llm_inference_sec}s</strong> · DB: <strong>${p.db_query_sec}s</strong>)` : `(SGP4 Geo Propagate: <strong>${p.db_query_sec}s</strong>)`}
+          ${p.mode === 'query_cache' ? `(Verified Query Cache HIT · <strong>0.0s</strong> LLM)` : p.mode === 'offline_llm' ? `(LLM Inference: <strong>${p.llm_inference_sec}s</strong> · DB: <strong>${p.db_query_sec}s</strong>)` : `(SGP4 Geo Propagate: <strong>${p.db_query_sec}s</strong>)`}
         </div>`;
       summaryHtml += perfBadge;
     }
 
     if (data.sql) {
+      const escapedPrompt = prompt.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+      const escapedSql = data.sql.replace(/'/g, "\\'").replace(/"/g, '&quot;');
       summaryHtml += `
-        <div class="generated-sql-box">
-          <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:4px; font-weight:600;">🛠️ Generated SQL Query:</div>
-          <pre style="margin:0; font-family:var(--mono); color:#38bdf8; overflow-x:auto; white-space:pre-wrap; word-break:break-all;">${data.sql.replace(/</g,'&lt;')}</pre>
+        <div class="generated-sql-box" style="position:relative;">
+          <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:4px; font-weight:600; display:flex; justify-content:space-between; align-items:center;">
+            <span>🛠️ Executed SQL Query:</span>
+            ${data.cached ? '<span style="color:#10b981;font-size:0.7rem;font-weight:600;">⚡ Cache Hit</span>' : ''}
+          </div>
+          <pre style="margin:0 0 8px 0; font-family:var(--mono); color:#38bdf8; overflow-x:auto; white-space:pre-wrap; word-break:break-all;">${data.sql.replace(/</g,'&lt;')}</pre>
+          
+          <div class="query-feedback-container" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.06);">
+            <button class="feedback-btn btn-verify" onclick="sendQueryFeedback(this, '${escapedPrompt}', '${escapedSql}', 'verify')" style="background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.3);color:#10b981;font-size:0.75rem;padding:4px 10px;border-radius:6px;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;gap:4px;transition:all 0.2s;">
+              👍 Verify &amp; Cache SQL
+            </button>
+            <button class="feedback-btn btn-report" onclick="sendQueryFeedback(this, '${escapedPrompt}', '${escapedSql}', 'negative')" style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);color:#ef4444;font-size:0.75rem;padding:4px 10px;border-radius:6px;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;gap:4px;transition:all 0.2s;">
+              👎 Report Issue
+            </button>
+            <span class="feedback-status" style="font-size:0.72rem;color:var(--text-sub);"></span>
+          </div>
         </div>`;
     }
 
@@ -631,6 +655,35 @@ async function runAiSearch() {
     sendBtn.disabled = false;
     sendBtn.style.opacity = '1';
     input.focus();
+  }
+}
+
+async function sendQueryFeedback(btn, prompt, sql, feedbackType) {
+  const container = btn.closest('.query-feedback-container');
+  const statusSpan = container ? container.querySelector('.feedback-status') : null;
+  btn.disabled = true;
+  btn.style.opacity = '0.6';
+
+  try {
+    const res = await fetch('/api/ai/cache-feedback', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt, sql, feedback: feedbackType })
+    });
+    const data = await res.json();
+    if (data.status === 'success') {
+      btn.style.background = 'rgba(16,185,129,0.3)';
+      btn.style.color = '#34d399';
+      btn.innerHTML = '✅ Verified &amp; Saved to data/ai_query_cache.json';
+      if (statusSpan) statusSpan.textContent = 'Saved to repo cache for git audit!';
+    } else {
+      btn.innerHTML = 'Acknowledged';
+      if (statusSpan) statusSpan.textContent = 'Feedback recorded.';
+    }
+  } catch (e) {
+    btn.disabled = false;
+    btn.style.opacity = '1';
+    if (statusSpan) statusSpan.textContent = 'Failed to submit feedback.';
   }
 }
 

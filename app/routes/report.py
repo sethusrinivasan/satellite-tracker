@@ -323,8 +323,78 @@ def natural_query():
 
     log.info("[AI Search] Incoming search request prompt: %r", user_prompt)
 
-    # 0. Try geo-intent first (e.g. "Starlink satellites over United States")
-    #    This bypasses the LLM entirely for location-based queries.
+    # 0a. Check verified AI Query Cache first (Instant bypass for common recommended queries)
+    from app.services.query_cache import get_cached_query, cache_user_verified_query
+    
+    cached_entry = get_cached_query(user_prompt)
+    if cached_entry and not ("-- Geo-query" in cached_entry.get("sql", "")):
+        cached_sql = cached_entry["sql"]
+        log.info("[AI Search] Cache HIT for prompt %r. Executing cached SQL: %s", user_prompt, cached_sql)
+        t_sql_start = time.perf_counter()
+        try:
+            raw_results = db.session.execute(db.text(cached_sql)).fetchall()
+            norad_ids = []
+            for row in raw_results:
+                if hasattr(row, 'norad_cat_id'):
+                    norad_ids.append(row.norad_cat_id)
+                elif len(row) > 0:
+                    norad_ids.append(row[0])
+
+            norad_ids = [n for n in norad_ids if n is not None]
+
+            if not norad_ids:
+                t_total = time.perf_counter() - t_start
+                return jsonify({
+                    "satellites": [],
+                    "sql": cached_sql,
+                    "cached": True,
+                    "perf": {
+                        "llm_inference_sec": 0.0,
+                        "db_query_sec": round(time.perf_counter() - t_sql_start, 3),
+                        "total_time_sec": round(t_total, 3),
+                        "mode": "query_cache"
+                    }
+                })
+
+            subquery = (
+                db.session.query(TLEElement.satellite_id, func.max(TLEElement.id).label("max_id"))
+                .group_by(TLEElement.satellite_id)
+                .subquery()
+            )
+            query = (
+                db.session.query(
+                    Satellite.norad_cat_id, Satellite.name, Satellite.classification,
+                    Satellite.int_designator, TLEElement.raw_line1, TLEElement.raw_line2,
+                    TLEElement.mean_motion_rev_day
+                )
+                .join(TLEElement, Satellite.id == TLEElement.satellite_id)
+                .join(subquery, TLEElement.id == subquery.c.max_id)
+                .filter(Satellite.norad_cat_id.in_(norad_ids))
+            )
+            final_results = query.all()
+            t_total = time.perf_counter() - t_start
+            data = [{
+                "id": r.norad_cat_id, "name": r.name, "class": r.classification,
+                "designator": r.int_designator or "—", "l1": r.raw_line1, "l2": r.raw_line2,
+                "mm": r.mean_motion_rev_day
+            } for r in final_results]
+
+            return jsonify({
+                "satellites": data,
+                "sql": cached_sql,
+                "cached": True,
+                "category": cached_entry.get("category", "cached"),
+                "perf": {
+                    "llm_inference_sec": 0.0,
+                    "db_query_sec": round(time.perf_counter() - t_sql_start, 3),
+                    "total_time_sec": round(t_total, 3),
+                    "mode": "query_cache"
+                }
+            })
+        except Exception as ex:
+            log.warning("[AI Search] Cached SQL execution failed for %r: %s. Falling back to LLM.", user_prompt, ex)
+
+    # 0b. Try geo-intent (e.g. "Starlink satellites over United States")
     from app.services.geo_query_service import resolve_country, extract_name_filter, satellites_over_region, filter_anomalous_altitudes
 
     t_geo_start = time.perf_counter()
@@ -594,3 +664,37 @@ def natural_query():
     except Exception as e:
         log.exception("[AI Search] Internal execution error processing prompt %r: %s", user_prompt, e)
         return jsonify({"error": f"Execution error: {str(e)}"}), 500
+
+
+@report_bp.route("/api/ai/cache-feedback", methods=["POST"])
+def cache_feedback():
+    """Receive user feedback on an AI query and cache verified SQL to data/ai_query_cache.json."""
+    data = request.json or {}
+    prompt = data.get("prompt", "").strip()
+    sql = data.get("sql", "").strip()
+    feedback = data.get("feedback", "").strip().lower()
+
+    if not prompt or not sql:
+        return jsonify({"error": "Prompt and SQL are required"}), 400
+
+    if feedback in ("positive", "verify", "cache"):
+        from app.services.query_cache import cache_user_verified_query
+        entry = cache_user_verified_query(prompt, sql, category="user_verified")
+        log.info("[AI Search] User verified query saved to data/ai_query_cache.json: %r", prompt)
+        return jsonify({
+            "status": "success",
+            "message": "Query verified and cached to data/ai_query_cache.json!",
+            "entry": entry
+        })
+    else:
+        log.info("[AI Search] User reported negative feedback for prompt %r", prompt)
+        return jsonify({"status": "acknowledged", "message": "Feedback recorded."})
+
+
+@report_bp.route("/api/ai/cached-queries", methods=["GET"])
+def cached_queries_api():
+    """Return list of cached query examples."""
+    from app.services.query_cache import load_query_cache
+    queries = load_query_cache()
+    return jsonify({"queries": queries})
+

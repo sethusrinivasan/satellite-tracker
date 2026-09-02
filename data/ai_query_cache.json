@@ -1,0 +1,68 @@
+{
+  "queries": [
+    {
+      "prompt": "Starlink satellites over United States right now",
+      "sql": "-- Geo-query: propagated positions at current UTC time\nSELECT norad_cat_id FROM satellites WHERE name LIKE '%STARLINK%' BOUNDING BOX lat=[24.39, 49.38] lon=[-125.0, -66.93]",
+      "category": "geo_proximity",
+      "verified": true,
+      "verified_at": "2026-09-02T12:00:00Z",
+      "use_count": 1
+    },
+    {
+      "prompt": "Show me Starlink satellites with inclination greater than 53",
+      "sql": "SELECT s.norad_cat_id FROM satellites s JOIN tle_elements t ON s.id = t.satellite_id WHERE s.name LIKE '%STARLINK%' AND t.inclination_deg > 53 LIMIT 50;",
+      "category": "orbital_inclination",
+      "verified": true,
+      "verified_at": "2026-09-02T12:00:00Z",
+      "use_count": 1
+    },
+    {
+      "prompt": "Satellites with mean motion greater than 15 rev/day",
+      "sql": "SELECT s.norad_cat_id FROM satellites s JOIN tle_elements t ON s.id = t.satellite_id WHERE t.mean_motion_rev_day > 15 LIMIT 50;",
+      "category": "high_speed",
+      "verified": true,
+      "verified_at": "2026-09-02T12:00:00Z",
+      "use_count": 1
+    },
+    {
+      "prompt": "Satellites with inclination greater than 95 degrees",
+      "sql": "SELECT s.norad_cat_id FROM satellites s JOIN tle_elements t ON s.id = t.satellite_id WHERE t.inclination_deg > 95 LIMIT 50;",
+      "category": "polar_inclination",
+      "verified": true,
+      "verified_at": "2026-09-02T12:00:00Z",
+      "use_count": 1
+    },
+    {
+      "prompt": "Satellites in polar orbit with inclination near 90 degrees",
+      "sql": "SELECT s.norad_cat_id FROM satellites s JOIN tle_elements t ON s.id = t.satellite_id WHERE t.inclination_deg BETWEEN 85 AND 95 LIMIT 50;",
+      "category": "polar_orbit",
+      "verified": true,
+      "verified_at": "2026-09-02T12:00:00Z",
+      "use_count": 1
+    },
+    {
+      "prompt": "Satellites with high orbital eccentricity greater than 0.01",
+      "sql": "SELECT s.norad_cat_id FROM satellites s JOIN tle_elements t ON s.id = t.satellite_id WHERE t.eccentricity > 0.01 LIMIT 50;",
+      "category": "eccentricity",
+      "verified": true,
+      "verified_at": "2026-09-02T12:00:00Z",
+      "use_count": 1
+    },
+    {
+      "prompt": "Find ISS or Space Station satellites",
+      "sql": "SELECT s.norad_cat_id FROM satellites s WHERE s.name LIKE '%ISS%' OR s.name LIKE '%ZARYA%' OR s.name LIKE '%STATION%' LIMIT 50;",
+      "category": "space_station",
+      "verified": true,
+      "verified_at": "2026-09-02T12:00:00Z",
+      "use_count": 1
+    },
+    {
+      "prompt": "GPS satellites over the United States",
+      "sql": "-- Geo-query: propagated positions at current UTC time\nSELECT norad_cat_id FROM satellites WHERE (name LIKE '%GPS%' OR name LIKE '%NAVSTAR%') BOUNDING BOX lat=[24.39, 49.38] lon=[-125.0, -66.93]",
+      "category": "geo_gps",
+      "verified": true,
+      "verified_at": "2026-09-02T12:00:00Z",
+      "use_count": 1
+    }
+  ]
+}
