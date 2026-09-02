@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -e
 
+# Ensure common system binary paths are present in PATH
+export PATH="/usr/local/bin:/usr/bin:/bin:$PATH"
+
 # POSIX-compliant script directory resolution
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"
@@ -8,18 +11,28 @@ cd "$SCRIPT_DIR"
 # Check for optional Docker deployment flag
 if [ "$1" = "--docker" ] || [ "$1" = "docker" ]; then
     echo "🐳 Deploying Satellite TLE Tracker in local Docker container..."
-    if ! command -v docker &> /dev/null; then
-        echo "❌ Error: Docker is not installed or not in PATH."
+    
+    # Locate docker executable
+    DOCKER_BIN="$(command -v docker || echo "")"
+    if [ -z "$DOCKER_BIN" ] && [ -x "/usr/local/bin/docker" ]; then
+        DOCKER_BIN="/usr/local/bin/docker"
+    elif [ -z "$DOCKER_BIN" ] && [ -x "/usr/bin/docker" ]; then
+        DOCKER_BIN="/usr/bin/docker"
+    fi
+
+    if [ -z "$DOCKER_BIN" ] || [ ! -x "$DOCKER_BIN" ]; then
+        echo "❌ Error: Docker executable not found in PATH or standard paths (/usr/local/bin/docker, /usr/bin/docker)."
         exit 1
     fi
-    echo "🔨 Building Docker image (satellite-tracker:latest)..."
-    docker build -t satellite-tracker:latest .
+
+    echo "🔨 Building Docker image using $DOCKER_BIN (satellite-tracker:latest)..."
+    "$DOCKER_BIN" build -t satellite-tracker:latest .
     
     echo "🚀 Launching container at http://localhost:5000 ..."
     if [ -f ".env" ]; then
-        exec docker run -it --rm -p 5000:5000 --env-file .env satellite-tracker:latest
+        exec "$DOCKER_BIN" run -it --rm -p 5000:5000 --env-file .env satellite-tracker:latest
     else
-        exec docker run -it --rm -p 5000:5000 satellite-tracker:latest
+        exec "$DOCKER_BIN" run -it --rm -p 5000:5000 satellite-tracker:latest
     fi
 fi
 
