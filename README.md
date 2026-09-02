@@ -278,11 +278,12 @@ Deploy to Render using GitHub repository integration:
 Build and run on any local machine or self-hosted server with zero external dependencies or costs:
 
 ```bash
-# Build Docker image
-docker build -t satellite-tracker .
+# Option A: One-step build and run via helper script
+./run.sh --docker
 
-# Run container locally
-docker run -p 5000:5000 --env-file .env satellite-tracker
+# Option B: Standard Docker CLI commands
+docker build -t satellite-tracker:latest .
+docker run -p 5000:5000 --env-file .env satellite-tracker:latest
 ```
 
 ---

@@ -5,7 +5,26 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"
 
-echo "🛰️ Starting Satellite TLE Tracker..."
+# Check for optional Docker deployment flag
+if [ "$1" = "--docker" ] || [ "$1" = "docker" ]; then
+    echo "🐳 Deploying Satellite TLE Tracker in local Docker container..."
+    if ! command -v docker &> /dev/null; then
+        echo "❌ Error: Docker is not installed or not in PATH."
+        exit 1
+    fi
+    echo "🔨 Building Docker image (satellite-tracker:latest)..."
+    docker build -t satellite-tracker:latest .
+    
+    echo "🚀 Launching container at http://localhost:5000 ..."
+    if [ -f ".env" ]; then
+        exec docker run -it --rm -p 5000:5000 --env-file .env satellite-tracker:latest
+    else
+        exec docker run -it --rm -p 5000:5000 satellite-tracker:latest
+    fi
+fi
+
+echo "🛰️ Starting Satellite TLE Tracker (Local Python Virtualenv)..."
+echo "💡 Hint: Run './run.sh --docker' to deploy in a local Docker container instead."
 
 # Create virtual environment if it doesn't exist
 if [ ! -d "venv" ]; then
