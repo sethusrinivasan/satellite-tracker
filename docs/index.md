@@ -28,13 +28,12 @@ Welcome to the official documentation for **Satellite TLE Tracker & AI Orbital D
 
 ---
 
-## 🚀 One-Click Cloud Deployment Options
+## 🚀 100% Free Cloud Deployment Options (No Credit Card Required)
 
-Deploy a live instance of the platform to free hosting providers:
+Deploy a live instance of the platform to 100% free hosting environments without providing payment details:
 
-- **Deploy to Render**: [![Deploy to Render](https://render.com/images/deploy-to-render.svg)](https://render.com/deploy?repo=https://github.com/sethusrinivasan/satellite-tracker)
-- **Deploy to Railway**: [![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new)
-- **Hugging Face Spaces**: Docker SDK Space (16 GB Free RAM) via [Hugging Face Spaces](https://huggingface.co/new-space)
+- **Hugging Face Spaces (Free 16 GB RAM)**: [![Hugging Face Spaces](https://img.shields.io/badge/🤗%20Hugging%20Face-Spaces_Docker_(100%25_Free)-FFD21E?style=flat-square&logo=huggingface&logoColor=black)](https://huggingface.co/new-space)
+- **PythonAnywhere (Free Flask Host)**: [![PythonAnywhere](https://img.shields.io/badge/PythonAnywhere-100%25_Free_Flask-3572A5?style=flat-square&logo=python&logoColor=white)](https://www.pythonanywhere.com/)
 
 ---
 

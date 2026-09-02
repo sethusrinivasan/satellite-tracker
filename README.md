@@ -4,9 +4,8 @@
 [![Flask](https://img.shields.io/badge/Flask-3.0+-000000?style=flat-square&logo=flask&logoColor=white)](https://flask.palletsprojects.com/)
 [![SQLite](https://img.shields.io/badge/SQLite-SQLAlchemy-003B57?style=flat-square&logo=sqlite&logoColor=white)](https://www.sqlalchemy.org/)
 [![Offline AI](https://img.shields.io/badge/Offline_AI-llama--cpp--python-FF6F00?style=flat-square&logo=huggingface&logoColor=white)](https://github.com/abetlen/llama-cpp-python)
-[![Deploy to Render](https://img.shields.io/badge/Render-Deploy_1--Click-46E3B7?style=flat-square&logo=render&logoColor=white)](https://render.com/deploy?repo=https://github.com/sethusrinivasan/satellite-tracker)
-[![Deploy on Railway](https://img.shields.io/badge/Railway-Deploy_1--Click-0B0D0E?style=flat-square&logo=railway&logoColor=white)](https://railway.app/new)
-[![Hugging Face](https://img.shields.io/badge/Hugging_Face-Spaces_16GB-FFD21E?style=flat-square&logo=huggingface&logoColor=black)](https://huggingface.co/new-space)
+[![Hugging Face Spaces](https://img.shields.io/badge/Hugging_Face-Spaces_Free_16GB-FFD21E?style=flat-square&logo=huggingface&logoColor=black)](https://huggingface.co/new-space)
+[![PythonAnywhere](https://img.shields.io/badge/PythonAnywhere-100%25_Free_Host-3572A5?style=flat-square&logo=python&logoColor=white)](https://www.pythonanywhere.com/)
 [![SBOM](https://img.shields.io/badge/SBOM-CycloneDX_v1.5-blue?style=flat-square&logo=json)](sbom.json)
 [![GitHub Pages](https://img.shields.io/badge/Docs-GitHub_Pages-22C55E?style=flat-square&logo=github&logoColor=white)](https://sethusrinivasan.github.io/satellite-tracker/)
 
@@ -217,37 +216,30 @@ Open your browser and navigate to **[http://localhost:5000](http://localhost:500
 
 ---
 
-## 🚀 1-Click Free Cloud Deployment Options
+## 🚀 100% Free Cloud Deployment Options (No Credit Card Required)
 
-Deploy your own instance of the Satellite Tracker & AI Discovery platform to free cloud hosting providers with a single click:
+Deploy your own instance of the Satellite Tracker & AI Discovery platform to 100% free hosting environments without providing payment details:
 
-### Option A: Deploy to Render (Recommended)
-Render offers a free Web Service tier with automatic SSL certificates and GitHub continuous deployment.
+### Option A: Hugging Face Spaces (Recommended for AI Models — 100% Free)
+Hugging Face Spaces offers a **100% free 16 GB RAM CPU tier** with zero credit card requirements, making it ideal for hosting GGUF local model inference:
 
-[![Deploy to Render](https://render.com/images/deploy-to-render.svg)](https://render.com/deploy?repo=https://github.com/sethusrinivasan/satellite-tracker)
-[![Render Status](https://img.shields.io/badge/Render-Free_Tier_Ready-46E3B7?style=for-the-badge&logo=render&logoColor=white)](https://render.com/deploy?repo=https://github.com/sethusrinivasan/satellite-tracker)
+[![Deploy to Hugging Face Spaces](https://img.shields.io/badge/🤗%20Hugging%20Face-Spaces_Docker_(100%25_Free_--_No_CC_Required)-FFD21E?style=for-the-badge&logo=huggingface&logoColor=black)](https://huggingface.co/new-space)
 
-1. Click the **Deploy to Render** button above.
-2. Render will automatically detect the [`render.yaml`](render.yaml) configuration file.
-3. Click **Create Web Service** to start automatic build and deployment.
-
-### Option B: Deploy to Railway
-Railway provides instant container deployments directly from GitHub using the included `Dockerfile`.
-
-[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new)
-[![Railway Status](https://img.shields.io/badge/Railway-Container_Ready-0B0D0E?style=for-the-badge&logo=railway&logoColor=white)](https://railway.app/new)
-
-### Option C: Deploy to Hugging Face Spaces (Recommended for AI Models)
-Hugging Face Spaces offers a **free 16 GB RAM CPU tier**, making it ideal for hosting GGUF local model inference:
-
-[![Deploy to Hugging Face Spaces](https://img.shields.io/badge/🤗%20Hugging%20Face-Spaces_Docker_(Free_16GB)-FFD21E?style=for-the-badge&logo=huggingface&logoColor=black)](https://huggingface.co/new-space)
-
-1. Click the **Deploy to Hugging Face** button above to create a new Space.
-2. Select **Docker** as the Space SDK.
+1. Click **Deploy to Hugging Face** above to create a free Space.
+2. Select **Docker** as the Space SDK (Blank).
 3. Connect your GitHub repository `sethusrinivasan/satellite-tracker`.
 
-### Option D: Container Deployment (Docker / Fly.io / AWS)
-Build and run on any container infrastructure:
+### Option B: PythonAnywhere (100% Free Web Host — No Credit Card Required)
+PythonAnywhere offers a **100% free beginner tier** for Python/Flask web applications:
+
+[![PythonAnywhere](https://img.shields.io/badge/PythonAnywhere-100%25_Free_Flask_Hosting-3572A5?style=for-the-badge&logo=python&logoColor=white)](https://www.pythonanywhere.com/)
+
+1. Sign up for a free beginner account at [PythonAnywhere](https://www.pythonanywhere.com/).
+2. Open a Bash console and clone the repo: `git clone https://github.com/sethusrinivasan/satellite-tracker.git`.
+3. Configure the Web tab to point to `run.py`.
+
+### Option C: Container Deployment (Docker / Self-Hosted — 100% Free)
+Build and run on any local machine or self-hosted server with zero external dependencies or costs:
 
 ```bash
 # Build Docker image
