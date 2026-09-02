@@ -216,12 +216,14 @@ Open your browser and navigate to **[http://localhost:5000](http://localhost:500
 
 ---
 
-## 🚀 100% Free Cloud Deployment Options (No Credit Card Required)
+## 🚀 Cloud & 1-Click Deployment Options
 
-Deploy your own instance of the Satellite Tracker & AI Discovery platform to 100% free hosting environments without providing payment details:
+> ⚠️ **Important Billing & Cost Disclaimer**: Prior to deploying to commercial cloud providers (AWS, GCP, Azure, DigitalOcean, Render), please carefully review the respective provider's pricing structures, billing policies, and free tier quotas. Running continuous container instances or GGUF AI model workloads may incur cloud compute costs depending on instance sizing and runtime duration.
 
-### Option A: Hugging Face Spaces (Recommended for AI Models — 100% Free)
-Hugging Face Spaces offers a **100% free 16 GB RAM CPU tier** with zero credit card requirements, making it ideal for hosting GGUF local model inference:
+### 🆓 100% Free Hosting Options (No Credit Card Required)
+
+#### 1. Hugging Face Spaces (Recommended for AI Models — 100% Free)
+Hugging Face Spaces offers a **100% free 16 GB RAM CPU tier** with zero credit card requirements, ideal for hosting GGUF local model inference:
 
 [![Deploy to Hugging Face Spaces](https://img.shields.io/badge/🤗%20Hugging%20Face-Spaces_Docker_(100%25_Free_--_No_CC_Required)-FFD21E?style=for-the-badge&logo=huggingface&logoColor=black)](https://huggingface.co/new-space)
 
@@ -229,16 +231,43 @@ Hugging Face Spaces offers a **100% free 16 GB RAM CPU tier** with zero credit c
 2. Select **Docker** as the Space SDK (Blank).
 3. Connect your GitHub repository `sethusrinivasan/satellite-tracker`.
 
-### Option B: PythonAnywhere (100% Free Web Host — No Credit Card Required)
+#### 2. PythonAnywhere (100% Free Web Host — No Credit Card Required)
 PythonAnywhere offers a **100% free beginner tier** for Python/Flask web applications:
 
 [![PythonAnywhere](https://img.shields.io/badge/PythonAnywhere-100%25_Free_Flask_Hosting-3572A5?style=for-the-badge&logo=python&logoColor=white)](https://www.pythonanywhere.com/)
 
-1. Sign up for a free beginner account at [PythonAnywhere](https://www.pythonanywhere.com/).
-2. Open a Bash console and clone the repo: `git clone https://github.com/sethusrinivasan/satellite-tracker.git`.
-3. Configure the Web tab to point to `run.py`.
+---
 
-### Option C: Container Deployment (Docker / Self-Hosted — 100% Free)
+### ☁️ Major Commercial Cloud Providers (1-Click Deployments)
+
+#### 1. Google Cloud Platform (GCP Cloud Run)
+Deploy directly to serverless Google Cloud Run using the container [`Dockerfile`](Dockerfile):
+
+[![Deploy to Cloud Run](https://deploy.cloud.run/button.svg)](https://deploy.cloud.run/?git_repo=https://github.com/sethusrinivasan/satellite-tracker.git)
+
+#### 2. DigitalOcean App Platform
+Launch a managed app container on DigitalOcean App Platform:
+
+[![Deploy to DigitalOcean](https://www.deploytodo.com/do-btn-blue.svg)](https://cloud.digitalocean.com/apps/new?repo=https://github.com/sethusrinivasan/satellite-tracker/tree/main)
+
+#### 3. Amazon Web Services (AWS App Runner / ECS)
+Deploy containerized workloads to AWS App Runner or Amazon ECS:
+
+[![Deploy to AWS](https://img.shields.io/badge/AWS-App_Runner_/_ECS-FF9900?style=for-the-badge&logo=amazon-aws&logoColor=white)](https://console.aws.amazon.com/apprunner)
+
+#### 4. Microsoft Azure App Service
+Deploy Linux web app containers to Azure App Service:
+
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template)
+
+#### 5. Render Web Services
+Deploy to Render using GitHub repository integration:
+
+[![Deploy to Render](https://render.com/images/deploy-to-render.svg)](https://render.com/deploy?repo=https://github.com/sethusrinivasan/satellite-tracker)
+
+---
+
+### 🐳 Self-Hosted Container Deployment (Docker — 100% Free)
 Build and run on any local machine or self-hosted server with zero external dependencies or costs:
 
 ```bash

@@ -28,12 +28,19 @@ Welcome to the official documentation for **Satellite TLE Tracker & AI Orbital D
 
 ---
 
-## 🚀 100% Free Cloud Deployment Options (No Credit Card Required)
+## 🚀 Cloud & 1-Click Deployment Options
 
-Deploy a live instance of the platform to 100% free hosting environments without providing payment details:
+> ⚠️ **Cost & Billing Notice**: Please review the respective cloud provider's pricing schedule and free tier terms before deploying to commercial platforms (GCP, AWS, Azure, DigitalOcean, Render).
 
+### 🆓 100% Free Hosting (No Credit Card Required)
 - **Hugging Face Spaces (Free 16 GB RAM)**: [![Hugging Face Spaces](https://img.shields.io/badge/🤗%20Hugging%20Face-Spaces_Docker_(100%25_Free)-FFD21E?style=flat-square&logo=huggingface&logoColor=black)](https://huggingface.co/new-space)
 - **PythonAnywhere (Free Flask Host)**: [![PythonAnywhere](https://img.shields.io/badge/PythonAnywhere-100%25_Free_Flask-3572A5?style=flat-square&logo=python&logoColor=white)](https://www.pythonanywhere.com/)
+
+### ☁️ Major Cloud Providers (1-Click Deployments)
+- **Google Cloud Platform (GCP Cloud Run)**: [![Deploy to Cloud Run](https://deploy.cloud.run/button.svg)](https://deploy.cloud.run/?git_repo=https://github.com/sethusrinivasan/satellite-tracker.git)
+- **DigitalOcean App Platform**: [![Deploy to DO](https://www.deploytodo.com/do-btn-blue.svg)](https://cloud.digitalocean.com/apps/new?repo=https://github.com/sethusrinivasan/satellite-tracker/tree/main)
+- **AWS App Runner / ECS**: [![Deploy to AWS](https://img.shields.io/badge/AWS-App_Runner_/_ECS-FF9900?style=flat-square&logo=amazon-aws&logoColor=white)](https://console.aws.amazon.com/apprunner)
+- **Azure App Service**: [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template)
 
 ---
 
