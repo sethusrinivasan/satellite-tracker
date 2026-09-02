@@ -28,7 +28,7 @@ def _parse_decimal_packed(s: str) -> float:
             s = s[1:]
 
     # The exponent sign and value are at the end; split on + or -
-    match = re.match(r"([\d]+)([+-]\d+)$", s)
+    match = re.fullmatch(r"(\d+)([+-]\d+)", s)
     if not match:
         return 0.0
 

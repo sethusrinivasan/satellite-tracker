@@ -1,4 +1,5 @@
 import os
+import re
 import json
 import logging
 from datetime import datetime, timezone
@@ -11,10 +12,38 @@ CACHE_FILE_PATH = os.path.join(
     "ai_query_cache.json"
 )
 
+SQL_MUTATION_KEYWORDS = [
+    "DROP", "DELETE", "UPDATE", "INSERT", "ALTER", "CREATE", "REPLACE",
+    "PRAGMA", "GRANT", "SHUTDOWN", "ATTACH", "DETACH", "MERGE"
+]
+
 
 def _normalize_prompt(prompt: str) -> str:
     """Normalize prompt string for fuzzy matching (lowercase, stripped, single-spaced)."""
     return " ".join(prompt.strip().lower().split())
+
+
+def validate_sql_for_cache(sql: str) -> bool:
+    """Accept only read-only SELECT statements for cached AI SQL."""
+    if not isinstance(sql, str):
+        return False
+
+    normalized = sql.strip()
+    if not normalized:
+        return False
+
+    sql_upper = normalized.upper()
+    if not sql_upper.startswith("SELECT"):
+        return False
+
+    if ";" in sql_upper:
+        return False
+
+    for keyword in SQL_MUTATION_KEYWORDS:
+        if re.search(rf"\b{re.escape(keyword)}\b", sql_upper):
+            return False
+
+    return True
 
 
 def load_query_cache() -> list:
@@ -54,9 +83,12 @@ def get_cached_query(user_prompt: str) -> dict | None:
     for item in queries:
         if not item.get("verified", False):
             continue
+        sql = item.get("sql", "")
+        if not validate_sql_for_cache(sql):
+            log.warning("[Query Cache] Ignoring invalid cached SQL for prompt %r", item.get("prompt"))
+            continue
         norm_cached = _normalize_prompt(item.get("prompt", ""))
         if norm_user == norm_cached:
-            # Increment usage count and update timestamp
             item["use_count"] = item.get("use_count", 0) + 1
             save_query_cache(queries)
             return item
@@ -68,27 +100,30 @@ def cache_user_verified_query(prompt: str, sql: str, category: str = "verified_u
     """
     Cache a user-verified prompt -> SQL mapping into data/ai_query_cache.json.
     """
+    if not isinstance(prompt, str) or not prompt.strip():
+        raise ValueError("Prompt cannot be empty")
+    if not validate_sql_for_cache(sql):
+        raise ValueError("Only read-only SELECT SQL may be cached")
+
     norm_new = _normalize_prompt(prompt)
     queries = load_query_cache()
 
-    # Check if entry already exists
     for item in queries:
         if _normalize_prompt(item.get("prompt", "")) == norm_new:
-            item["sql"] = sql
+            item["sql"] = sql.strip()
             item["verified"] = True
             item["verified_at"] = datetime.now(timezone.utc).isoformat()
             item["use_count"] = item.get("use_count", 0) + 1
             save_query_cache(queries)
             return item
 
-    # Add new entry
     new_entry = {
         "prompt": prompt.strip(),
         "sql": sql.strip(),
         "category": category,
         "verified": True,
         "verified_at": datetime.now(timezone.utc).isoformat(),
-        "use_count": 1
+        "use_count": 1,
     }
     queries.append(new_entry)
     save_query_cache(queries)

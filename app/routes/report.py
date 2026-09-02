@@ -2,6 +2,7 @@ from flask import Blueprint, request, render_template, jsonify
 from sqlalchemy import or_, func
 from app.models import Satellite, TLEElement, Upload
 from app import db
+from app.routes.auth import admin_required
 
 report_bp = Blueprint("report", __name__)
 
@@ -329,25 +330,65 @@ def natural_query():
     cached_entry = get_cached_query(user_prompt)
     if cached_entry and not ("-- Geo-query" in cached_entry.get("sql", "")):
         cached_sql = cached_entry["sql"]
-        log.info("[AI Search] Cache HIT for prompt %r. Executing cached SQL: %s", user_prompt, cached_sql)
-        t_sql_start = time.perf_counter()
-        try:
-            raw_results = db.session.execute(db.text(cached_sql)).fetchall()
-            norad_ids = []
-            for row in raw_results:
-                if hasattr(row, 'norad_cat_id'):
-                    norad_ids.append(row.norad_cat_id)
-                elif len(row) > 0:
-                    norad_ids.append(row[0])
+        if not validate_sql_safety(cached_sql):
+            log.warning("[AI Search] Cached SQL rejected by safety filter for prompt %r.", user_prompt)
+            cached_entry = None
+        else:
+            log.info("[AI Search] Cache HIT for prompt %r. Executing cached SQL: %s", user_prompt, cached_sql)
+            t_sql_start = time.perf_counter()
+            try:
+                raw_results = db.session.execute(db.text(cached_sql)).fetchall()
+                norad_ids = []
+                for row in raw_results:
+                    if hasattr(row, 'norad_cat_id'):
+                        norad_ids.append(row.norad_cat_id)
+                    elif len(row) > 0:
+                        norad_ids.append(row[0])
 
-            norad_ids = [n for n in norad_ids if n is not None]
+                norad_ids = [n for n in norad_ids if n is not None]
 
-            if not norad_ids:
+                if not norad_ids:
+                    t_total = time.perf_counter() - t_start
+                    return jsonify({
+                        "satellites": [],
+                        "sql": cached_sql,
+                        "cached": True,
+                        "perf": {
+                            "llm_inference_sec": 0.0,
+                            "db_query_sec": round(time.perf_counter() - t_sql_start, 3),
+                            "total_time_sec": round(t_total, 3),
+                            "mode": "query_cache"
+                        }
+                    })
+
+                subquery = (
+                    db.session.query(TLEElement.satellite_id, func.max(TLEElement.id).label("max_id"))
+                    .group_by(TLEElement.satellite_id)
+                    .subquery()
+                )
+                query = (
+                    db.session.query(
+                        Satellite.norad_cat_id, Satellite.name, Satellite.classification,
+                        Satellite.int_designator, TLEElement.raw_line1, TLEElement.raw_line2,
+                        TLEElement.mean_motion_rev_day
+                    )
+                    .join(TLEElement, Satellite.id == TLEElement.satellite_id)
+                    .join(subquery, TLEElement.id == subquery.c.max_id)
+                    .filter(Satellite.norad_cat_id.in_(norad_ids))
+                )
+                final_results = query.all()
                 t_total = time.perf_counter() - t_start
+                data = [{
+                    "id": r.norad_cat_id, "name": r.name, "class": r.classification,
+                    "designator": r.int_designator or "—", "l1": r.raw_line1, "l2": r.raw_line2,
+                    "mm": r.mean_motion_rev_day
+                } for r in final_results]
+
                 return jsonify({
-                    "satellites": [],
+                    "satellites": data,
                     "sql": cached_sql,
                     "cached": True,
+                    "category": cached_entry.get("category", "cached"),
                     "perf": {
                         "llm_inference_sec": 0.0,
                         "db_query_sec": round(time.perf_counter() - t_sql_start, 3),
@@ -355,44 +396,8 @@ def natural_query():
                         "mode": "query_cache"
                     }
                 })
-
-            subquery = (
-                db.session.query(TLEElement.satellite_id, func.max(TLEElement.id).label("max_id"))
-                .group_by(TLEElement.satellite_id)
-                .subquery()
-            )
-            query = (
-                db.session.query(
-                    Satellite.norad_cat_id, Satellite.name, Satellite.classification,
-                    Satellite.int_designator, TLEElement.raw_line1, TLEElement.raw_line2,
-                    TLEElement.mean_motion_rev_day
-                )
-                .join(TLEElement, Satellite.id == TLEElement.satellite_id)
-                .join(subquery, TLEElement.id == subquery.c.max_id)
-                .filter(Satellite.norad_cat_id.in_(norad_ids))
-            )
-            final_results = query.all()
-            t_total = time.perf_counter() - t_start
-            data = [{
-                "id": r.norad_cat_id, "name": r.name, "class": r.classification,
-                "designator": r.int_designator or "—", "l1": r.raw_line1, "l2": r.raw_line2,
-                "mm": r.mean_motion_rev_day
-            } for r in final_results]
-
-            return jsonify({
-                "satellites": data,
-                "sql": cached_sql,
-                "cached": True,
-                "category": cached_entry.get("category", "cached"),
-                "perf": {
-                    "llm_inference_sec": 0.0,
-                    "db_query_sec": round(time.perf_counter() - t_sql_start, 3),
-                    "total_time_sec": round(t_total, 3),
-                    "mode": "query_cache"
-                }
-            })
-        except Exception as ex:
-            log.warning("[AI Search] Cached SQL execution failed for %r: %s. Falling back to LLM.", user_prompt, ex)
+            except Exception as ex:
+                log.warning("[AI Search] Cached SQL execution failed for %r: %s. Falling back to LLM.", user_prompt, ex)
 
     # 0b. Try geo-intent (e.g. "Starlink satellites over United States")
     from app.services.geo_query_service import resolve_country, extract_name_filter, satellites_over_region, filter_anomalous_altitudes
@@ -497,10 +502,10 @@ def natural_query():
         log.debug("[AI Search] Model handle ready in %.4fs", t_model_dur)
     except FileNotFoundError as e:
         log.warning("[AI Search] AI model file missing: %s", e)
-        return jsonify({"error": str(e)}), 404
+        return jsonify({"error": "AI model not available. Please download it from the Admin panel."}), 404
     except Exception as e:
-        log.exception("[AI Search] Error initializing AI model: %s", e)
-        return jsonify({"error": f"Failed to load AI model: {str(e)}"}), 500
+        log.exception("[AI Search] Error initializing AI model")
+        return jsonify({"error": "Failed to load the AI model."}), 500
 
     # 2. Formulate system prompt for Qwen2.5-Coder
     system_prompt = (
@@ -662,11 +667,12 @@ def natural_query():
         })
 
     except Exception as e:
-        log.exception("[AI Search] Internal execution error processing prompt %r: %s", user_prompt, e)
-        return jsonify({"error": f"Execution error: {str(e)}"}), 500
+        log.exception("[AI Search] Internal execution error processing prompt %r", user_prompt)
+        return jsonify({"error": "Execution error while processing your request."}), 500
 
 
 @report_bp.route("/api/ai/cache-feedback", methods=["POST"])
+@admin_required
 def cache_feedback():
     """Receive user feedback on an AI query and cache verified SQL to data/ai_query_cache.json."""
     data = request.json or {}
@@ -679,7 +685,10 @@ def cache_feedback():
 
     if feedback in ("positive", "verify", "cache"):
         from app.services.query_cache import cache_user_verified_query
-        entry = cache_user_verified_query(prompt, sql, category="user_verified")
+        try:
+            entry = cache_user_verified_query(prompt, sql, category="user_verified")
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 400
         log.info("[AI Search] User verified query saved to data/ai_query_cache.json: %r", prompt)
         return jsonify({
             "status": "success",
@@ -692,6 +701,7 @@ def cache_feedback():
 
 
 @report_bp.route("/api/ai/cached-queries", methods=["GET"])
+@admin_required
 def cached_queries_api():
     """Return list of cached query examples."""
     from app.services.query_cache import load_query_cache
