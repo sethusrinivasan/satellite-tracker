@@ -610,8 +610,8 @@ async function runAiSearch() {
     }
 
     if (data.sql) {
-      const escapedPrompt = prompt.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-      const escapedSql = data.sql.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+      const escapedPrompt = prompt.replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/"/g, '&quot;');
+      const escapedSql = data.sql.replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/"/g, '&quot;');
       summaryHtml += `
         <div class="generated-sql-box" style="position:relative;">
           <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:4px; font-weight:600; display:flex; justify-content:space-between; align-items:center;">
