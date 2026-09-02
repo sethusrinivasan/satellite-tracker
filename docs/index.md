@@ -32,9 +32,9 @@ Welcome to the official documentation for **Satellite TLE Tracker & AI Orbital D
 
 > ⚠️ **Cost & Billing Notice**: Please review the respective cloud provider's pricing schedule and free tier terms before deploying to commercial platforms (GCP, AWS, Azure, DigitalOcean, Render).
 
-### 🆓 100% Free Hosting (No Credit Card Required)
-- **Hugging Face Spaces (Free 16 GB RAM)**: [![Hugging Face Spaces](https://img.shields.io/badge/🤗%20Hugging%20Face-Spaces_Docker_(100%25_Free)-FFD21E?style=flat-square&logo=huggingface&logoColor=black)](https://huggingface.co/new-space)
-- **PythonAnywhere (Free Flask Host)**: [![PythonAnywhere](https://img.shields.io/badge/PythonAnywhere-100%25_Free_Flask-3572A5?style=flat-square&logo=python&logoColor=white)](https://www.pythonanywhere.com/)
+### 🆓 Free-Tier Hosting (No Credit Card Required)
+- **Hugging Face Spaces (Free 16 GB RAM)**: [![Hugging Face Spaces](https://img.shields.io/badge/🤗%20Hugging%20Face-Spaces_Docker_(Free_Tier)-FFD21E?style=flat-square&logo=huggingface&logoColor=black)](https://huggingface.co/new-space)
+- **PythonAnywhere (Free Flask Host)**: [![PythonAnywhere](https://img.shields.io/badge/PythonAnywhere-Free_Tier_Flask-3572A5?style=flat-square&logo=python&logoColor=white)](https://www.pythonanywhere.com/)
 
 ### ☁️ Major Cloud Providers (1-Click Deployments)
 - **Google Cloud Platform (GCP Cloud Run)**: [![Deploy to Cloud Run](https://deploy.cloud.run/button.svg)](https://deploy.cloud.run/?git_repo=https://github.com/sethusrinivasan/satellite-tracker.git)

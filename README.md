@@ -5,7 +5,7 @@
 [![SQLite](https://img.shields.io/badge/SQLite-SQLAlchemy-003B57?style=flat-square&logo=sqlite&logoColor=white)](https://www.sqlalchemy.org/)
 [![Offline AI](https://img.shields.io/badge/Offline_AI-llama--cpp--python-FF6F00?style=flat-square&logo=huggingface&logoColor=white)](https://github.com/abetlen/llama-cpp-python)
 [![Hugging Face Spaces](https://img.shields.io/badge/Hugging_Face-Spaces_Free_16GB-FFD21E?style=flat-square&logo=huggingface&logoColor=black)](https://huggingface.co/new-space)
-[![PythonAnywhere](https://img.shields.io/badge/PythonAnywhere-100%25_Free_Host-3572A5?style=flat-square&logo=python&logoColor=white)](https://www.pythonanywhere.com/)
+[![PythonAnywhere](https://img.shields.io/badge/PythonAnywhere-Free_Tier_Host-3572A5?style=flat-square&logo=python&logoColor=white)](https://www.pythonanywhere.com/)
 [![SBOM](https://img.shields.io/badge/SBOM-CycloneDX_v1.5-blue?style=flat-square&logo=json)](sbom.json)
 [![GitHub Pages](https://img.shields.io/badge/Docs-GitHub_Pages-22C55E?style=flat-square&logo=github&logoColor=white)](https://sethusrinivasan.github.io/satellite-tracker/)
 
@@ -20,7 +20,7 @@ A demonstration and experimental Flask web application for uploading, parsing, e
 - 🛰️ **3-Line TLE Ingestion & Parsing**: Parses standard [TLE format](https://celestrak.org/columns/v04n03/) records, extracts key [Keplerian orbital elements](https://en.wikipedia.org/wiki/Orbital_elements) ([Inclination](https://en.wikipedia.org/wiki/Orbital_inclination), [Eccentricity](https://en.wikipedia.org/wiki/Orbital_eccentricity), [RAAN](https://en.wikipedia.org/wiki/Right_ascension_of_the_ascending_node), [Argument of Perigee](https://en.wikipedia.org/wiki/Argument_of_periapsis), [Mean Motion](https://en.wikipedia.org/wiki/Mean_motion), [BSTAR Drag Term](https://en.wikipedia.org/wiki/BSTAR)), and calculates UTC [Epoch](https://en.wikipedia.org/wiki/Epoch_(astronomy)) timestamps.
 - 🔄 **Deduplication Engine**: Database indexing by [NORAD Catalog Number](https://en.wikipedia.org/wiki/Satellite_Catalog_Number) (`norad_cat_id`) and unique `(satellite_id, epoch_datetime)` constraints avoids duplicate record ingestion upon re-uploading.
 - 💬 **Offline AI Natural Language Search ([Text-to-SQL](https://en.wikipedia.org/wiki/Text-to-SQL))**:
-  - Runs 100% offline using [`llama-cpp-python`](https://github.com/abetlen/llama-cpp-python) and the quantized [`GGUF`](https://github.com/ggerganov/ggml/blob/master/docs/gguf.md) model `Qwen2.5-Coder-1.5B-Instruct-Q4_K_M.gguf`.
+  - Runs fully offline using [`llama-cpp-python`](https://github.com/abetlen/llama-cpp-python) and the quantized [`GGUF`](https://github.com/ggerganov/ggml/blob/master/docs/gguf.md) model `Qwen2.5-Coder-1.5B-Instruct-Q4_K_M.gguf`.
   - Translates plain English prompts (e.g., *"Find satellites with inclination > 50 degrees"*) into SQL queries.
   - Built-in SQL safety validation filter blocks non-`SELECT` statements (`DROP`, `DELETE`, `UPDATE`, `INSERT`, `ALTER`, etc.).
 - 🌍 **Geo-Spatial & Country Proximity Search**: Computes real-time satellite orbital positions using [SGP4 orbital propagation](https://en.wikipedia.org/wiki/Simplified_General_Perturbations_models) to discover satellites currently passing over specific countries or geographical bounding boxes.
@@ -219,21 +219,21 @@ Open your browser and navigate to **[http://localhost:5000](http://localhost:500
 
 > ⚠️ **Important Billing & Cost Disclaimer**: Prior to deploying to commercial cloud providers (AWS, GCP, Azure, DigitalOcean, Render), please carefully review the respective provider's pricing structures, billing policies, and free tier quotas. Running continuous container instances or GGUF AI model workloads may incur cloud compute costs depending on instance sizing and runtime duration.
 
-### 🆓 100% Free Hosting Options (No Credit Card Required)
+### 🆓 Free-Tier Hosting Options (No Credit Card Required)
 
-#### 1. Hugging Face Spaces (Recommended for AI Models — 100% Free)
-Hugging Face Spaces offers a **100% free 16 GB RAM CPU tier** with zero credit card requirements, ideal for hosting GGUF local model inference:
+#### 1. Hugging Face Spaces (Recommended for AI Models — Free CPU Tier)
+Hugging Face Spaces offers a **free 16 GB RAM CPU tier** with zero credit card requirements, ideal for hosting GGUF local model inference:
 
-[![Deploy to Hugging Face Spaces](https://img.shields.io/badge/🤗%20Hugging%20Face-Spaces_Docker_(100%25_Free_--_No_CC_Required)-FFD21E?style=for-the-badge&logo=huggingface&logoColor=black)](https://huggingface.co/new-space)
+[![Deploy to Hugging Face Spaces](https://img.shields.io/badge/🤗%20Hugging%20Face-Spaces_Docker_(Free_Tier_--_No_CC_Required)-FFD21E?style=for-the-badge&logo=huggingface&logoColor=black)](https://huggingface.co/new-space)
 
 1. Click **Deploy to Hugging Face** above to create a free Space.
 2. Select **Docker** as the Space SDK (Blank).
 3. Connect your GitHub repository `sethusrinivasan/satellite-tracker`.
 
-#### 2. PythonAnywhere (100% Free Web Host — No Credit Card Required)
-PythonAnywhere offers a **100% free beginner tier** for Python/Flask web applications:
+#### 2. PythonAnywhere (Free Tier Web Host — No Credit Card Required)
+PythonAnywhere offers a **free beginner tier** for Python/Flask web applications:
 
-[![PythonAnywhere](https://img.shields.io/badge/PythonAnywhere-100%25_Free_Flask_Hosting-3572A5?style=for-the-badge&logo=python&logoColor=white)](https://www.pythonanywhere.com/)
+[![PythonAnywhere](https://img.shields.io/badge/PythonAnywhere-Free_Tier_Flask_Hosting-3572A5?style=for-the-badge&logo=python&logoColor=white)](https://www.pythonanywhere.com/)
 
 ---
 
@@ -266,7 +266,7 @@ Deploy to Render using GitHub repository integration:
 
 ---
 
-### 🐳 Self-Hosted Container Deployment (Docker — 100% Free)
+### 🐳 Self-Hosted Container Deployment (Docker — Free / Open Source)
 Build and run on any local machine or self-hosted server with zero external dependencies or costs:
 
 ```bash
