@@ -2,6 +2,7 @@
 
 [![GitHub Pages Website](https://img.shields.io/badge/Website-GitHub_Pages-22C55E?style=flat-square&logo=github&logoColor=white)](https://sethusrinivasan.github.io/satellite-tracker/)
 [![GitHub Repository](https://img.shields.io/badge/GitHub-sethusrinivasan%2Fsatellite--tracker-181717?style=flat-square&logo=github&logoColor=white)](https://github.com/sethusrinivasan/satellite-tracker)
+[![One-Shot Prompt](https://img.shields.io/badge/AI_Prompt-One--Shot_Spec-7C3AED?style=flat-square&logo=openai&logoColor=white)](PROMPT.md)
 [![Python](https://img.shields.io/badge/Python-3.9+-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
 [![Flask](https://img.shields.io/badge/Flask-3.0+-000000?style=flat-square&logo=flask&logoColor=white)](https://flask.palletsprojects.com/)
 [![SQLite](https://img.shields.io/badge/SQLite-SQLAlchemy-003B57?style=flat-square&logo=sqlite&logoColor=white)](https://www.sqlalchemy.org/)
@@ -11,11 +12,14 @@
 [![SBOM](https://img.shields.io/badge/SBOM-CycloneDX_v1.5-blue?style=flat-square&logo=json)](sbom.json)
 
 🌐 **Official Site & Docs**: [https://sethusrinivasan.github.io/satellite-tracker/](https://sethusrinivasan.github.io/satellite-tracker/)  
-📁 **GitHub Repository**: [https://github.com/sethusrinivasan/satellite-tracker](https://github.com/sethusrinivasan/satellite-tracker)
+📁 **GitHub Repository**: [https://github.com/sethusrinivasan/satellite-tracker](https://github.com/sethusrinivasan/satellite-tracker)  
+🤖 **One-Shot Project Spec**: [`PROMPT.md`](PROMPT.md)
 
 A demonstration and experimental Flask web application for uploading, parsing, exploring, and tracking satellite [Two-Line Element (TLE)](https://en.wikipedia.org/wiki/Two-line_element_set) data. Features real-time [SGP4 (Simplified General Perturbations 4)](https://en.wikipedia.org/wiki/Simplified_General_Perturbations_models) orbit propagation, country proximity filtering, interactive 2D/3D map tracking, and an **in-process offline Text-to-SQL AI natural language search** powered by [Qwen2.5-Coder](https://huggingface.co/Qwen/Qwen2.5-Coder-1.5B-Instruct).
 
 > ℹ️ **Project Status & Disclaimer**: This is an open demonstration and proof-of-concept project intended for educational, research, and experimental exploration. No production-grade assurances or SLAs are guaranteed. Please feel free to review, copy, fork, adapt, and enhance the code for your own projects!
+
+> 🤖 **One-Shot Generation Prompt**: You can recreate or generate this complete application using our self-contained prompt document [`PROMPT.md`](PROMPT.md).
 
 ---
 
