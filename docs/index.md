@@ -33,7 +33,8 @@ Welcome to the official documentation for **Satellite TLE Tracker & AI Orbital D
 Deploy a live instance of the platform to free hosting providers:
 
 - **Deploy to Render**: [![Deploy to Render](https://render.com/images/deploy-to-render.svg)](https://render.com/deploy?repo=https://github.com/sethusrinivasan/satellite-tracker)
-- **Deploy to Koyeb**: [![Deploy to Koyeb](https://www.koyeb.com/static/images/deploy/deploy-png.png)](https://app.koyeb.com/deploy?type=git&repository=github.com/sethusrinivasan/satellite-tracker&branch=main&builder=buildpack)
+- **Deploy to Railway**: [![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new)
+- **Hugging Face Spaces**: Docker SDK Space (16 GB Free RAM) via [Hugging Face Spaces](https://huggingface.co/new-space)
 
 ---
 

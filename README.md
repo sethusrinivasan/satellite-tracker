@@ -227,19 +227,26 @@ Render offers a free Web Service tier with automatic SSL certificates and GitHub
 2. Render will automatically detect the [`render.yaml`](render.yaml) configuration file.
 3. Click **Create Web Service** to start automatic build and deployment.
 
-### Option B: Deploy to Koyeb
-Koyeb provides free micro-instance containers for Python/Docker applications.
+### Option B: Deploy to Railway
+Railway provides instant container deployments directly from GitHub using the included `Dockerfile`.
 
-[![Deploy to Koyeb](https://www.koyeb.com/static/images/deploy/deploy-png.png)](https://app.koyeb.com/deploy?type=git&repository=github.com/sethusrinivasan/satellite-tracker&branch=main&builder=buildpack)
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new)
 
-### Option C: Container Deployment (Docker)
-Build and run locally or on any container platform (Hugging Face Spaces, AWS ECS, Fly.io, Railway):
+### Option C: Deploy to Hugging Face Spaces (Recommended for AI Models)
+Hugging Face Spaces offers a **free 16 GB RAM CPU tier**, making it ideal for hosting GGUF local model inference:
+
+1. Create a new Space on [Hugging Face Spaces](https://huggingface.co/new-space).
+2. Select **Docker** as the Space SDK.
+3. Connect your GitHub repository `sethusrinivasan/satellite-tracker`.
+
+### Option D: Container Deployment (Docker / Fly.io / AWS)
+Build and run on any container infrastructure:
 
 ```bash
 # Build Docker image
 docker build -t satellite-tracker .
 
-# Run container
+# Run container locally
 docker run -p 5000:5000 --env-file .env satellite-tracker
 ```
 
