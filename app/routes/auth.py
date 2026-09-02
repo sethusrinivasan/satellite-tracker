@@ -10,6 +10,7 @@ Flow:
 Protected pages use the @admin_required decorator defined here.
 """
 
+import os
 from functools import wraps
 from flask import (
     Blueprint, current_app, redirect, request,
@@ -65,10 +66,25 @@ def is_valid_google_client_id(client_id):
 
 
 def _allowed_emails(app=None):
-    """Return a set of lowercase allowed emails, or empty set (= allow all)."""
+    """Return a set of lowercase allowed emails, or empty set if no allowlist is configured."""
     cfg = (app or current_app)
     raw = cfg.config.get("ADMIN_ALLOWED_EMAILS", "")
     return {e.strip().lower() for e in raw.split(",") if e.strip()}
+
+
+def is_admin_email_allowed(email: str | None) -> bool:
+    """Fail closed when an admin allowlist is not configured outside local development."""
+    if not email:
+        return False
+    email = email.lower().strip()
+    allowed = _allowed_emails()
+    if allowed:
+        return email in allowed
+
+    if current_app.config.get("ADMIN_ALLOW_ANY", False):
+        return True
+
+    return is_local_dev() and bool(os.environ.get("ALLOW_ANY_ADMIN", "").lower() in {"1", "true", "yes"})
 
 
 def current_user():
@@ -88,6 +104,11 @@ def admin_required(f):
             flash("Please sign in with Google to access the Admin panel.", "warning")
             session["next_url"] = request.url
             return redirect(url_for("auth.login"))
+
+        if not is_admin_email_allowed(user.get("email")):
+            flash("Access denied: this Google account is not authorised for the Admin panel.", "error")
+            return redirect(url_for("upload.index")), 403
+
         return f(*args, **kwargs)
     return decorated
 
@@ -150,8 +171,7 @@ def callback():
     user_info = token.get("userinfo") or oauth.google.userinfo()
 
     email = (user_info.get("email") or "").lower()
-    allowed = _allowed_emails()
-    if allowed and email not in allowed:
+    if not is_admin_email_allowed(email):
         flash(
             f"Access denied: {email} is not authorised to access the Admin panel.",
             "error",

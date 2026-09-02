@@ -348,8 +348,8 @@ def delete_model():
                 download_state["progress"] = 0
                 download_state["error_message"] = None
                 return jsonify({"status": "deleted"})
-            except Exception as e:
-                return jsonify({"error": f"Failed to delete: {str(e)}"}), 500
+            except Exception:
+                return jsonify({"error": "Failed to delete the model file."}), 500
         else:
             return jsonify({"status": "not found"})
 
