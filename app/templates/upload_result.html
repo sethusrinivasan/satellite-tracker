@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Upload Complete — SatTrack{% endblock %}
+
+{% block content %}
+<section class="section">
+  <div class="container container--narrow">
+
+    <!-- Result header -->
+    <div class="result-header">
+      <div class="result-header__icon">✅</div>
+      <h1 class="result-header__title">Upload Complete</h1>
+      <p class="result-header__file mono">{{ summary.filename }}</p>
+    </div>
+
+    <!-- Summary cards -->
+    <div class="summary-grid">
+      <div class="summary-card summary-card--total">
+        <div class="summary-card__value">{{ summary.total_in_file }}</div>
+        <div class="summary-card__label">Records in File</div>
+        <div class="summary-card__desc">Total TLE records parsed from the uploaded file</div>
+      </div>
+      <div class="summary-card summary-card--new">
+        <div class="summary-card__value">{{ summary.new_satellites }}</div>
+        <div class="summary-card__label">New Satellites</div>
+        <div class="summary-card__desc">Satellites seen for the first time in the database</div>
+      </div>
+      <div class="summary-card summary-card--updated">
+        <div class="summary-card__value">{{ summary.new_elements }}</div>
+        <div class="summary-card__label">New TLE Elements</div>
+        <div class="summary-card__desc">New orbital epoch records persisted</div>
+      </div>
+      <div class="summary-card summary-card--dupe">
+        <div class="summary-card__value">{{ summary.duplicate_epochs }}</div>
+        <div class="summary-card__label">Duplicates Skipped</div>
+        <div class="summary-card__desc">Records already present (same satellite &amp; epoch)</div>
+      </div>
+      {% if summary.parse_errors %}
+      <div class="summary-card summary-card--error">
+        <div class="summary-card__value">{{ summary.parse_errors }}</div>
+        <div class="summary-card__label">Parse Errors</div>
+        <div class="summary-card__desc">Malformed lines skipped during parsing</div>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Progress bar -->
+    <div class="upload-breakdown">
+      <h2 class="upload-breakdown__title">Breakdown</h2>
+      <div class="breakdown-bar" role="img" aria-label="Upload result breakdown">
+        {% set total = summary.total_in_file %}
+        {% if total > 0 %}
+          {% set new_pct = (summary.new_elements / total * 100) | round(1) %}
+          {% set dup_pct = (summary.duplicate_epochs / total * 100) | round(1) %}
+          {% set err_pct = (summary.parse_errors / total * 100) | round(1) %}
+          <div class="breakdown-bar__seg breakdown-bar__seg--new" style="width: {{ new_pct }}%" title="{{ new_pct }}% new"></div>
+          <div class="breakdown-bar__seg breakdown-bar__seg--dup" style="width: {{ dup_pct }}%" title="{{ dup_pct }}% duplicate"></div>
+          <div class="breakdown-bar__seg breakdown-bar__seg--err" style="width: {{ err_pct }}%" title="{{ err_pct }}% errors"></div>
+        {% endif %}
+      </div>
+      <div class="breakdown-legend">
+        <span class="legend-item legend-item--new">New elements</span>
+        <span class="legend-item legend-item--dup">Duplicates skipped</span>
+        {% if summary.parse_errors %}<span class="legend-item legend-item--err">Parse errors</span>{% endif %}
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="action-row">
+      <a href="{{ url_for('upload.index') }}" class="btn btn--secondary" id="btn-upload-another">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Upload Another File
+      </a>
+      <a href="{{ url_for('report.report') }}" class="btn btn--primary" id="btn-search">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        Search Satellites
+      </a>
+    </div>
+
+  </div>
+</section>
+{% endblock %}

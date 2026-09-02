@@ -1,0 +1,989 @@
+{% extends "base.html" %}
+{% block title %}Search Satellites — SatTrack{% endblock %}
+{% block meta_desc %}Search for satellites by name or NORAD catalog ID and explore their orbital parameters{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/report.css') }}">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+{% endblock %}
+
+{% block content %}
+<section class="section">
+  <div class="container">
+    <div class="page-header">
+      <h1 class="page-title">Satellite Search</h1>
+      <p class="page-subtitle">Search by satellite name or NORAD catalog number</p>
+    </div>
+
+    <!-- Search Tabs -->
+    <div class="search-tabs" style="display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 8px;">
+      <button type="button" class="tab-btn active" id="tab-keyword-btn" onclick="switchSearchTab('keyword')" style="background: rgba(255,255,255,0.05); color: var(--text); border: 1px solid var(--border); padding: 8px 16px; border-radius: var(--radius-sm); font-size: 0.85rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s;">
+        🔍 Keyword Search
+      </button>
+      <button type="button" class="tab-btn" id="tab-country-btn" onclick="switchSearchTab('country')" style="background: transparent; color: var(--text-muted); border: 1px solid transparent; padding: 8px 16px; border-radius: var(--radius-sm); font-size: 0.85rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s;">
+        🌍 Country Proximity Search
+      </button>
+      <button type="button" class="tab-btn" id="tab-ai-btn" onclick="switchSearchTab('ai')" style="background: transparent; color: var(--text-muted); border: 1px solid transparent; padding: 8px 16px; border-radius: var(--radius-sm); font-size: 0.85rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s;">
+        💬 AI Search
+      </button>
+    </div>
+
+    <!-- Keyword search container -->
+    <div id="keyword-search-container">
+      <form method="GET" action="{{ url_for('report.report') }}" class="search-form" id="search-form" role="search" style="margin-bottom: 24px;">
+        <div class="search-bar">
+          <svg class="search-bar__icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input
+            type="search"
+            name="q"
+            id="search-input"
+            class="search-bar__input"
+            value="{{ query }}"
+            placeholder="Search by name (e.g. ISS, STARLINK) or NORAD ID (e.g. 25544)…"
+            autocomplete="off"
+            aria-label="Search satellites"
+          />
+          <button type="submit" class="btn btn--primary" id="search-submit-btn">Search</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Country proximity search container -->
+    <div id="country-search-container" style="display: none; background: var(--bg-card); border: 1px solid var(--border); padding: 20px; border-radius: var(--radius); margin-bottom: 24px; box-shadow: var(--shadow);">
+      <h3 style="font-size: 1rem; font-weight: 700; margin-bottom: 8px; color: var(--text);">Track satellites closest to a country</h3>
+      <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 16px; line-height: 1.5;">
+        Choose a country to run real-time orbit propagation for all satellites in the database. The system will find satellites closest to the country's location and automatically select them for tracking.
+      </p>
+      
+      <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+        <select id="country-select" style="flex: 1; min-width: 200px; max-width: 300px; padding: 10px 14px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-size: 0.9rem; cursor: pointer;">
+          <option value="">-- Select a Country --</option>
+        </select>
+        <button type="button" class="btn btn--primary" id="country-search-btn" onclick="runCountrySearch()" style="margin-bottom:0;">Find Closest Satellites</button>
+      </div>
+      
+      <div id="country-search-loading" style="display: none; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--accent); margin-top: 14px;">
+        <div class="spinner" style="width: 14px; height: 14px; border: 2px solid transparent; border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite;"></div>
+        Propagating orbits and calculating distances...
+      </div>
+    </div>
+
+    <!-- AI Search container — chat-style UI, always visible -->
+    <div id="ai-search-container" style="display: none;">
+
+      <!-- Chat history window -->
+      <div id="ai-chat-history" style="
+        min-height: 120px;
+        max-height: 420px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        padding: 4px 0 12px;
+        margin-bottom: 4px;
+      ">
+        <!-- Welcome message shown on first open -->
+        <div class="ai-msg ai-msg--assistant" id="ai-welcome-msg">
+          <div class="ai-msg__avatar">🛰️</div>
+          <div class="ai-msg__bubble">
+            <p style="margin:0 0 8px;">Hi! Ask me anything about the satellites in the database.</p>
+            <p style="margin:0 0 6px;font-size:0.82rem;color:var(--text-muted);">Try things like:</p>
+            <div class="ai-suggestions">
+              <button class="ai-suggestion" onclick="usePrompt(this)">Starlink satellites over United States right now</button>
+              <button class="ai-suggestion" onclick="usePrompt(this)">Satellites with mean motion greater than 15 rev/day</button>
+              <button class="ai-suggestion" onclick="usePrompt(this)">Satellites with inclination greater than 95 degrees</button>
+              <button class="ai-suggestion" onclick="usePrompt(this)">GPS satellites over the United States</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Composer -->
+      <div id="ai-composer" style="
+        display: flex;
+        align-items: flex-end;
+        gap: 10px;
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 10px 10px 10px 16px;
+        transition: border-color 0.2s;
+      ">
+        <textarea
+          id="ai-prompt-input"
+          rows="1"
+          placeholder="Ask about satellites… (e.g. Starlink over United States, GPS sats, inclination > 95°)"
+          aria-label="Ask AI about satellites"
+          style="
+            flex: 1;
+            background: none;
+            border: none;
+            outline: none;
+            resize: none;
+            color: var(--text);
+            font-family: var(--font);
+            font-size: 0.95rem;
+            line-height: 1.5;
+            max-height: 160px;
+            overflow-y: auto;
+            padding: 2px 0;
+          "
+          onkeydown="handlePromptKey(event)"
+          oninput="autoResizeTextarea(this)"
+        ></textarea>
+        <button
+          id="ai-send-btn"
+          onclick="runAiSearch()"
+          aria-label="Send"
+          title="Send (Enter)"
+          style="
+            flex-shrink: 0;
+            width: 38px; height: 38px;
+            border-radius: 50%;
+            border: none;
+            background: linear-gradient(135deg, var(--accent), var(--accent-2));
+            color: white;
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            transition: opacity 0.2s, transform 0.15s;
+          "
+          onmouseover="this.style.opacity='0.85';this.style.transform='scale(1.05)'"
+          onmouseout="this.style.opacity='1';this.style.transform='scale(1)'"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Disclaimer -->
+      <p style="font-size:0.72rem;color:var(--text-muted);text-align:center;margin-top:8px;">
+        Geo queries (e.g. "over United States") use live orbit propagation · Other queries use offline AI model
+      </p>
+    </div>
+
+    <!-- Results Area -->
+    <div id="results-area">
+      {% if query %}
+      {% if satellites %}
+        <div class="results-meta">
+          <span>Found <strong>{{ total }}</strong> satellite{{ 's' if total != 1 }} matching <em>"{{ query }}"</em></span>
+          {% if total > per_page %}
+            <span>— page {{ page }} of {{ total_pages }}</span>
+          {% endif %}
+        </div>
+
+        <div class="table-wrapper">
+          <table class="data-table" id="results-table">
+            <thead>
+              <tr>
+                <th style="width: 40px; text-align: center;">
+                  <input type="checkbox" id="select-all-sats" style="cursor: pointer;" aria-label="Select all satellites">
+                </th>
+                <th>
+                  <span class="th-label" title="Unique NORAD catalog number assigned to each space object">NORAD ID</span>
+                </th>
+                <th>
+                  <span class="th-label" title="Satellite or object name">Name</span>
+                </th>
+                <th>
+                  <span class="th-label" title="U=Unclassified, C=Classified, S=Secret">Class</span>
+                </th>
+                <th>
+                  <span class="th-label" title="International designator: launch year + launch number + piece (e.g. 98067A = 1998, 67th launch, piece A)">Int'l Designator</span>
+                </th>
+                <th>
+                  <span class="th-label" title="Number of distinct TLE epochs stored for this satellite">TLE Epochs</span>
+                </th>
+                <th>
+                  <span class="th-label" title="Date this satellite was first seen in an upload">First Seen</span>
+                </th>
+                <th>
+                  <span class="th-label" title="Date this satellite record was last updated">Last Updated</span>
+                </th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for sat in satellites %}
+              <tr class="satellite-row" data-norad="{{ sat.norad_cat_id }}">
+                <td style="text-align: center;">
+                  <input type="checkbox" class="sat-checkbox" value="{{ sat.norad_cat_id }}" style="cursor: pointer;" aria-label="Select satellite {{ sat.name }}">
+                </td>
+                <td class="mono text-right">{{ sat.norad_cat_id }}</td>
+                <td class="sat-name">
+                  <a href="{{ url_for('report.satellite_detail', norad_id=sat.norad_cat_id) }}" class="sat-link">
+                    {{ sat.name }}
+                  </a>
+                </td>
+                <td>
+                  <span class="badge-class badge-class--{{ sat.classification | lower }}">
+                    {{ sat.classification }}
+                    {% if sat.classification == 'U' %}<span class="badge-class__tip">Unclassified</span>{% endif %}
+                    {% if sat.classification == 'C' %}<span class="badge-class__tip">Classified</span>{% endif %}
+                    {% if sat.classification == 'S' %}<span class="badge-class__tip">Secret</span>{% endif %}
+                  </span>
+                </td>
+                <td class="mono">{{ sat.int_designator or '—' }}</td>
+                <td class="text-right">{{ sat.tle_elements.count() }}</td>
+                <td>{{ sat.first_seen.strftime('%Y-%m-%d') }}</td>
+                <td>{{ sat.last_updated.strftime('%Y-%m-%d') }}</td>
+                <td>
+                  <a href="{{ url_for('report.satellite_detail', norad_id=sat.norad_cat_id) }}"
+                     class="btn btn--sm btn--ghost"
+                     id="detail-btn-{{ sat.norad_cat_id }}">
+                    View Details →
+                  </a>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if total_pages > 1 %}
+        <nav class="pagination" aria-label="Search results pagination">
+          {% if page > 1 %}
+            <a href="?q={{ query }}&page={{ page - 1 }}" class="pagination__btn" id="prev-page">← Prev</a>
+          {% else %}
+            <span class="pagination__btn pagination__btn--disabled">← Prev</span>
+          {% endif %}
+
+          {% for p in range(1, total_pages + 1) %}
+            {% if p == page %}
+              <span class="pagination__page pagination__page--active">{{ p }}</span>
+            {% elif p <= 3 or p >= total_pages - 2 or (p >= page - 1 and p <= page + 1) %}
+              <a href="?q={{ query }}&page={{ p }}" class="pagination__page" id="page-{{ p }}">{{ p }}</a>
+            {% elif p == 4 or p == total_pages - 3 %}
+              <span class="pagination__ellipsis">…</span>
+            {% endif %}
+          {% endfor %}
+
+          {% if page < total_pages %}
+            <a href="?q={{ query }}&page={{ page + 1 }}" class="pagination__btn" id="next-page">Next →</a>
+          {% else %}
+            <span class="pagination__btn pagination__btn--disabled">Next →</span>
+          {% endif %}
+        </nav>
+        {% endif %}
+
+      {% else %}
+        <div class="empty-state">
+          <div class="empty-state__icon">🔭</div>
+          <h2 class="empty-state__title">No satellites found</h2>
+          <p class="empty-state__body">No results for <em>"{{ query }}"</em>. Try a different name or NORAD ID.</p>
+          <a href="{{ url_for('upload.index') }}" class="btn btn--primary" id="btn-go-upload">Upload a TLE File</a>
+        </div>
+      {% endif %}
+    {% else %}
+      <!-- No query yet -->
+      <div class="empty-state empty-state--prompt">
+        <div class="empty-state__icon">🔍</div>
+        <h2 class="empty-state__title">Enter a search term above</h2>
+        <p class="empty-state__body">Search by full or partial satellite name, or by a numeric NORAD catalog ID.</p>
+        {% if not query %}
+        <div class="search-tips">
+          <div class="search-tip"><code>ISS</code> — finds ISS and ISS-related objects</div>
+          <div class="search-tip"><code>STARLINK</code> — finds all Starlink satellites</div>
+          <div class="search-tip"><code>25544</code> — finds by exact NORAD ID</div>
+        </div>
+        {% endif %}
+      </div>
+    {% endif %}
+    </div>
+
+    <!-- Sticky floating action bar for multi-tracking -->
+    <div class="sticky-track-bar" id="sticky-track-bar" hidden>
+      <div class="sticky-track-bar__content">
+        <span class="sticky-track-bar__label" id="selected-count">0 satellites selected</span>
+        <button class="btn btn--primary" id="track-btn" onclick="trackSelected()" style="margin-bottom:0;">
+          Track Selected 🛰️
+        </button>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/satellite.js/4.1.4/satellite.min.js"></script>
+<script>
+// ========== Utility ==========
+function toRad(d) { return d * Math.PI / 180; }
+function haversineKm(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = toRad(lat2 - lat1), dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+// ========== Countries (capital coords) ==========
+const COUNTRIES = [
+  {name:"Afghanistan",lat:34.5553,lon:69.2075},{name:"Argentina",lat:-34.6037,lon:-58.3816},
+  {name:"Australia",lat:-35.2809,lon:149.1300},{name:"Bangladesh",lat:23.8103,lon:90.4125},
+  {name:"Brazil",lat:-15.7939,lon:-47.8828},{name:"Canada",lat:45.4215,lon:-75.6972},
+  {name:"Chile",lat:-33.4489,lon:-70.6693},{name:"China",lat:39.9042,lon:116.4074},
+  {name:"Colombia",lat:4.7110,lon:-74.0721},{name:"Egypt",lat:30.0444,lon:31.2357},
+  {name:"Ethiopia",lat:9.0250,lon:38.7469},{name:"France",lat:48.8566,lon:2.3522},
+  {name:"Germany",lat:52.5200,lon:13.4050},{name:"India",lat:28.6139,lon:77.2090},
+  {name:"Indonesia",lat:-6.2088,lon:106.8456},{name:"Iran",lat:35.6892,lon:51.3890},
+  {name:"Iraq",lat:33.3152,lon:44.3661},{name:"Israel",lat:31.7683,lon:35.2137},
+  {name:"Italy",lat:41.9028,lon:12.4964},{name:"Japan",lat:35.6895,lon:139.6917},
+  {name:"Kenya",lat:-1.2921,lon:36.8219},{name:"Mexico",lat:19.4326,lon:-99.1332},
+  {name:"Morocco",lat:33.9716,lon:-6.8498},{name:"Netherlands",lat:52.3676,lon:4.9041},
+  {name:"New Zealand",lat:-41.2866,lon:174.7756},{name:"Nigeria",lat:9.0579,lon:7.4951},
+  {name:"Norway",lat:59.9139,lon:10.7522},{name:"Pakistan",lat:33.6844,lon:73.0479},
+  {name:"Peru",lat:-12.0464,lon:-77.0428},{name:"Philippines",lat:14.5995,lon:120.9842},
+  {name:"Poland",lat:52.2297,lon:21.0122},{name:"Russia",lat:55.7558,lon:37.6173},
+  {name:"Saudi Arabia",lat:24.7136,lon:46.6753},{name:"South Africa",lat:-25.7479,lon:28.2293},
+  {name:"South Korea",lat:37.5665,lon:126.9780},{name:"Spain",lat:40.4168,lon:-3.7038},
+  {name:"Sweden",lat:59.3293,lon:18.0686},{name:"Switzerland",lat:46.9480,lon:7.4474},
+  {name:"Thailand",lat:13.7563,lon:100.5018},{name:"Turkey",lat:39.9334,lon:32.8597},
+  {name:"Ukraine",lat:50.4501,lon:30.5234},{name:"United Arab Emirates",lat:24.4539,lon:54.3773},
+  {name:"United Kingdom",lat:51.5074,lon:-0.1278},{name:"United States",lat:38.8977,lon:-77.0365},
+  {name:"Vietnam",lat:21.0285,lon:105.8542}
+].sort((a,b) => a.name.localeCompare(b.name));
+
+// ========== Populate dropdown ==========
+function populateCountrySelect() {
+  const sel = document.getElementById('country-select');
+  if (!sel) return;
+  COUNTRIES.forEach(c => {
+    const o = document.createElement('option');
+    o.value = c.name; o.textContent = c.name;
+    sel.appendChild(o);
+  });
+}
+
+// ========== Tab switching ==========
+function switchSearchTab(tab) {
+  const kw = document.getElementById('keyword-search-container');
+  const co = document.getElementById('country-search-container');
+  const ai = document.getElementById('ai-search-container');
+  const kwBtn = document.getElementById('tab-keyword-btn');
+  const coBtn = document.getElementById('tab-country-btn');
+  const aiBtn = document.getElementById('tab-ai-btn');
+
+  kw.style.display = 'none';
+  co.style.display = 'none';
+  ai.style.display = 'none';
+
+  [kwBtn, coBtn, aiBtn].forEach(btn => {
+    if (btn) {
+      btn.style.background = 'transparent';
+      btn.style.color = 'var(--text-muted)';
+      btn.style.borderColor = 'transparent';
+      btn.classList.remove('active');
+    }
+  });
+
+  if (tab === 'keyword') {
+    kw.style.display = '';
+    kwBtn.classList.add('active');
+    kwBtn.style.background = 'rgba(255,255,255,0.05)'; kwBtn.style.color = 'var(--text)'; kwBtn.style.borderColor = 'var(--border)';
+  } else if (tab === 'country') {
+    co.style.display = '';
+    coBtn.classList.add('active');
+    coBtn.style.background = 'rgba(255,255,255,0.05)'; coBtn.style.color = 'var(--text)'; coBtn.style.borderColor = 'var(--border)';
+  } else if (tab === 'ai') {
+    ai.style.display = '';
+    aiBtn.classList.add('active');
+    aiBtn.style.background = 'rgba(255,255,255,0.05)'; aiBtn.style.color = 'var(--text)'; aiBtn.style.borderColor = 'var(--border)';
+    // Focus composer when switching to AI tab
+    setTimeout(() => { const el = document.getElementById('ai-prompt-input'); if (el) el.focus(); }, 50);
+  }
+}
+
+async function checkModelAvailability() {
+  // No-op — model check now happens inline when user submits a query.
+  // The input is always visible; errors are shown as chat messages.
+}
+
+// ── Textarea auto-resize (like Claude/ChatGPT) ────────────────────────────
+function autoResizeTextarea(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 160) + 'px';
+}
+
+// ── Enter to send, Shift+Enter for newline ────────────────────────────────
+function handlePromptKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    runAiSearch();
+  }
+}
+
+// ── Click a suggestion chip ───────────────────────────────────────────────
+function usePrompt(btn) {
+  const input = document.getElementById('ai-prompt-input');
+  input.value = btn.textContent.trim();
+  autoResizeTextarea(input);
+  input.focus();
+}
+
+// ── Append a message bubble to the chat history ───────────────────────────
+function appendChatMsg(role, html) {
+  const history = document.getElementById('ai-chat-history');
+  const div = document.createElement('div');
+  div.className = `ai-msg ai-msg--${role}`;
+
+  const avatar = document.createElement('div');
+  avatar.className = 'ai-msg__avatar';
+  avatar.textContent = role === 'user' ? '👤' : '🛰️';
+
+  const bubble = document.createElement('div');
+  bubble.className = 'ai-msg__bubble';
+  bubble.innerHTML = html;
+
+  if (role === 'user') {
+    div.appendChild(bubble);
+    div.appendChild(avatar);
+  } else {
+    div.appendChild(avatar);
+    div.appendChild(bubble);
+  }
+
+  history.appendChild(div);
+  history.scrollTop = history.scrollHeight;
+  return bubble;
+}
+
+// ── Typing & System Load indicator ─────────────────────────────────────────
+let typingTimerInterval = null;
+
+function showTyping() {
+  const history = document.getElementById('ai-chat-history');
+  const div = document.createElement('div');
+  div.className = 'ai-msg ai-msg--assistant';
+  div.id = 'ai-typing-indicator';
+  
+  const startTime = Date.now();
+  div.innerHTML = `
+    <div class="ai-msg__avatar">🛰️</div>
+    <div class="ai-msg__bubble">
+      <div class="ai-typing-dots">
+        <span></span><span></span><span></span>
+      </div>
+      <div id="ai-system-load-status" style="font-size:0.75rem; color:var(--text-muted); margin-top:6px;">
+        <span>⚙️ Processing prompt... (Local GGUF AI inference active — high CPU load expected)</span>
+        <br><span id="ai-elapsed-timer" style="font-size:0.72rem; color:var(--accent); font-weight:600;">Elapsed: 0.0s</span>
+      </div>
+    </div>`;
+  history.appendChild(div);
+  history.scrollTop = history.scrollHeight;
+
+  if (typingTimerInterval) clearInterval(typingTimerInterval);
+  typingTimerInterval = setInterval(() => {
+    const elapsedSec = ((Date.now() - startTime) / 1000).toFixed(1);
+    const timerEl = document.getElementById('ai-elapsed-timer');
+    if (timerEl) {
+      timerEl.textContent = `Elapsed: ${elapsedSec}s`;
+    }
+  }, 100);
+}
+
+function hideTyping() {
+  if (typingTimerInterval) {
+    clearInterval(typingTimerInterval);
+    typingTimerInterval = null;
+  }
+  const el = document.getElementById('ai-typing-indicator');
+  if (el) el.remove();
+}
+
+// ── Main send handler ─────────────────────────────────────────────────────
+async function runAiSearch() {
+  const input = document.getElementById('ai-prompt-input');
+  const sendBtn = document.getElementById('ai-send-btn');
+  const prompt = input.value.trim();
+  if (!prompt) return;
+
+  // Hide welcome message after first query
+  const welcome = document.getElementById('ai-welcome-msg');
+  if (welcome) welcome.style.display = 'none';
+
+  // Show user bubble
+  appendChatMsg('user', `<span>${prompt.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</span>`);
+
+  // Clear input and lock UI
+  input.value = '';
+  autoResizeTextarea(input);
+  input.disabled = true;
+  sendBtn.disabled = true;
+  sendBtn.style.opacity = '0.4';
+
+  showTyping();
+
+  try {
+    const res = await fetch('{{ url_for("report.natural_query") }}', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt })
+    });
+
+    hideTyping();
+
+    // Handle auth redirect (admin-protected model-status was broken before)
+    if (res.redirected || res.status === 302) {
+      appendChatMsg('assistant', `<span style="color:var(--warning)">⚠️ Session expired. Please reload the page.</span>`);
+      return;
+    }
+
+    const data = await res.json();
+
+    if (data.error) {
+      // Model not downloaded — show inline message with link
+      if (data.error.includes('model file not found') || res.status === 404) {
+        appendChatMsg('assistant', `
+          <span style="color:var(--warning);font-weight:600;">⚠️ Offline AI model not downloaded</span><br>
+          <span style="font-size:0.85rem;color:var(--text-muted);">
+            Location-based queries (e.g. "Starlink over United States") work without the model.<br>
+            For SQL-style queries, download the model from the
+            <a href="/admin" style="color:var(--accent)">Admin panel</a>.
+          </span>`);
+      } else {
+        appendChatMsg('assistant', `<span style="color:var(--error)">✕ ${data.error.replace(/</g,'&lt;')}</span>`);
+      }
+      return;
+    }
+
+    // Build assistant reply
+    const isGeo = !!data.geo;
+    const isLLM = !!data.llm_raw_response;
+    const count = (data.satellites || []).length;
+
+    // Log LLM raw response to debug panel (if available)
+    if (isLLM && window.SatDebug) {
+      window.SatDebug.log('api', 'ai', `🤖 LLM raw response for: "${prompt.slice(0, 60)}${prompt.length > 60 ? '...' : ''}"`, 
+        `Model: ${data.llm_raw_response.model || 'unknown'}\n` +
+        `Finish: ${data.llm_raw_response.finish_reason || 'unknown'}\n` +
+        `Usage: ${JSON.stringify(data.llm_raw_response.usage)}\n\n` +
+        `Full raw text:\n${data.llm_raw_response.full_raw_text}\n\n` +
+        `Cleaned SQL:\n${data.sql}`
+      );
+    }
+
+    let summaryHtml = '';
+    if (isGeo) {
+      const g = data.geo;
+      const filterNote = g.name_filter ? ` · filter: <strong>${g.name_filter}</strong>` : '';
+      summaryHtml = `
+        <span style="color:var(--success);font-weight:600;">🌍 ${count} satellite${count !== 1 ? 's' : ''} over <strong>${g.country}</strong></span>
+        <span style="font-size:0.78rem;color:var(--text-muted);margin-left:6px;">(scanned ${g.total_scanned}${filterNote})</span>`;
+    } else if (isLLM) {
+      summaryHtml = `<span style="font-weight:600;">🤖 Found <strong>${count}</strong> satellite${count !== 1 ? 's' : ''} (LLM-generated SQL)</span>`;
+      // Add debug details expandable
+      summaryHtml += `
+        <details style="margin-top:8px;">
+          <summary style="font-size:0.75rem;color:var(--text-muted);cursor:pointer;user-select:none;">🐛 LLM Debug — raw response</summary>
+          <div style="margin-top:6px;padding:10px;background:rgba(0,0,0,0.25);border-radius:6px;">
+            <div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:4px;">Model: <strong style="color:var(--text);">${data.llm_raw_response.model || 'unknown'}</strong> · Finish reason: <strong style="color:var(--text);">${data.llm_raw_response.finish_reason || 'unknown'}</strong></div>
+            <div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:6px;">Usage: ${data.llm_raw_response.usage ? JSON.stringify(data.llm_raw_response.usage) : 'N/A'}</div>
+            <div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:4px;">Full raw text generated by model:</div>
+            <pre style="margin:0;padding:8px;background:rgba(0,0,0,0.3);border-radius:4px;font-size:0.7rem;color:#a5b4fc;overflow-x:auto;white-space:pre-wrap;word-break:break-all;">${(data.llm_raw_response.full_raw_text || 'N/A').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</pre>
+          </div>
+        </details>`;
+    } else {
+      summaryHtml = `<span style="font-weight:600;">🤖 Found <strong>${count}</strong> satellite${count !== 1 ? 's' : ''}</span>`;
+    }
+
+    if (data.perf) {
+      const p = data.perf;
+      const perfBadge = `
+        <div style="margin-top:8px; font-size:0.72rem; padding:4px 8px; background:rgba(255,255,255,0.05); border-radius:4px; color:var(--text-muted); display:block;">
+          ⚡ <strong>System Performance:</strong> Total ${p.total_time_sec}s
+          ${p.mode === 'offline_llm' ? `(LLM Inference: <strong>${p.llm_inference_sec}s</strong> · DB: <strong>${p.db_query_sec}s</strong>)` : `(SGP4 Geo Propagate: <strong>${p.db_query_sec}s</strong>)`}
+        </div>`;
+      summaryHtml += perfBadge;
+    }
+
+    if (data.sql) {
+      summaryHtml += `
+        <details style="margin-top:8px;">
+          <summary style="font-size:0.75rem;color:var(--text-muted);cursor:pointer;user-select:none;">Show query</summary>
+          <pre style="margin:6px 0 0;padding:8px 10px;background:rgba(0,0,0,0.25);border-radius:6px;font-size:0.72rem;color:var(--success);overflow-x:auto;white-space:pre-wrap;word-break:break-all;">${data.sql.replace(/</g,'&lt;')}</pre>
+        </details>`;
+    }
+
+    if (count === 0) {
+      summaryHtml += `<br><span style="font-size:0.85rem;color:var(--text-muted);">No matching satellites found. Try rephrasing your query.</span>`;
+    }
+
+    appendChatMsg('assistant', summaryHtml);
+
+    // Render results table below
+    if (count > 0) {
+      if (isGeo) {
+        renderGeoResults(prompt, data.satellites, data.geo);
+      } else {
+        renderAiResults(prompt, data.satellites);
+      }
+    }
+
+  } catch (err) {
+    hideTyping();
+    appendChatMsg('assistant', `<span style="color:var(--error)">✕ Network error: ${err.message.replace(/</g,'&lt;')}</span>`);
+  } finally {
+    input.disabled = false;
+    sendBtn.disabled = false;
+    sendBtn.style.opacity = '1';
+    input.focus();
+  }
+}
+
+function renderGeoResults(prompt, sats, geo) {
+  const area = document.getElementById('results-area');
+  const filterNote = geo.name_filter ? ` filtered by <em>${geo.name_filter}</em>` : '';
+  const bboxNote = `lat [${geo.bbox[0].toFixed(1)}°, ${geo.bbox[1].toFixed(1)}°] · lon [${geo.bbox[2].toFixed(1)}°, ${geo.bbox[3].toFixed(1)}°]`;
+
+  if (sats.length === 0) {
+    area.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state__icon">🌍</div>
+        <h2 class="empty-state__title">No satellites over ${geo.country} right now</h2>
+        <p class="empty-state__body">
+          Scanned <strong>${geo.total_scanned}</strong> satellites${filterNote}.
+          None are currently within the bounding box (${bboxNote}).
+          Try again in a few minutes as orbits change rapidly.
+        </p>
+      </div>`;
+    return;
+  }
+
+  let rows = '';
+  sats.forEach(s => {
+    const lat = s.current_lat != null ? s.current_lat.toFixed(2) + '°' : '—';
+    const lon = s.current_lon != null ? s.current_lon.toFixed(2) + '°' : '—';
+    const alt = s.current_alt != null ? s.current_alt.toFixed(0) + ' km' : '—';
+    rows += `
+      <tr class="satellite-row selected" data-norad="${s.id}">
+        <td style="text-align:center">
+          <input type="checkbox" class="sat-checkbox" value="${s.id}" checked style="cursor:pointer" aria-label="Select ${s.name}">
+        </td>
+        <td class="mono text-right">${s.id}</td>
+        <td class="sat-name">
+          <a href="/report/satellite/${s.id}" class="sat-link">${s.name}</a>
+        </td>
+        <td>
+          <span class="badge-class badge-class--${(s.class||'u').toLowerCase()}">${s.class || 'U'}</span>
+        </td>
+        <td class="mono">${s.designator || '—'}</td>
+        <td class="text-right mono">${lat}</td>
+        <td class="text-right mono">${lon}</td>
+        <td class="text-right">${alt}</td>
+      </tr>`;
+  });
+
+  area.innerHTML = `
+    <div class="results-meta" style="margin-bottom:12px;">
+      <span>🌍 <strong>${sats.length}</strong> satellite${sats.length !== 1 ? 's' : ''}${filterNote} currently over <em>${geo.country}</em>
+        <span style="color:var(--text-muted);font-size:0.8rem;margin-left:8px;">(scanned ${geo.total_scanned} · ${bboxNote})</span>
+        — all pre-selected
+      </span>
+    </div>
+    <div class="table-wrapper">
+      <table class="data-table" id="results-table">
+        <thead>
+          <tr>
+            <th style="width:40px;text-align:center">
+              <input type="checkbox" id="select-all-sats" checked style="cursor:pointer" aria-label="Select all">
+            </th>
+            <th><span class="th-label">NORAD ID</span></th>
+            <th><span class="th-label">Name</span></th>
+            <th><span class="th-label">Class</span></th>
+            <th><span class="th-label">Designator</span></th>
+            <th><span class="th-label">Cur. Lat</span></th>
+            <th><span class="th-label">Cur. Lon</span></th>
+            <th><span class="th-label">Altitude</span></th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+
+  wireCheckboxListeners();
+  updateTrackBarGlobal();
+}
+
+function renderAiResults(prompt, sats) {
+  const area = document.getElementById('results-area');
+  if (sats.length === 0) {
+    area.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state__icon">🔭</div>
+        <h2 class="empty-state__title">No satellites found</h2>
+        <p class="empty-state__body">No satellites matched the criteria generated by the AI.</p>
+      </div>`;
+    return;
+  }
+
+  let rows = '';
+  sats.forEach((s, i) => {
+    rows += `
+      <tr class="satellite-row selected" data-norad="${s.id}">
+        <td style="text-align:center">
+          <input type="checkbox" class="sat-checkbox" value="${s.id}" checked style="cursor:pointer" aria-label="Select ${s.name}">
+        </td>
+        <td class="mono text-right">${s.id}</td>
+        <td class="sat-name">
+          <a href="/report/satellite/${s.id}" class="sat-link">${s.name}</a>
+        </td>
+        <td>
+          <span class="badge-class badge-class--${(s.class||'u').toLowerCase()}">${s.class || 'U'}</span>
+        </td>
+        <td class="mono">${s.designator || '—'}</td>
+        <td class="mono small text--muted">${s.l1 ? s.l1.substring(0, 24) + '...' : '—'}</td>
+        <td class="text-right">${s.mm ? s.mm.toFixed(4) : '—'}</td>
+      </tr>`;
+  });
+
+  area.innerHTML = `
+    <div class="results-meta" style="margin-bottom: 12px;">
+      <span>🤖 AI found <strong>${sats.length}</strong> matching satellite${sats.length !== 1 ? 's' : ''} — all pre-selected</span>
+    </div>
+    <div class="table-wrapper">
+      <table class="data-table" id="results-table">
+        <thead>
+          <tr>
+            <th style="width:40px;text-align:center">
+              <input type="checkbox" id="select-all-sats" checked style="cursor:pointer" aria-label="Select all">
+            </th>
+            <th><span class="th-label">NORAD ID</span></th>
+            <th><span class="th-label">Name</span></th>
+            <th><span class="th-label">Class</span></th>
+            <th><span class="th-label">Designator</span></th>
+            <th><span class="th-label">Raw TLE (L1)</span></th>
+            <th><span class="th-label">Mean Motion</span></th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+
+  wireCheckboxListeners();
+  updateTrackBarGlobal();
+}
+
+
+// ========== Country proximity search ==========
+async function runCountrySearch() {
+  const sel = document.getElementById('country-select');
+  if (!sel.value) return alert('Please select a country first.');
+  const country = COUNTRIES.find(c => c.name === sel.value);
+  if (!country) return;
+
+  const loading = document.getElementById('country-search-loading');
+  const btn = document.getElementById('country-search-btn');
+  loading.style.display = 'flex';
+  btn.disabled = true; btn.textContent = 'Searching…';
+
+  try {
+    const res = await fetch('{{ url_for("report.latest_tles_api") }}');
+    if (!res.ok) throw new Error('API error ' + res.status);
+    const sats = await res.json();
+
+    const now = new Date();
+    const results = [];
+
+    const DISTANCE_THRESHOLD_KM = 2000;
+
+    for (const sat of sats) {
+      try {
+        const satrec = satellite.twoline2satrec(sat.l1, sat.l2);
+        const pv = satellite.propagate(satrec, now);
+        if (!pv.position) continue;
+        const gmst = satellite.gstime(now);
+        const geo = satellite.eciToGeodetic(pv.position, gmst);
+        const lat = satellite.degreesLat(geo.latitude);
+        const lon = satellite.degreesLong(geo.longitude);
+        const alt = geo.height;
+        const dist = haversineKm(country.lat, country.lon, lat, lon);
+        if (dist <= DISTANCE_THRESHOLD_KM) {
+          results.push({ id: sat.id, name: sat.name, cls: sat["class"], desig: sat.designator, lat, lon, alt, dist });
+        }
+      } catch(e) { /* skip bad TLEs */ }
+    }
+
+    results.sort((a, b) => a.dist - b.dist);
+
+    renderProximityResults(country, results, DISTANCE_THRESHOLD_KM);
+  } catch (err) {
+    console.error(err);
+    alert('Error running proximity search: ' + err.message);
+  } finally {
+    loading.style.display = 'none';
+    btn.disabled = false; btn.textContent = 'Find Closest Satellites';
+  }
+}
+
+// ========== Render results into DOM ==========
+function renderProximityResults(country, sats) {
+  const area = document.getElementById('results-area');
+  if (sats.length === 0) {
+    area.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state__icon">🔭</div>
+        <h2 class="empty-state__title">No satellites found</h2>
+        <p class="empty-state__body">Could not compute positions. Try again later.</p>
+      </div>`;
+    return;
+  }
+
+  let rows = '';
+  sats.forEach((s, i) => {
+    rows += `
+      <tr class="satellite-row selected" data-norad="${s.id}">
+        <td style="text-align:center">
+          <input type="checkbox" class="sat-checkbox" value="${s.id}" checked style="cursor:pointer" aria-label="Select ${s.name}">
+        </td>
+        <td class="mono text-right">${s.id}</td>
+        <td class="sat-name">
+          <a href="/report/satellite/${s.id}" class="sat-link">${s.name}</a>
+        </td>
+        <td>
+          <span class="badge-class badge-class--${(s.cls||'u').toLowerCase()}">${s.cls || 'U'}</span>
+        </td>
+        <td class="mono">${s.desig || '—'}</td>
+        <td class="text-right">${s.alt.toFixed(0)} km</td>
+        <td class="text-right" style="font-weight:600; color: var(--accent);">${s.dist.toFixed(0)} km</td>
+      </tr>`;
+  });
+
+  area.innerHTML = `
+    <div class="results-meta" style="margin-bottom: 12px;">
+      <span>🌍 <strong>${sats.length}</strong> closest satellites to <em>${country.name}</em> (${country.lat.toFixed(2)}°, ${country.lon.toFixed(2)}°) — all pre-selected</span>
+    </div>
+    <div class="table-wrapper">
+      <table class="data-table" id="results-table">
+        <thead>
+          <tr>
+            <th style="width:40px;text-align:center">
+              <input type="checkbox" id="select-all-sats" checked style="cursor:pointer" aria-label="Select all">
+            </th>
+            <th><span class="th-label">NORAD ID</span></th>
+            <th><span class="th-label">Name</span></th>
+            <th><span class="th-label">Class</span></th>
+            <th><span class="th-label">Designator</span></th>
+            <th><span class="th-label">Altitude</span></th>
+            <th><span class="th-label">Distance</span></th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+
+  // Re-wire checkbox listeners on new DOM elements
+  wireCheckboxListeners();
+
+  // Show track bar immediately
+  updateTrackBarGlobal();
+}
+
+// ========== Shared checkbox/track-bar logic ==========
+function updateTrackBarGlobal() {
+  const checked = document.querySelectorAll('.sat-checkbox:checked');
+  const count = checked.length;
+  const bar = document.getElementById('sticky-track-bar');
+  const label = document.getElementById('selected-count');
+  if (count > 0) {
+    label.innerHTML = '<strong>' + count + '</strong> satellite' + (count !== 1 ? 's' : '') + ' selected';
+    bar.hidden = false; bar.classList.add('visible');
+  } else {
+    bar.hidden = true; bar.classList.remove('visible');
+  }
+  // Update row highlights
+  document.querySelectorAll('.sat-checkbox').forEach(cb => {
+    const row = cb.closest('tr');
+    if (row) row.classList.toggle('selected', cb.checked);
+  });
+}
+
+function wireCheckboxListeners() {
+  const selectAll = document.getElementById('select-all-sats');
+  const cbs = document.querySelectorAll('.sat-checkbox');
+
+  if (selectAll) {
+    selectAll.addEventListener('change', function() {
+      cbs.forEach(cb => { cb.checked = selectAll.checked; });
+      updateTrackBarGlobal();
+    });
+  }
+
+  cbs.forEach(cb => {
+    cb.addEventListener('change', function() {
+      if (selectAll && !this.checked) selectAll.checked = false;
+      if (selectAll && document.querySelectorAll('.sat-checkbox:not(:checked)').length === 0) selectAll.checked = true;
+      updateTrackBarGlobal();
+    });
+  });
+}
+
+function trackSelected() {
+  const checked = document.querySelectorAll('.sat-checkbox:checked');
+  const ids = Array.from(checked).map(cb => cb.value).join(',');
+  if (ids) {
+    window.location.href = "{{ url_for('report.tracker') }}?ids=" + ids;
+  }
+}
+
+// ========== Sortable Tables ==========
+function makeTableSortable(table) {
+  if (!table) return;
+  const headers = table.querySelectorAll('thead th');
+  headers.forEach((th, colIdx) => {
+    const label = th.querySelector('.th-label');
+    const checkbox = th.querySelector('input[type="checkbox"]');
+    if (checkbox && !label) return;
+    if (th.textContent.trim() === 'Actions') return;
+    th.style.cursor = 'pointer';
+    th.style.userSelect = 'none';
+    th.classList.add('sortable');
+    th.setAttribute('data-sort-dir', '');
+    th.addEventListener('click', function() {
+      sortTableByColumn(table, colIdx, th);
+    });
+  });
+}
+function sortTableByColumn(table, colIdx, th) {
+  const tbody = table.querySelector('tbody');
+  const rows = Array.from(tbody.querySelectorAll('tr'));
+  const currentDir = th.getAttribute('data-sort-dir') || '';
+  const newDir = currentDir === 'asc' ? 'desc' : 'asc';
+  table.querySelectorAll('thead th').forEach(h => {
+    h.setAttribute('data-sort-dir', '');
+    h.classList.remove('sorted-asc', 'sorted-desc');
+  });
+  th.setAttribute('data-sort-dir', newDir);
+  th.classList.add(newDir === 'asc' ? 'sorted-asc' : 'sorted-desc');
+  rows.sort((a, b) => {
+    let aVal = (a.cells[colIdx]?.textContent || '').trim();
+    let bVal = (b.cells[colIdx]?.textContent || '').trim();
+    const aClean = aVal.replace(/[°,km\s]/g, '').trim();
+    const bClean = bVal.replace(/[°,km\s]/g, '').trim();
+    const aNum = parseFloat(aClean);
+    const bNum = parseFloat(bClean);
+    if (!isNaN(aNum) && !isNaN(bNum) && aClean !== '' && bClean !== '') {
+      return newDir === 'asc' ? aNum - bNum : bNum - aNum;
+    }
+    const aDate = Date.parse(aVal);
+    const bDate = Date.parse(bVal);
+    if (!isNaN(aDate) && !isNaN(bDate)) {
+      return newDir === 'asc' ? aDate - bDate : bDate - aDate;
+    }
+    return newDir === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+  });
+  rows.forEach(row => tbody.appendChild(row));
+}
+
+// ========== Init ==========
+document.addEventListener('DOMContentLoaded', function() {
+  populateCountrySelect();
+  wireCheckboxListeners();
+  document.querySelectorAll('.data-table').forEach(makeTableSortable);
+});
+</script>
+{% endblock %}
+

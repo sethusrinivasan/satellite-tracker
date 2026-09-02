@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}SatTrack — Satellite TLE Explorer{% endblock %}</title>
+  <meta name="description" content="{% block meta_desc %}Upload, parse, and explore Two-Line Element (TLE) satellite data{% endblock %}" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+  <!-- ── Navigation ── -->
+  <nav class="navbar" role="navigation" aria-label="Main navigation">
+    <div class="nav-container">
+      <a href="{{ url_for('upload.index') }}" class="nav-logo" id="nav-logo-link">
+        <span class="logo-icon">🛰️</span>
+        <span class="logo-text">SatTrack</span>
+      </a>
+      <div class="nav-links">
+        <a href="{{ url_for('upload.index') }}" class="nav-link {% if request.endpoint == 'upload.index' %}active{% endif %}" id="nav-upload">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Upload TLE
+        </a>
+        <a href="{{ url_for('report.report') }}" class="nav-link {% if request.endpoint and 'report' in request.endpoint %}active{% endif %}" id="nav-report">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          Search
+        </a>
+        <a href="{{ url_for('report.stats') }}" class="nav-link {% if request.endpoint == 'report.stats' %}active{% endif %}" id="nav-stats">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          Statistics
+        </a>
+        <a href="{{ url_for('admin.index') }}" class="nav-link {% if request.blueprint == 'admin' %}active{% endif %}" id="nav-admin"
+           style="{% if request.blueprint == 'admin' %}{% else %}color:var(--error);opacity:0.8{% endif %}">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          Admin
+        </a>
+
+        <!-- Auth user pill (shown when signed in) -->
+        {% set _admin_user = session.get('admin_user') %}
+        {% if _admin_user %}
+          <div style="display:inline-flex;align-items:center;gap:8px;padding:4px 10px 4px 6px;border-radius:var(--radius-sm);background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);margin-left:4px;">
+            {% if _admin_user.picture %}
+              <img src="{{ _admin_user.picture }}" alt="{{ _admin_user.name }}"
+                   width="22" height="22"
+                   style="border-radius:50%;object-fit:cover;border:1px solid rgba(16,185,129,0.3);"
+                   referrerpolicy="no-referrer">
+            {% else %}
+              <span style="font-size:0.85rem;">👤</span>
+            {% endif %}
+            <span style="font-size:0.78rem;font-weight:600;color:var(--success);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
+                  title="{{ _admin_user.email }}">{{ _admin_user.name or _admin_user.email }}</span>
+            <a href="{{ url_for('auth.logout') }}"
+               id="nav-signout"
+               style="font-size:0.72rem;color:var(--text-muted);text-decoration:none;padding:1px 5px;border-radius:3px;border:1px solid transparent;transition:all 0.15s;"
+               onmouseover="this.style.color='var(--error)';this.style.borderColor='rgba(239,68,68,0.3)'"
+               onmouseout="this.style.color='var(--text-muted)';this.style.borderColor='transparent'"
+               title="Sign out of Admin">Sign out</a>
+          </div>
+        {% endif %}
+
+        <!-- Debug Mode Toggle -->
+        <button
+          id="debug-toggle-btn"
+          type="button"
+          onclick="SatDebug.toggle()"
+          title="Toggle Debug Panel"
+          aria-pressed="false"
+          style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:var(--radius-sm);background:transparent;color:var(--text-muted);border:1px solid transparent;font-family:var(--font);font-size:0.82rem;font-weight:600;cursor:pointer;transition:all 0.2s;margin-left:4px;"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22C6.477 22 2 17.523 2 12S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/><path d="M9 9h.01M15 9h.01M9 15h6"/></svg>
+          Debug
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ── Flash Messages ── -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="flash-container">
+        {% for category, message in messages %}
+          <div class="flash flash--{{ category }}" role="alert">
+            <span>{{ message }}</span>
+            <button class="flash-close" onclick="this.parentElement.remove()" aria-label="Dismiss">✕</button>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  <!-- ── Main Content ── -->
+  <main class="main-content" role="main">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- ── Footer ── -->
+  <footer class="footer">
+    <div class="footer-inner">
+      <span>🛰️ SatTrack — Two-Line Element Explorer</span>
+      <span>Built with Flask &amp; SQLAlchemy</span>
+    </div>
+  </footer>
+
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+  {% block extra_js %}{% endblock %}
+
+  <!-- ── Debug Panel ── -->
+  <div id="sat-debug-panel" style="display:none;" aria-hidden="true" role="complementary" aria-label="Debug Panel">
+    <!-- Header / drag handle -->
+    <div id="sat-debug-header">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:0.9rem;">🐛</span>
+        <span style="font-weight:700;font-size:0.82rem;letter-spacing:0.04em;text-transform:uppercase;color:#e2e8f0;">SatTrack Debug</span>
+        <span id="dbg-status-dot" style="width:7px;height:7px;border-radius:50%;background:#10b981;flex-shrink:0;box-shadow:0 0 6px #10b981;"></span>
+      </div>
+      <div style="display:flex;align-items:center;gap:4px;">
+        <button onclick="SatDebug.clearLog()" title="Clear log" style="background:none;border:none;color:#64748b;cursor:pointer;padding:2px 6px;border-radius:4px;font-size:0.72rem;font-family:inherit;transition:color 0.15s;" onmouseover="this.style.color='#e2e8f0'" onmouseout="this.style.color='#64748b'">CLEAR</button>
+        <button onclick="SatDebug.hide()" title="Minimise" style="background:none;border:none;color:#64748b;cursor:pointer;padding:2px 6px;border-radius:4px;font-size:1rem;line-height:1;transition:color 0.15s;" onmouseover="this.style.color='#e2e8f0'" onmouseout="this.style.color='#64748b'">−</button>
+        <button onclick="SatDebug.toggle()" title="Close debug mode" style="background:none;border:none;color:#64748b;cursor:pointer;padding:2px 6px;border-radius:4px;font-size:1rem;line-height:1;transition:color 0.15s;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#64748b'">✕</button>
+      </div>
+    </div>
+
+    <!-- Metrics bar -->
+    <div id="sat-debug-metrics">
+      <div class="dbg-metric" title="Total API calls this session">
+        <span class="dbg-metric-val" id="dbg-m-calls">0</span>
+        <span class="dbg-metric-lbl">Requests</span>
+      </div>
+      <div class="dbg-metric" title="Requests with errors (4xx/5xx)">
+        <span class="dbg-metric-val" id="dbg-m-errors" style="color:#ef4444;">0</span>
+        <span class="dbg-metric-lbl">Errors</span>
+      </div>
+      <div class="dbg-metric" title="Average response time">
+        <span class="dbg-metric-val" id="dbg-m-avg">—</span>
+        <span class="dbg-metric-lbl">Avg ms</span>
+      </div>
+      <div class="dbg-metric" title="Total data transferred (approx)">
+        <span class="dbg-metric-val" id="dbg-m-bytes">0 B</span>
+        <span class="dbg-metric-lbl">Transferred</span>
+      </div>
+      <div class="dbg-metric" title="JS heap usage (if available)">
+        <span class="dbg-metric-val" id="dbg-m-mem">—</span>
+        <span class="dbg-metric-lbl">JS Heap</span>
+      </div>
+      <div class="dbg-metric" title="Page load time">
+        <span class="dbg-metric-val" id="dbg-m-load">—</span>
+        <span class="dbg-metric-lbl">Load ms</span>
+      </div>
+    </div>
+
+    <!-- Filter tabs -->
+    <div id="sat-debug-tabs">
+      <button class="dbg-tab active" data-filter="all"   onclick="SatDebug.setFilter('all',this)">All</button>
+      <button class="dbg-tab"        data-filter="api"   onclick="SatDebug.setFilter('api',this)">API</button>
+      <button class="dbg-tab"        data-filter="geo"   onclick="SatDebug.setFilter('geo',this)">Geo</button>
+      <button class="dbg-tab"        data-filter="ui"    onclick="SatDebug.setFilter('ui',this)">UI</button>
+      <button class="dbg-tab"        data-filter="warn"  onclick="SatDebug.setFilter('warn',this)">⚠ Warn</button>
+      <button class="dbg-tab"        data-filter="error" onclick="SatDebug.setFilter('error',this)">✕ Error</button>
+    </div>
+
+    <!-- Log list -->
+    <div id="sat-debug-log" role="log" aria-live="polite"></div>
+
+    <!-- Resize handle -->
+    <div id="sat-debug-resize" title="Drag to resize"></div>
+  </div>
+
+  <script>
+  /* ========================================================
+     SatTrack Debug Panel — v1.0
+     ======================================================== */
+  (function () {
+    'use strict';
+
+    const LS_KEY   = 'sattrack_debug_enabled';
+    const LS_POS   = 'sattrack_debug_pos';
+    const LS_SIZE  = 'sattrack_debug_size';
+    const MAX_LOGS = 200;
+
+    /* ── state ── */
+    let _enabled  = localStorage.getItem(LS_KEY) === '1';
+    let _logs     = [];
+    let _filter   = 'all';
+    let _metrics  = { calls: 0, errors: 0, totalMs: 0, totalBytes: 0 };
+    let _minimised = false;
+
+    /* ── DOM refs ── */
+    const panel   = () => document.getElementById('sat-debug-panel');
+    const logEl   = () => document.getElementById('sat-debug-log');
+    const toggleBtn = () => document.getElementById('debug-toggle-btn');
+
+    /* ──────────────────────────────────────────────────────
+       Public API
+    ────────────────────────────────────────────────────── */
+    window.SatDebug = {
+      toggle() {
+        _enabled = !_enabled;
+        localStorage.setItem(LS_KEY, _enabled ? '1' : '0');
+        _enabled ? _show() : _close();
+      },
+      hide() {
+        _minimised = !_minimised;
+        const log  = logEl();
+        const tabs = document.getElementById('sat-debug-tabs');
+        const rsz  = document.getElementById('sat-debug-resize');
+        if (log)  log.style.display  = _minimised ? 'none' : '';
+        if (tabs) tabs.style.display = _minimised ? 'none' : '';
+        if (rsz)  rsz.style.display  = _minimised ? 'none' : '';
+        const minBtn = document.querySelector('#sat-debug-header button[title="Minimise"]');
+        if (minBtn) minBtn.textContent = _minimised ? '+' : '−';
+      },
+      clearLog() {
+        _logs = [];
+        _metrics = { calls: 0, errors: 0, totalMs: 0, totalBytes: 0 };
+        _renderLog();
+        _updateMetrics();
+        _log('info', 'ui', '🗑 Log cleared');
+      },
+      setFilter(f, btn) {
+        _filter = f;
+        document.querySelectorAll('.dbg-tab').forEach(b => b.classList.remove('active'));
+        if (btn) btn.classList.add('active');
+        _renderLog();
+      },
+      /** External log hook — call from any page JS */
+      log(type, category, message, detail) {
+        if (_enabled) _log(type, category, message, detail);
+      },
+    };
+
+    /* ──────────────────────────────────────────────────────
+       Show / hide
+    ────────────────────────────────────────────────────── */
+    function _show() {
+      const p = panel();
+      if (!p) return;
+      _restorePosition();
+      _restoreSize();
+      p.style.display = 'flex';
+      p.setAttribute('aria-hidden', 'false');
+      const btn = toggleBtn();
+      if (btn) {
+        btn.style.background = 'rgba(59,130,246,0.15)';
+        btn.style.color = '#60a5fa';
+        btn.style.borderColor = 'rgba(59,130,246,0.3)';
+        btn.setAttribute('aria-pressed', 'true');
+      }
+      _log('info', 'ui', '🐛 Debug mode enabled', `Page: ${location.pathname}`);
+      _measurePageLoad();
+      _startMemoryPoll();
+    }
+
+    function _close() {
+      const p = panel();
+      if (p) { p.style.display = 'none'; p.setAttribute('aria-hidden', 'true'); }
+      const btn = toggleBtn();
+      if (btn) {
+        btn.style.background = 'transparent';
+        btn.style.color = 'var(--text-muted)';
+        btn.style.borderColor = 'transparent';
+        btn.setAttribute('aria-pressed', 'false');
+      }
+    }
+
+    /* ──────────────────────────────────────────────────────
+       Logging core
+    ────────────────────────────────────────────────────── */
+    function _log(type, category, message, detail, extra) {
+      const entry = {
+        id: Date.now() + Math.random(),
+        ts: new Date(),
+        type,      // 'info' | 'success' | 'warn' | 'error' | 'api' | 'geo'
+        category,  // 'api' | 'geo' | 'ui' | 'warn' | 'error'
+        message,
+        detail:  detail  || null,
+        extra:   extra   || null,
+      };
+      _logs.unshift(entry);
+      if (_logs.length > MAX_LOGS) _logs.pop();
+      _renderEntry(entry, true);
+    }
+
+    function _renderLog() {
+      const el = logEl();
+      if (!el) return;
+      el.innerHTML = '';
+      const filtered = _filter === 'all' ? _logs : _logs.filter(l => l.category === _filter);
+      filtered.forEach(e => _renderEntry(e, false));
+    }
+
+    function _renderEntry(entry, prepend) {
+      const el = logEl();
+      if (!el) return;
+
+      // Filter check
+      if (_filter !== 'all' && entry.category !== _filter) return;
+
+      const colours = {
+        info:    '#64748b',
+        success: '#10b981',
+        warn:    '#f59e0b',
+        error:   '#ef4444',
+        api:     '#3b82f6',
+        geo:     '#8b5cf6',
+      };
+      const colour = colours[entry.type] || colours.info;
+      const hh = String(entry.ts.getHours()).padStart(2,'0');
+      const mm = String(entry.ts.getMinutes()).padStart(2,'0');
+      const ss = String(entry.ts.getSeconds()).padStart(2,'0');
+      const ms = String(entry.ts.getMilliseconds()).padStart(3,'0');
+      const time = `${hh}:${mm}:${ss}.${ms}`;
+
+      const div = document.createElement('div');
+      div.className = 'dbg-entry';
+      div.style.cssText = `border-left:2px solid ${colour};`;
+
+      let detailHtml = '';
+      if (entry.detail) {
+        const safeDetail = String(entry.detail).replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        detailHtml = `<div class="dbg-detail">${safeDetail}</div>`;
+      }
+      let extraHtml = '';
+      if (entry.extra) {
+        const safeExtra = String(entry.extra).replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        extraHtml = `<div class="dbg-extra">${safeExtra}</div>`;
+      }
+
+      const safeMsg = String(entry.message).replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      div.innerHTML = `
+        <div class="dbg-row">
+          <span class="dbg-time">${time}</span>
+          <span class="dbg-cat" style="color:${colour}">${entry.category.toUpperCase()}</span>
+          <span class="dbg-msg">${safeMsg}</span>
+        </div>
+        ${detailHtml}${extraHtml}`;
+
+      if (prepend && el.firstChild) {
+        el.insertBefore(div, el.firstChild);
+      } else {
+        el.appendChild(div);
+      }
+    }
+
+    /* ──────────────────────────────────────────────────────
+       Metrics
+    ────────────────────────────────────────────────────── */
+    function _updateMetrics() {
+      const avg = _metrics.calls > 0 ? Math.round(_metrics.totalMs / _metrics.calls) : '—';
+      _setMetric('dbg-m-calls', _metrics.calls);
+      _setMetric('dbg-m-errors', _metrics.errors);
+      _setMetric('dbg-m-avg', avg === '—' ? '—' : avg + ' ms');
+      _setMetric('dbg-m-bytes', _fmtBytes(_metrics.totalBytes));
+    }
+
+    function _setMetric(id, val) {
+      const el = document.getElementById(id);
+      if (el) el.textContent = val;
+    }
+
+    function _measurePageLoad() {
+      try {
+        const nav = performance.getEntriesByType('navigation')[0];
+        if (nav) {
+          const loadMs = Math.round(nav.loadEventEnd || nav.duration);
+          _setMetric('dbg-m-load', loadMs + ' ms');
+          _log('info', 'ui', `⚡ Page loaded in ${loadMs} ms`,
+               `DOM: ${Math.round(nav.domContentLoadedEventEnd)} ms · DNS: ${Math.round(nav.domainLookupEnd - nav.domainLookupStart)} ms`);
+        }
+        // Existing resource timings
+        const resources = performance.getEntriesByType('resource');
+        let resBytes = 0;
+        resources.forEach(r => { resBytes += r.transferSize || 0; });
+        if (resBytes > 0) {
+          _log('info', 'ui', `📦 ${resources.length} resources loaded`, `Total transferred: ${_fmtBytes(resBytes)}`);
+        }
+      } catch(e) { /* unavailable */ }
+    }
+
+    let _memTimer = null;
+    function _startMemoryPoll() {
+      if (_memTimer) return;
+      _memTimer = setInterval(() => {
+        if (!_enabled) { clearInterval(_memTimer); _memTimer = null; return; }
+        try {
+          const mem = performance.memory;
+          if (mem) {
+            _setMetric('dbg-m-mem', _fmtBytes(mem.usedJSHeapSize));
+          }
+        } catch(e) { clearInterval(_memTimer); _memTimer = null; }
+      }, 3000);
+    }
+
+    /* ──────────────────────────────────────────────────────
+       Fetch interceptor
+    ────────────────────────────────────────────────────── */
+    const _origFetch = window.fetch;
+    window.fetch = async function(input, init) {
+      const url    = typeof input === 'string' ? input : (input.url || String(input));
+      const method = (init && init.method) ? init.method.toUpperCase() : 'GET';
+      const t0     = performance.now();
+
+      if (_enabled) {
+        const bodyPreview = _bodyPreview(init);
+        _log('api', 'api', `↑ ${method} ${_shortUrl(url)}`, bodyPreview || undefined);
+      }
+
+      let resp, err;
+      try {
+        resp = await _origFetch.apply(this, arguments);
+      } catch(e) {
+        err = e;
+      }
+
+      const elapsed = Math.round(performance.now() - t0);
+
+      if (err) {
+        _metrics.calls++;
+        _metrics.errors++;
+        _metrics.totalMs += elapsed;
+        _updateMetrics();
+        if (_enabled) _log('error', 'error', `✕ ${method} ${_shortUrl(url)} — Network Error`, err.message);
+        throw err;
+      }
+
+      const size = parseInt(resp.headers.get('content-length') || '0', 10);
+      _metrics.calls++;
+      _metrics.totalMs += elapsed;
+      _metrics.totalBytes += size;
+      if (resp.status >= 400) _metrics.errors++;
+      _updateMetrics();
+
+      if (_enabled) {
+        const statusColour = resp.status >= 400 ? '✕' : resp.status >= 300 ? '⚡' : '✓';
+        const cat = url.includes('geo-query') ? 'geo' : 'api';
+        const type = resp.status >= 400 ? 'error' : resp.status >= 300 ? 'warn' : 'success';
+        const sizeNote = size > 0 ? ` · ${_fmtBytes(size)}` : '';
+        _log(type, cat,
+          `${statusColour} ${method} ${_shortUrl(url)} → ${resp.status} (${elapsed} ms${sizeNote})`,
+          resp.status >= 400 ? `HTTP ${resp.status} ${resp.statusText}` : undefined
+        );
+
+        // Clone response to log JSON body for API errors
+        if (resp.status >= 400) {
+          const clone = resp.clone();
+          clone.json().then(j => {
+            if (j && j.error) _log('error', 'error', `  ↳ Server error: ${j.error}`);
+          }).catch(() => {});
+        }
+      }
+
+      return resp;
+    };
+
+    /* ──────────────────────────────────────────────────────
+       DOM-event logging
+    ────────────────────────────────────────────────────── */
+    document.addEventListener('click', function(e) {
+      if (!_enabled) return;
+      const btn = e.target.closest('button, a, [role="button"]');
+      if (!btn) return;
+      // Skip debug-panel-internal clicks
+      if (btn.closest('#sat-debug-panel')) return;
+      const label = btn.textContent.trim().slice(0, 60) || btn.id || btn.className.split(' ')[0];
+      const tag   = btn.tagName.toLowerCase();
+      const href  = btn.href ? ` → ${_shortUrl(btn.href)}` : '';
+      _log('info', 'ui', `🖱 Click: ${tag}[${label}]${href}`);
+    }, true);
+
+    document.addEventListener('submit', function(e) {
+      if (!_enabled) return;
+      const form = e.target;
+      const action = form.action ? _shortUrl(form.action) : '(same page)';
+      _log('info', 'ui', `📤 Form submit: ${form.id || form.className || 'form'} → ${action}`);
+    }, true);
+
+    /* ──────────────────────────────────────────────────────
+       Console proxy (captures warn / error)
+    ────────────────────────────────────────────────────── */
+    const _origWarn  = console.warn.bind(console);
+    const _origError = console.error.bind(console);
+
+    console.warn = function(...args) {
+      _origWarn(...args);
+      if (_enabled) _log('warn', 'warn', '⚠ ' + args.map(_safeStr).join(' '));
+    };
+    console.error = function(...args) {
+      _origError(...args);
+      if (_enabled) _log('error', 'error', '✕ ' + args.map(_safeStr).join(' '));
+    };
+
+    window.addEventListener('error', function(e) {
+      if (_enabled) _log('error', 'error', `💥 JS Error: ${e.message}`, `${e.filename}:${e.lineno}:${e.colno}`);
+    });
+    window.addEventListener('unhandledrejection', function(e) {
+      if (_enabled) _log('error', 'error', `💥 Unhandled promise rejection`, String(e.reason));
+    });
+
+    /* ──────────────────────────────────────────────────────
+       Drag to move
+    ────────────────────────────────────────────────────── */
+    function _makeDraggable() {
+      const p = panel();
+      const h = document.getElementById('sat-debug-header');
+      if (!p || !h) return;
+      let dragging = false, ox = 0, oy = 0;
+      h.style.cursor = 'move';
+      h.addEventListener('mousedown', function(e) {
+        if (e.target.tagName === 'BUTTON') return;
+        dragging = true;
+        const rect = p.getBoundingClientRect();
+        ox = e.clientX - rect.left;
+        oy = e.clientY - rect.top;
+        document.body.style.userSelect = 'none';
+      });
+      document.addEventListener('mousemove', function(e) {
+        if (!dragging) return;
+        const x = Math.max(0, Math.min(window.innerWidth  - 80, e.clientX - ox));
+        const y = Math.max(0, Math.min(window.innerHeight - 40, e.clientY - oy));
+        p.style.right  = 'auto';
+        p.style.bottom = 'auto';
+        p.style.left   = x + 'px';
+        p.style.top    = y + 'px';
+        localStorage.setItem(LS_POS, JSON.stringify({ left: x, top: y }));
+      });
+      document.addEventListener('mouseup', function() {
+        dragging = false;
+        document.body.style.userSelect = '';
+      });
+    }
+
+    /* ──────────────────────────────────────────────────────
+       Resize handle
+    ────────────────────────────────────────────────────── */
+    function _makeResizable() {
+      const rsz = document.getElementById('sat-debug-resize');
+      const p   = panel();
+      if (!rsz || !p) return;
+      let resizing = false, startX, startY, startW, startH;
+      rsz.addEventListener('mousedown', function(e) {
+        resizing = true;
+        startX = e.clientX; startY = e.clientY;
+        startW = p.offsetWidth; startH = p.offsetHeight;
+        document.body.style.userSelect = 'none';
+        e.preventDefault();
+      });
+      document.addEventListener('mousemove', function(e) {
+        if (!resizing) return;
+        const w = Math.max(300, startW + (e.clientX - startX));
+        const h = Math.max(180, startH + (e.clientY - startY));
+        p.style.width  = w + 'px';
+        p.style.height = h + 'px';
+        localStorage.setItem(LS_SIZE, JSON.stringify({ w, h }));
+      });
+      document.addEventListener('mouseup', function() { resizing = false; document.body.style.userSelect = ''; });
+    }
+
+    function _restorePosition() {
+      const p = panel();
+      if (!p) return;
+      try {
+        const pos = JSON.parse(localStorage.getItem(LS_POS) || 'null');
+        if (pos) {
+          p.style.right  = 'auto';
+          p.style.bottom = 'auto';
+          p.style.left   = pos.left + 'px';
+          p.style.top    = pos.top  + 'px';
+        }
+      } catch(e) {}
+    }
+
+    function _restoreSize() {
+      const p = panel();
+      if (!p) return;
+      try {
+        const sz = JSON.parse(localStorage.getItem(LS_SIZE) || 'null');
+        if (sz) { p.style.width = sz.w + 'px'; p.style.height = sz.h + 'px'; }
+      } catch(e) {}
+    }
+
+    /* ──────────────────────────────────────────────────────
+       Helpers
+    ────────────────────────────────────────────────────── */
+    function _shortUrl(u) {
+      try {
+        const url = new URL(u, location.origin);
+        return url.pathname + (url.search || '');
+      } catch(e) { return String(u).slice(0, 60); }
+    }
+
+    function _fmtBytes(b) {
+      b = Number(b) || 0;
+      if (b < 1024)      return b + ' B';
+      if (b < 1048576)   return (b / 1024).toFixed(1) + ' KB';
+      return (b / 1048576).toFixed(2) + ' MB';
+    }
+
+    function _bodyPreview(init) {
+      if (!init || !init.body) return null;
+      try {
+        const parsed = JSON.parse(init.body);
+        const preview = JSON.stringify(parsed).slice(0, 120);
+        return `Body: ${preview}${preview.length >= 120 ? '…' : ''}`;
+      } catch(e) {
+        return String(init.body).slice(0, 80);
+      }
+    }
+
+    function _safeStr(v) {
+      if (v instanceof Error)   return v.message;
+      if (typeof v === 'object') { try { return JSON.stringify(v).slice(0,80); } catch(e) { return String(v); } }
+      return String(v).slice(0, 120);
+    }
+
+    /* ──────────────────────────────────────────────────────
+       Init
+    ────────────────────────────────────────────────────── */
+    document.addEventListener('DOMContentLoaded', function () {
+      _makeDraggable();
+      _makeResizable();
+      if (_enabled) _show();
+      else _close();
+    });
+
+  }());
+  </script>
+</body>
+</html>

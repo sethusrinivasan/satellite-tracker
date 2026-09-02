@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+{% block title %}Live Orbit Tracker — SatTrack{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/tracker.css') }}">
+{% endblock %}
+
+{% block content %}
+<section class="section" style="padding: 24px;">
+  <div class="container" style="max-width: 100%; padding: 0;">
+
+    <!-- Breadcrumb -->
+    <nav class="breadcrumb" aria-label="breadcrumb" style="margin-bottom: 16px;">
+      <a href="{{ url_for('report.report') }}" class="breadcrumb__link">Search</a>
+      <span class="breadcrumb__sep">›</span>
+      <span class="breadcrumb__current">Multi-Satellite Tracker</span>
+    </nav>
+
+    <!-- Header with Controls -->
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; gap: 16px; flex-wrap: wrap;">
+      <div>
+        <h1 class="page-title" style="margin-bottom: 4px;">📡 Live Multi-Satellite Tracker</h1>
+        <p class="page-subtitle">Real-time orbits and telemetry for selected spacecraft.</p>
+      </div>
+      
+      <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+        {% if tracked %}
+        <button id="share-link-btn" class="btn btn--secondary" title="Copy shareable link" style="display: flex; align-items: center; gap: 6px; margin-bottom: 0; font-size: 0.85rem;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+          </svg>
+          Share
+        </button>
+        <a href="{{ url_for('report.report') }}" class="btn btn--secondary" style="font-size: 0.85rem; margin-bottom: 0;">← Back</a>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Empty State -->
+    <div id="tracker-empty-state" class="empty-state" style="{% if tracked %}display: none;{% else %}display: block;{% endif %} padding: 80px 24px;">
+      <div class="empty-state__icon">🛰️</div>
+      <h3 class="empty-state__title">No Satellites Selected</h3>
+      <p class="empty-state__body">Go back to search, check one or more satellites, and click "Track Selected".</p>
+      <a href="{{ url_for('report.report') }}" class="btn btn--primary" id="btn-back-search-empty">← Back to Search</a>
+    </div>
+
+    {% if tracked %}
+    <div id="tracker-grid-container">
+      <div class="tracker-layout-full">
+        
+        <div class="tracker-map-wrapper-full">
+          <!-- Map Controls -->
+          <div class="map-controls">
+            <button class="map-control-btn" id="toggle-paths-btn" onclick="toggleAllPaths()" title="Toggle satellite orbit paths on/off" style="min-width: 90px; display: none;">
+              🛤️ Paths On
+            </button>
+            <button class="map-control-btn" onclick="resetMapView()" title="Center & reset zoom">
+              🎯 Center
+            </button>
+          </div>
+          <div id="multi-map"></div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="tracker-sidebar-collapsible">
+          <div class="sidebar-header open" onclick="toggleSidebarContent(this)">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 1.1rem;">📊</span>
+              <span style="font-weight: 600; color: var(--text);">Live Telemetry & Satellite Details</span>
+              <span style="font-size: 0.8rem; color: var(--text-muted);">({{ tracked | length }} satellites)</span>
+            </div>
+            <svg class="sidebar-toggle-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="transition: transform 0.2s; transform: rotate(-90deg);">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </div>
+          <div class="sidebar-content open">
+            {% for item in tracked %}
+            {% set sat = item.satellite %}
+            <div class="sat-telemetry-card" id="sat-card-{{ sat.norad_cat_id }}">
+              <div class="sat-card-header">
+                <div>
+                  <a href="{{ url_for('report.satellite_detail', norad_id=sat.norad_cat_id) }}" class="sat-card-name" target="_blank">
+                    {{ sat.name }}
+                  </a>
+                  <div class="sat-card-meta">NORAD ID: <span class="mono">{{ sat.norad_cat_id }}</span></div>
+                </div>
+                <div class="sat-color-indicator-dot" style="width: 10px; height: 10px; border-radius: 50%;" id="sat-dot-{{ sat.norad_cat_id }}"></div>
+              </div>
+              <div class="telemetry-grid">
+                <div class="telemetry-item"><span>Latitude</span><strong class="live-lat mono">—</strong></div>
+                <div class="telemetry-item"><span>Longitude</span><strong class="live-lng mono">—</strong></div>
+                <div class="telemetry-item"><span>Altitude</span><strong class="live-alt mono">—</strong></div>
+                <div class="telemetry-item"><span>Velocity</span><strong class="live-vel mono">—</strong></div>
+              </div>
+              <div class="sat-card-actions">
+                <label class="toggle-label">
+                  <input type="checkbox" onchange="toggleTrack({{ sat.norad_cat_id }}, this.checked)" style="cursor: pointer;">
+                  Show Track
+                </label>
+                <button class="remove-btn" onclick="removeSat({{ sat.norad_cat_id }})">Remove</button>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div><!-- /tracker-layout-full -->
+
+      <!-- Technical Details accordion -->
+      <details class="glossary-card" id="technical-details-accordion">
+        <summary class="glossary-card__toggle">⚙️ Additional Details (TLE Parameters & Raw Data) — click to expand</summary>
+        <div style="padding: 20px; background: rgba(0,0,0,0.1); border-top: 1px solid var(--border);">
+          <div style="display: flex; flex-direction: column; gap: 20px;" id="tech-details-list">
+            {% for item in tracked %}
+            {% set sat = item.satellite %}
+            {% set tle = item.tle %}
+            <div class="tech-card" id="sat-tech-{{ sat.norad_cat_id }}" style="border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 20px; margin-bottom: 10px;">
+              <h3 style="font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+                <span style="width: 8px; height: 8px; border-radius: 50%; display: inline-block;" id="sat-dot-tech-{{ sat.norad_cat_id }}"></span>
+                {{ sat.name }} Parameter Details
+              </h3>
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; font-size: 0.85rem; margin-bottom: 14px;">
+                <div><span style="color: var(--text-muted);">Epoch Time (UTC):</span> <strong class="mono">{{ tle.epoch_datetime.strftime('%Y-%m-%d %H:%M:%S') }}</strong></div>
+                <div><span style="color: var(--text-muted);">Inclination:</span> <strong>{{ "%.4f"|format(tle.inclination_deg) }}°</strong></div>
+                <div><span style="color: var(--text-muted);">Eccentricity:</span> <strong class="mono">{{ "%.7f"|format(tle.eccentricity) }}</strong></div>
+                <div><span style="color: var(--text-muted);">Mean Motion:</span> <strong>{{ "%.8f"|format(tle.mean_motion_rev_day) }} rev/day</strong></div>
+                <div><span style="color: var(--text-muted);">RAAN:</span> <strong>{{ "%.4f"|format(tle.raan_deg) }}°</strong></div>
+                <div><span style="color: var(--text-muted);">Arg. Perigee:</span> <strong>{{ "%.4f"|format(tle.arg_of_perigee_deg) }}°</strong></div>
+                <div><span style="color: var(--text-muted);">Mean Anomaly:</span> <strong>{{ "%.4f"|format(tle.mean_anomaly_deg) }}°</strong></div>
+                <div><span style="color: var(--text-muted);">BSTAR Drag:</span> <strong class="mono">{{ "%.5e"|format(tle.bstar_drag) }}</strong></div>
+              </div>
+              <div class="tle-raw">
+                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px;">Raw TLE Record:</div>
+                <pre class="tle-raw__pre" style="margin-top:0;">{{ tle.raw_line1 }}
+{{ tle.raw_line2 }}</pre>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </details>
+    </div><!-- /tracker-grid-container -->
+    {% endif %}
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+{% if tracked %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/satellite.js/4.1.4/satellite.min.js"></script>
+<script src="{{ url_for('static', filename='js/tracker.js') }}"></script>
+<script>
+  // ── Data initialization (Jinja2-rendered) ──
+  const colors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#eab308'];
+  let map = null;
+
+  const trackedSats = [
+    {% for item in tracked %}
+    {
+      id: {{ item.satellite.norad_cat_id }},
+      name: "{{ item.satellite.name | replace('"', '\\"') }}",
+      line1: "{{ item.tle.raw_line1 }}",
+      line2: "{{ item.tle.raw_line2 }}",
+      meanMotion: {{ item.tle.mean_motion_rev_day }},
+      color: colors[{{ loop.index0 }} % colors.length],
+      satrec: null,
+      marker: null,
+      trackLines: [],
+      showTrack: false
+    },
+    {% endfor %}
+  ];
+
+  // ── Init ──
+  document.addEventListener("DOMContentLoaded", function() {
+    document.getElementById('share-link-btn')?.addEventListener('click', shareTrackerLink);
+    initFlatMap();
+    window.addEventListener('pagehide', function() {
+      if (window._updateFlatTimer) clearInterval(window._updateFlatTimer);
+      if (map) map.remove();
+    }, { once: true });
+  });
+</script>
+{% endif %}
+{% endblock %}

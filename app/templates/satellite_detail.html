@@ -1,0 +1,353 @@
+{% extends "base.html" %}
+{% block title %}{{ satellite.name }} ({{ satellite.norad_cat_id }}) — SatTrack{% endblock %}
+
+{% block content %}
+<section class="section">
+  <div class="container">
+
+    <!-- Breadcrumb -->
+    <nav class="breadcrumb" aria-label="breadcrumb">
+      <a href="{{ url_for('report.report') }}" class="breadcrumb__link">Search</a>
+      <span class="breadcrumb__sep">›</span>
+      <span class="breadcrumb__current">{{ satellite.name }}</span>
+    </nav>
+
+    <!-- Satellite header -->
+    <div class="sat-header">
+      <div class="sat-header__icon">🛸</div>
+      <div class="sat-header__info">
+        <h1 class="sat-header__name">{{ satellite.name }}</h1>
+        <div class="sat-header__meta">
+          <span class="meta-tag">NORAD <strong>{{ satellite.norad_cat_id }}</strong></span>
+          <span class="meta-tag">
+            Class:
+            <strong>
+              {% if satellite.classification == 'U' %}Unclassified
+              {% elif satellite.classification == 'C' %}Classified
+              {% elif satellite.classification == 'S' %}Secret
+              {% else %}{{ satellite.classification }}{% endif %}
+            </strong>
+          </span>
+          {% if satellite.int_designator %}
+          <span class="meta-tag">Int'l: <strong class="mono">{{ satellite.int_designator }}</strong></span>
+          {% endif %}
+          <span class="meta-tag">First seen: <strong>{{ satellite.first_seen.strftime('%Y-%m-%d') }}</strong></span>
+          <span class="meta-tag">{{ elements | length }} epoch{{ 's' if elements|length != 1 }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Real-time map visualization -->
+    {% if elements %}
+    <div class="map-card" style="background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 24px; box-shadow: var(--shadow);">
+      <h2 class="section-title" style="font-size: 1.15rem; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
+        <span style="font-size: 1.3rem;">🌍</span> Live Orbit Tracking
+      </h2>
+      
+      <!-- Leaflet CSS & JS via CDN -->
+      <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+      <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/satellite.js/4.1.4/satellite.min.js"></script>
+
+      <style>
+        @keyframes pulse {
+          0% { transform: scale(1); filter: drop-shadow(0 0 2px var(--accent)); }
+          50% { transform: scale(1.15); filter: drop-shadow(0 0 8px var(--accent)); }
+          100% { transform: scale(1); filter: drop-shadow(0 0 2px var(--accent)); }
+        }
+        .map-layout {
+          display: grid;
+          grid-template-columns: 1fr 280px;
+          gap: 20px;
+        }
+        @media (max-width: 768px) {
+          .map-layout {
+            grid-template-columns: 1fr;
+          }
+        }
+      </style>
+
+      <div class="map-layout">
+        <!-- Map container -->
+        <div id="map" style="height: 350px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: #0b0f19;"></div>
+        
+        <!-- Live info sidebar -->
+        <div class="map-info" style="display: flex; flex-direction: column; gap: 12px; padding: 16px; background: rgba(255,255,255,0.02); border-radius: var(--radius-sm); border: 1px solid var(--border);">
+          <div style="font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--accent);">Live Telemetry</div>
+          <div style="display: grid; grid-template-columns: 1fr; gap: 10px; font-size: 0.9rem;">
+            <div>
+              <span style="color: var(--text-muted); font-size: 0.78rem; display: block;">Latitude</span>
+              <strong id="live-lat" class="mono">—</strong>
+            </div>
+            <div>
+              <span style="color: var(--text-muted); font-size: 0.78rem; display: block;">Longitude</span>
+              <strong id="live-lng" class="mono">—</strong>
+            </div>
+            <div>
+              <span style="color: var(--text-muted); font-size: 0.78rem; display: block;">Altitude</span>
+              <strong id="live-alt" class="mono">—</strong>
+            </div>
+            <div>
+              <span style="color: var(--text-muted); font-size: 0.78rem; display: block;">Velocity</span>
+              <strong id="live-vel" class="mono">—</strong>
+            </div>
+            <div>
+              <span style="color: var(--text-muted); font-size: 0.78rem; display: block;">Orbital Period</span>
+              <strong id="live-period" class="mono">—</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", function() {
+        const line1 = "{{ elements[0].raw_line1 }}";
+        const line2 = "{{ elements[0].raw_line2 }}";
+
+        // Initialize satellite
+        const satrec = satellite.twoline2satrec(line1, line2);
+
+        // Destroy any existing Leaflet instance on this container (hot-reload / back-forward cache guard)
+        const mapContainer = document.getElementById('map');
+        if (mapContainer && mapContainer._leaflet_id != null) {
+          mapContainer._leaflet_id = null;
+          while (mapContainer.firstChild) mapContainer.removeChild(mapContainer.firstChild);
+        }
+
+        // Map initialization
+        const map = L.map('map', {
+          center: [0, 0],
+          zoom: 2,
+          minZoom: 1,
+          maxZoom: 10,
+          worldCopyJump: true
+        });
+
+        // Dark matter tiles
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+        }).addTo(map);
+
+        // Satellite icon / marker
+        const satIcon = L.divIcon({
+          className: 'sat-icon-marker',
+          html: '<div style="font-size: 24px; line-height: 1; margin-left: -12px; margin-top: -12px; animation: pulse 2s infinite;">🛰️</div>',
+          iconSize: [24, 24]
+        });
+
+        let marker = null;
+
+        function updatePosition() {
+          const now = new Date();
+          const positionAndVelocity = satellite.propagate(satrec, now);
+          const gmst = satellite.gstime(now);
+          
+          if (positionAndVelocity.position) {
+            const positionGd = satellite.eciToGeodetic(positionAndVelocity.position, gmst);
+            const lat = satellite.degreesLat(positionGd.latitude);
+            const lng = satellite.degreesLong(positionGd.longitude);
+            const alt = positionGd.height; // in km
+            
+            // Calculate speed
+            const vel = positionAndVelocity.velocity;
+            const speedKms = Math.sqrt(vel.x*vel.x + vel.y*vel.y + vel.z*vel.z);
+            const speedKmh = speedKms * 3600;
+
+            // Update text indicators
+            document.getElementById('live-lat').textContent = lat.toFixed(4) + '°';
+            document.getElementById('live-lng').textContent = lng.toFixed(4) + '°';
+            document.getElementById('live-alt').textContent = alt.toFixed(1) + ' km';
+            document.getElementById('live-vel').textContent = speedKmh.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ",") + ' km/h';
+
+            const latlng = [lat, lng];
+            if (!marker) {
+              marker = L.marker(latlng, {icon: satIcon}).addTo(map);
+              map.setView(latlng, 2);
+            } else {
+              marker.setLatLng(latlng);
+            }
+          } else {
+            document.getElementById('live-lat').textContent = 'Error';
+            document.getElementById('live-lng').textContent = 'Error';
+          }
+        }
+
+        // Draw ground track
+        const meanMotion = {{ elements[0].mean_motion_rev_day }};
+        const periodMin = 1440 / meanMotion;
+        document.getElementById('live-period').textContent = periodMin.toFixed(1) + ' min';
+
+        const points = [];
+        const start = new Date();
+        // We want to calculate points for one full orbit (periodMin)
+        for (let i = 0; i <= periodMin + 1; i += 1) {
+          const time = new Date(start.getTime() + i * 60 * 1000);
+          const posVel = satellite.propagate(satrec, time);
+          const gmst = satellite.gstime(time);
+          if (posVel.position) {
+            const posGd = satellite.eciToGeodetic(posVel.position, gmst);
+            points.push({
+              lat: satellite.degreesLat(posGd.latitude),
+              lng: satellite.degreesLong(posGd.longitude)
+            });
+          }
+        }
+
+        // Segment track to avoid lines crossing across map when wrapping longitude
+        let currentSegment = [];
+        const paths = [currentSegment];
+        for (let i = 0; i < points.length; i++) {
+          const pt = points[i];
+          if (i > 0) {
+            const prev = points[i - 1];
+            if (Math.abs(pt.lng - prev.lng) > 180) {
+              currentSegment = [];
+              paths.push(currentSegment);
+            }
+          }
+          currentSegment.push([pt.lat, pt.lng]);
+        }
+
+        paths.forEach(segment => {
+          if (segment.length > 0) {
+            L.polyline(segment, {
+              color: 'var(--accent)',
+              weight: 2,
+              opacity: 0.7,
+              dashArray: '4, 4'
+            }).addTo(map);
+          }
+        });
+
+        // Call update immediately and then every 2 seconds
+        updatePosition();
+        const _updateTimer = setInterval(updatePosition, 2000);
+
+        // Clean up map and timer when navigating away (prevents memory leak)
+        window.addEventListener('pagehide', function() {
+          clearInterval(_updateTimer);
+          map.remove();
+        }, { once: true });
+      });
+    </script>
+    {% endif %}
+
+    <!-- Field glossary -->
+    <details class="glossary-card" id="field-glossary">
+      <summary class="glossary-card__toggle">📖 TLE Field Reference — click to expand</summary>
+      <div class="glossary-grid">
+        <div class="glossary-item">
+          <span class="glossary-item__name">Epoch (UTC)</span>
+          <span class="glossary-item__desc">The UTC date and time at which the orbital elements were determined. Elements are most accurate near this epoch.</span>
+        </div>
+        <div class="glossary-item">
+          <span class="glossary-item__name">Inclination (°)</span>
+          <span class="glossary-item__desc">The angle between the orbital plane and Earth's equatorial plane. 0° = equatorial orbit, 90° = polar orbit.</span>
+        </div>
+        <div class="glossary-item">
+          <span class="glossary-item__name">RAAN (°)</span>
+          <span class="glossary-item__desc">Right Ascension of the Ascending Node — the angle from the vernal equinox to the point where the satellite crosses the equator heading north.</span>
+        </div>
+        <div class="glossary-item">
+          <span class="glossary-item__name">Eccentricity</span>
+          <span class="glossary-item__desc">Describes the shape of the orbit. 0 = perfectly circular, closer to 1 = highly elliptical. Most LEO satellites are < 0.01.</span>
+        </div>
+        <div class="glossary-item">
+          <span class="glossary-item__name">Arg. of Perigee (°)</span>
+          <span class="glossary-item__desc">The angle from the ascending node to the orbital point closest to Earth (perigee), measured in the orbital plane.</span>
+        </div>
+        <div class="glossary-item">
+          <span class="glossary-item__name">Mean Anomaly (°)</span>
+          <span class="glossary-item__desc">Fraction of the orbit completed since last perigee passage, expressed as an angle. Used with other elements to predict satellite position.</span>
+        </div>
+        <div class="glossary-item">
+          <span class="glossary-item__name">Mean Motion (rev/day)</span>
+          <span class="glossary-item__desc">Number of complete revolutions the satellite makes per day. ISS ≈ 15.5 rev/day. Higher = lower orbit.</span>
+        </div>
+        <div class="glossary-item">
+          <span class="glossary-item__name">BSTAR Drag</span>
+          <span class="glossary-item__desc">Atmospheric drag coefficient proxy used by the SGP4 propagator. Higher values indicate more atmospheric drag (lower orbit or higher solar activity).</span>
+        </div>
+        <div class="glossary-item">
+          <span class="glossary-item__name">Mean Motion Dot</span>
+          <span class="glossary-item__desc">First time derivative of mean motion (rev/day²). Positive value indicates the orbit is decaying due to drag.</span>
+        </div>
+        <div class="glossary-item">
+          <span class="glossary-item__name">Element Set #</span>
+          <span class="glossary-item__desc">Sequential counter incremented each time a new TLE is generated for this satellite. Higher = more recent.</span>
+        </div>
+        <div class="glossary-item">
+          <span class="glossary-item__name">Rev. Number</span>
+          <span class="glossary-item__desc">The cumulative revolution count at the epoch. Increments by 1 with each complete orbit.</span>
+        </div>
+        <div class="glossary-item">
+          <span class="glossary-item__name">Int'l Designator</span>
+          <span class="glossary-item__desc">COSPAR ID: 2-digit launch year + 3-digit launch number + piece code. E.g. 98067A = launched 1998, 67th launch, piece A.</span>
+        </div>
+      </div>
+    </details>
+
+    <!-- TLE Elements table -->
+    {% if elements %}
+    <div class="table-wrapper">
+      <table class="data-table data-table--detail" id="elements-table">
+        <thead>
+          <tr>
+            <th title="UTC date/time when these orbital elements were determined">Epoch (UTC)</th>
+            <th title="Orbital inclination in degrees (0°=equatorial, 90°=polar)">Incl. (°)</th>
+            <th title="Right Ascension of Ascending Node in degrees">RAAN (°)</th>
+            <th title="Orbital eccentricity (0=circular, ~1=parabolic)">Eccentricity</th>
+            <th title="Argument of perigee in degrees">Arg. Perigee (°)</th>
+            <th title="Mean anomaly at epoch in degrees">Mean Anomaly (°)</th>
+            <th title="Mean motion: revolutions per day">Mean Motion (rev/day)</th>
+            <th title="BSTAR atmospheric drag term">BSTAR Drag</th>
+            <th title="First derivative of mean motion (rev/day²)">Ṁ Dot</th>
+            <th title="Revolution number at epoch">Rev #</th>
+            <th title="TLE element set version number">Set #</th>
+            <th title="Raw TLE lines">Raw TLE</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for el in elements %}
+          <tr>
+            <td class="mono nowrap">{{ el.epoch_datetime.strftime('%Y-%m-%d %H:%M') if el.epoch_datetime else '—' }}</td>
+            <td class="text-right">{{ "%.4f"|format(el.inclination_deg) if el.inclination_deg is not none else '—' }}</td>
+            <td class="text-right">{{ "%.4f"|format(el.raan_deg) if el.raan_deg is not none else '—' }}</td>
+            <td class="text-right mono">{{ "%.7f"|format(el.eccentricity) if el.eccentricity is not none else '—' }}</td>
+            <td class="text-right">{{ "%.4f"|format(el.arg_of_perigee_deg) if el.arg_of_perigee_deg is not none else '—' }}</td>
+            <td class="text-right">{{ "%.4f"|format(el.mean_anomaly_deg) if el.mean_anomaly_deg is not none else '—' }}</td>
+            <td class="text-right">{{ "%.8f"|format(el.mean_motion_rev_day) if el.mean_motion_rev_day is not none else '—' }}</td>
+            <td class="text-right mono small">{{ "%.5e"|format(el.bstar_drag) if el.bstar_drag is not none else '—' }}</td>
+            <td class="text-right mono small">{{ "%.8f"|format(el.mean_motion_dot) if el.mean_motion_dot is not none else '—' }}</td>
+            <td class="text-right">{{ el.rev_number }}</td>
+            <td class="text-right">{{ el.element_set_number }}</td>
+            <td>
+              <button class="btn btn--sm btn--ghost tle-toggle" data-target="tle-raw-{{ el.id }}" id="tle-btn-{{ el.id }}" aria-expanded="false">
+                Show TLE
+              </button>
+              <div class="tle-raw" id="tle-raw-{{ el.id }}" hidden>
+                <pre class="tle-raw__pre">{{ el.raw_line1 }}
+{{ el.raw_line2 }}</pre>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <div class="empty-state__icon">📭</div>
+      <h2 class="empty-state__title">No TLE elements found</h2>
+      <p class="empty-state__body">This satellite has no orbital element records stored yet.</p>
+    </div>
+    {% endif %}
+
+    <div class="action-row">
+      <a href="{{ url_for('report.report') }}" class="btn btn--secondary" id="btn-back-search">← Back to Search</a>
+    </div>
+
+  </div>
+</section>
+{% endblock %}

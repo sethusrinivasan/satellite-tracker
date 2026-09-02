@@ -1,0 +1,213 @@
+/* ══════════════════════════════════════════════════════════
+   Tracker / Multi-Satellite Map Styles
+   ══════════════════════════════════════════════════════════ */
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+
+.tracker-layout-full {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.tracker-map-wrapper-full {
+  position: relative;
+  width: 100%;
+}
+
+#multi-map {
+  height: 70vh;
+  min-height: 500px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: linear-gradient(180deg, #0a1929 0%, #0b0f19 50%, #0a1220 100%);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.map-controls {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  gap: 8px;
+  z-index: 400;
+  background: rgba(15, 23, 42, 0.8);
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.1);
+  backdrop-filter: blur(8px);
+}
+
+.map-control-btn {
+  padding: 6px 10px;
+  background: rgba(59,130,246,0.15);
+  border: 1px solid rgba(59,130,246,0.3);
+  color: #60a5fa;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-weight: 600;
+}
+
+.map-control-btn:hover {
+  background: rgba(59,130,246,0.25);
+  border-color: rgba(59,130,246,0.5);
+}
+
+.tracker-sidebar-collapsible {
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.2s;
+}
+
+.sidebar-header:hover {
+  border-color: rgba(255,255,255,0.2);
+}
+
+.sidebar-header.open {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  border-bottom-color: var(--border);
+}
+
+.sidebar-content {
+  display: none;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  padding: 16px;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--border);
+  border-top: none;
+  border-bottom-left-radius: var(--radius-sm);
+  border-bottom-right-radius: var(--radius-sm);
+}
+
+.sidebar-content.open {
+  display: grid;
+}
+
+.sat-telemetry-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  position: relative;
+  transition: border-color 0.2s;
+}
+
+.sat-telemetry-card:hover {
+  border-color: rgba(255,255,255,0.15);
+}
+
+.sat-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.sat-card-name {
+  font-weight: 700;
+  font-size: 0.95rem;
+  text-decoration: none;
+  color: var(--text);
+}
+
+.sat-card-name:hover {
+  color: var(--accent);
+}
+
+.sat-card-meta {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.telemetry-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  font-size: 0.8rem;
+  margin-bottom: 12px;
+  border-top: 1px solid rgba(255,255,255,0.04);
+  padding-top: 8px;
+}
+
+.telemetry-item span {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  display: block;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.telemetry-item strong {
+  color: var(--text);
+}
+
+.sat-card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.78rem;
+  gap: 8px;
+}
+
+.toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+  color: var(--text-sub);
+  font-size: 0.8rem;
+}
+
+.remove-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.75rem;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.15s;
+}
+
+.remove-btn:hover {
+  color: var(--error);
+  background: rgba(239, 68, 68, 0.1);
+}
+
+@media (max-width: 1024px) {
+  #multi-map {
+    height: 60vh;
+  }
+}
+
+@media (max-width: 768px) {
+  #multi-map {
+    height: 50vh;
+  }
+  .sidebar-content {
+    grid-template-columns: 1fr;
+  }
+}

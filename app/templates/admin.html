@@ -1,0 +1,407 @@
+{% extends "base.html" %}
+
+{% block title %}Admin — SatTrack{% endblock %}
+{% block meta_desc %}Database maintenance panel for the SatTrack satellite TLE explorer{% endblock %}
+
+{% block content %}
+<div class="section">
+  <div class="container">
+
+    <!-- Header -->
+    <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:16px;">
+      <div>
+        <h1 class="page-title">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               style="vertical-align:-4px;margin-right:8px;color:var(--error)">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+          Admin Panel
+        </h1>
+        <p class="page-subtitle">Database maintenance — manage upload sessions and reset data.</p>
+      </div>
+      <!-- Signed-in user badge -->
+      {% set _u = session.get('admin_user') %}
+      {% if _u %}
+      <div style="display:inline-flex;align-items:center;gap:10px;padding:10px 16px;background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.2);border-radius:var(--radius);flex-shrink:0;">
+        {% if _u.picture %}
+          <img src="{{ _u.picture }}" alt="{{ _u.name }}" width="32" height="32"
+               style="border-radius:50%;object-fit:cover;border:2px solid rgba(16,185,129,0.3);"
+               referrerpolicy="no-referrer">
+        {% endif %}
+        <div>
+          <div style="font-weight:700;font-size:0.88rem;color:var(--text);">{{ _u.name }}</div>
+          <div style="font-size:0.75rem;color:var(--text-muted);">{{ _u.email }}</div>
+        </div>
+        <a href="{{ url_for('auth.logout') }}"
+           style="margin-left:8px;font-size:0.78rem;color:var(--text-muted);text-decoration:none;padding:5px 10px;border-radius:var(--radius-sm);border:1px solid var(--border);transition:all 0.2s;"
+           onmouseover="this.style.color='var(--error)';this.style.borderColor='rgba(239,68,68,0.4)'"
+           onmouseout="this.style.color='var(--text-muted)';this.style.borderColor='var(--border)'">
+          Sign out
+        </a>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- DB Stats row -->
+    <div class="db-stats">
+      <div class="db-stat">
+        <div class="db-stat__value">{{ total_satellites | default(0) }}</div>
+        <div class="db-stat__label">Total Satellites</div>
+      </div>
+      <div class="db-stat">
+        <div class="db-stat__value">{{ total_elements | default(0) }}</div>
+        <div class="db-stat__label">TLE Elements</div>
+      </div>
+      <div class="db-stat">
+        <div class="db-stat__value">{{ sessions | length }}</div>
+        <div class="db-stat__label">Upload Sessions</div>
+      </div>
+      <div class="db-stat" style="border-color: {% if seed_imported %}rgba(16,185,129,0.35){% else %}rgba(245,158,11,0.35){% endif %}">
+        <div class="db-stat__value" style="font-size:1.4rem;color:{% if seed_imported %}var(--success){% else %}var(--warning){% endif %}">
+          {% if seed_imported %}✓ Done{% else %}⏳ Pending{% endif %}
+        </div>
+        <div class="db-stat__label">Kaggle Seed</div>
+      </div>
+    </div>
+
+    <!-- Main two-column grid -->
+    <div class="admin-grid">
+
+      <!-- ── Left: Sessions table ───────────────────────────────── -->
+      <div>
+        <h2 class="section-title">Upload Sessions</h2>
+
+        {% if sessions %}
+        <div class="table-wrapper">
+          <table class="data-table" id="sessions-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Label / File</th>
+                <th>Source</th>
+                <th class="text-right">TLE Records</th>
+                <th class="text-right">New Sats</th>
+                <th class="text-right">Duplicates</th>
+                <th>Uploaded</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in sessions %}
+              {% set u = item.upload %}
+              <tr class="session-row" id="session-row-{{ u.id }}">
+                <td class="mono text--muted small">{{ u.id }}</td>
+                <td>
+                  <div style="font-weight:600">{{ u.label or u.filename }}</div>
+                  {% if u.label and u.label != u.filename %}
+                    <div class="small text--muted mono" style="margin-top:2px">{{ u.filename }}</div>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if u.is_seed %}
+                    <span class="session-source--seed">🛰 Seed</span>
+                  {% else %}
+                    <span class="session-source--user">⬆ Upload</span>
+                  {% endif %}
+                </td>
+                <td class="text-right mono">{{ item.tle_count }}</td>
+                <td class="text-right mono text--success">{{ u.new_satellites }}</td>
+                <td class="text-right mono text--muted">{{ u.duplicate_epochs }}</td>
+                <td class="small nowrap text--muted">
+                  {{ u.upload_time.strftime('%Y-%m-%d %H:%M') }} UTC
+                </td>
+                <td>
+                  <button
+                    class="btn btn--sm btn--danger"
+                    style="margin-bottom:0;width:auto"
+                    onclick="confirmDelete({{ u.id }}, '{{ (u.label or u.filename) | replace("'", "\\'") }}')"
+                    id="delete-btn-{{ u.id }}"
+                    aria-label="Delete session {{ u.id }}">
+                    Delete
+                  </button>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="empty-state" style="padding:48px 24px">
+          <div class="empty-state__icon">📭</div>
+          <h3 class="empty-state__title">No upload sessions yet</h3>
+          <p class="empty-state__body">Upload a TLE file or restart the server to trigger the Kaggle seed import.</p>
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- ── Right: Danger Zone sidebar ───────────────────────── -->
+      <div>
+        <!-- AI Model Management -->
+        <h2 class="section-title">Offline AI Model</h2>
+        <div class="danger-zone" style="border-color: var(--border); background: var(--bg-card); margin-bottom: 24px;">
+          <div class="danger-zone__title" style="color: var(--text)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--accent);">
+              <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+              <polyline points="2 17 12 22 22 17"/>
+              <polyline points="2 12 12 17 22 12"/>
+            </svg>
+            Text-to-SQL Model
+          </div>
+          <p class="danger-zone__desc" style="color: var(--text-muted)">
+            Download and manage the offline Qwen2.5-Coder-1.5B (900MB) GGUF model for natural language search queries.
+          </p>
+
+          <div style="margin: 16px 0;">
+            <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 6px;">
+              <span style="font-weight: 600;">Status:</span>
+              <span id="model-status-badge" style="font-weight: 700; color: var(--warning)">Checking...</span>
+            </div>
+            
+            <div id="model-progress-container" style="display: none; margin-top: 8px;">
+              <div style="background: rgba(255,255,255,0.08); height: 8px; border-radius: 4px; overflow: hidden;">
+                <div id="model-progress-bar" style="background: var(--accent); height: 100%; width: 0%; transition: width 0.3s;"></div>
+              </div>
+              <div id="model-progress-text" style="font-size: 0.75rem; color: var(--text-muted); text-align: right; margin-top: 4px;">0%</div>
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 10px;">
+            <button id="btn-download-model" class="btn btn--primary" style="flex: 1; margin-bottom:0;" onclick="downloadModel()">
+              Download Model
+            </button>
+            <button id="btn-delete-model" class="btn btn--danger" style="flex: 1; margin-bottom:0; display:none;" onclick="deleteModel()">
+              Delete Model
+            </button>
+          </div>
+        </div>
+
+        <h2 class="section-title">Danger Zone</h2>
+        <div class="danger-zone">
+          <div class="danger-zone__title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+              <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+            Destructive Actions
+          </div>
+          <p class="danger-zone__desc">
+            These actions are irreversible. Proceed with caution.
+          </p>
+
+          <!-- Full reset -->
+          <button class="btn--danger" id="btn-full-reset" onclick="confirmReset()">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/>
+            </svg>
+            Reset Entire Database
+          </button>
+
+          <hr class="danger-zone__divider">
+
+          <!-- Re-seed -->
+          <div style="font-size:0.82rem;color:var(--text-sub);margin-bottom:12px;line-height:1.6">
+            <strong style="color:var(--text)">Re-import Kaggle seed</strong><br>
+            Clears the seed flag so the Kaggle dataset is re-ingested on the next server restart.
+            {% if seed_imported %}
+              <span style="color:var(--success);display:block;margin-top:4px">✓ Currently seeded</span>
+            {% else %}
+              <span style="color:var(--warning);display:block;margin-top:4px">⏳ Seed not yet imported</span>
+            {% endif %}
+          </div>
+          <form method="POST" action="{{ url_for('admin.reseed') }}">
+            <button class="btn--warn" type="submit" id="btn-reseed">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/>
+              </svg>
+              Clear Seed Flag
+            </button>
+          </form>
+        </div>
+      </div>
+
+    </div><!-- /admin-grid -->
+  </div><!-- /container -->
+</div><!-- /section -->
+
+<!-- ── Per-session delete confirm modal ── -->
+<div class="modal-backdrop" id="delete-modal" role="dialog" aria-modal="true" aria-labelledby="delete-modal-title">
+  <div class="modal">
+    <div class="modal__icon">🗑️</div>
+    <h2 class="modal__title" id="delete-modal-title">Delete Session?</h2>
+    <p class="modal__body" id="delete-modal-body">
+      This will permanently remove all TLE elements in this upload session.
+      Satellites that have no remaining TLE data will also be pruned.
+    </p>
+    <div class="modal__actions">
+      <button class="btn btn--secondary" id="delete-cancel" onclick="closeModal('delete-modal')">Cancel</button>
+      <form method="POST" id="delete-form" style="flex:1">
+        <button class="btn btn--danger" style="width:100%;margin-bottom:0" type="submit" id="delete-confirm">
+          Yes, Delete
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ── Full reset confirm modal ── -->
+<div class="modal-backdrop" id="reset-modal" role="dialog" aria-modal="true" aria-labelledby="reset-modal-title">
+  <div class="modal">
+    <div class="modal__icon">⚠️</div>
+    <h2 class="modal__title" id="reset-modal-title">Reset Entire Database?</h2>
+    <p class="modal__body">
+      This will permanently delete <strong>all satellites</strong>, <strong>all TLE elements</strong>,
+      and <strong>all upload sessions</strong>. The Kaggle seed flag will also be cleared,
+      so data will be re-imported on next server restart.
+    </p>
+    <div class="modal__actions">
+      <button class="btn btn--secondary" onclick="closeModal('reset-modal')">Cancel</button>
+      <form method="POST" action="{{ url_for('admin.reset_all') }}" style="flex:1">
+        <button class="btn btn--danger" style="width:100%;margin-bottom:0" type="submit" id="reset-confirm">
+          Yes, Reset Everything
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  // ---------- Modals & Delete ----------
+  function confirmDelete(uploadId, label) {
+    const form = document.getElementById('delete-form');
+    form.action = '/admin/delete/' + uploadId;
+    document.getElementById('delete-modal-body').innerHTML =
+      'Permanently remove all TLE elements from session <strong>' +
+      label.replace(/</g,'&lt;') + '</strong>?<br><br>' +
+      'Satellites with no remaining TLE data will also be pruned.';
+    openModal('delete-modal');
+  }
+
+  function confirmReset() {
+    openModal('reset-modal');
+  }
+
+  function openModal(id) {
+    document.getElementById(id).classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeModal(id) {
+    document.getElementById(id).classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  // Close on backdrop click
+  document.querySelectorAll('.modal-backdrop').forEach(backdrop => {
+    backdrop.addEventListener('click', e => {
+      if (e.target === backdrop) closeModal(backdrop.id);
+    });
+  });
+
+  // Close on Escape key
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      document.querySelectorAll('.modal-backdrop.open').forEach(m => closeModal(m.id));
+    }
+  });
+
+  // ---------- AI Model Management ----------
+  let statusInterval = null;
+
+  async function checkModelStatus() {
+    try {
+      const res = await fetch('{{ url_for("admin.model_status") }}');
+      const data = await res.json();
+      
+      const badge = document.getElementById('model-status-badge');
+      const progContainer = document.getElementById('model-progress-container');
+      const progBar = document.getElementById('model-progress-bar');
+      const progText = document.getElementById('model-progress-text');
+      const btnDownload = document.getElementById('btn-download-model');
+      const btnDelete = document.getElementById('btn-delete-model');
+
+      if (data.status === 'completed') {
+        badge.textContent = 'Downloaded';
+        badge.style.color = 'var(--success)';
+        progContainer.style.display = 'none';
+        btnDownload.style.display = 'none';
+        btnDownload.disabled = false;
+        btnDelete.style.display = '';
+        if (statusInterval) { clearInterval(statusInterval); statusInterval = null; }
+      } else if (data.status === 'downloading') {
+        badge.textContent = 'Downloading...';
+        badge.style.color = 'var(--accent)';
+        progContainer.style.display = '';
+        progBar.style.width = data.progress + '%';
+        progText.textContent = `${data.progress}% (${formatBytes(data.bytes_downloaded)} / ${formatBytes(data.total_bytes)})`;
+        btnDownload.style.display = '';
+        btnDownload.disabled = true;
+        btnDownload.textContent = 'Downloading...';
+        btnDelete.style.display = 'none';
+        if (!statusInterval) {
+          statusInterval = setInterval(checkModelStatus, 2000);
+        }
+      } else if (data.status === 'error') {
+        badge.textContent = 'Error: ' + data.error_message;
+        badge.style.color = 'var(--error)';
+        progContainer.style.display = 'none';
+        btnDownload.style.display = '';
+        btnDownload.disabled = false;
+        btnDownload.textContent = 'Retry Download';
+        btnDelete.style.display = 'none';
+        if (statusInterval) { clearInterval(statusInterval); statusInterval = null; }
+      } else {
+        badge.textContent = 'Not Downloaded';
+        badge.style.color = 'var(--warning)';
+        progContainer.style.display = 'none';
+        btnDownload.style.display = '';
+        btnDownload.disabled = false;
+        btnDownload.textContent = 'Download Model';
+        btnDelete.style.display = 'none';
+        if (statusInterval) { clearInterval(statusInterval); statusInterval = null; }
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  async function downloadModel() {
+    try {
+      const res = await fetch('{{ url_for("admin.download_model") }}', { method: 'POST' });
+      const data = await res.json();
+      if (data.status === 'started' || data.status === 'already downloading') {
+        checkModelStatus();
+      }
+    } catch (e) {
+      alert('Failed to trigger download: ' + e.message);
+    }
+  }
+
+  async function deleteModel() {
+    if (!confirm('Are you sure you want to delete the offline AI model? This will free up 900MB.')) return;
+    try {
+      const res = await fetch('{{ url_for("admin.delete_model") }}', { method: 'POST' });
+      const data = await res.json();
+      if (data.status === 'deleted') {
+        checkModelStatus();
+      } else if (data.error) {
+        alert(data.error);
+      }
+    } catch (e) {
+      alert('Failed to delete model: ' + e.message);
+    }
+  }
+
+  function formatBytes(bytes) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  }
+
+  // Check model status on load
+  document.addEventListener('DOMContentLoaded', checkModelStatus);
+</script>
+{% endblock %}
