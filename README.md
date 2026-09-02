@@ -287,7 +287,7 @@ docker run -p 5000:5000 --env-file .env satellite-tracker:latest
 ```
 
 #### 🔄 Automated CI/CD Docker Publishing
-This repository includes a GitHub Action (`.github/workflows/docker-publish.yml`) that automatically builds and pushes the container image to Docker Hub on every push to `main` or release tag.
+This repository includes a GitHub Action (`.github/workflows/docker-publish.yml`) that builds and tests the container image on every change. It publishes images only when the checked-in [`VERSION`](VERSION) file is bumped to a new semantic version.
 
 ---
 
@@ -352,4 +352,3 @@ This repository and codebase were developed with pair-programming assistance fro
 ## 🤝 Contributing & License
 
 This demonstration project is open-source under the [MIT License](LICENSE). Contributions, bug reports, feature suggestions, and enhancements are welcome! Feel free to fork, adapt, and build upon this project.
-
