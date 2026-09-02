@@ -111,6 +111,37 @@ Open your browser and navigate to **[http://localhost:5000](http://localhost:500
 
 ---
 
+## 🚀 1-Click Free Cloud Deployment Options
+
+Deploy your own instance of the Satellite Tracker & AI Discovery platform to free cloud hosting providers with a single click:
+
+### Option A: Deploy to Render (Recommended)
+Render offers a free Web Service tier with automatic SSL certificates and GitHub continuous deployment.
+
+[![Deploy to Render](https://render.com/images/deploy-to-render.svg)](https://render.com/deploy?repo=https://github.com/sethusrinivasan/satellite-tracker)
+
+1. Click the **Deploy to Render** button above.
+2. Render will automatically detect the [`render.yaml`](render.yaml) configuration file.
+3. Click **Create Web Service** to start automatic build and deployment.
+
+### Option B: Deploy to Koyeb
+Koyeb provides free micro-instance containers for Python/Docker applications.
+
+[![Deploy to Koyeb](https://www.koyeb.com/static/images/deploy/deploy-png.png)](https://app.koyeb.com/deploy?type=git&repository=github.com/sethusrinivasan/satellite-tracker&branch=main&builder=buildpack)
+
+### Option C: Container Deployment (Docker)
+Build and run locally or on any container platform (Hugging Face Spaces, AWS ECS, Fly.io, Railway):
+
+```bash
+# Build Docker image
+docker build -t satellite-tracker .
+
+# Run container
+docker run -p 5000:5000 --env-file .env satellite-tracker
+```
+
+---
+
 ## 🤖 Setting Up Offline AI Search
 
 1. Navigate to the **Admin Panel** (`/admin`).

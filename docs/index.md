@@ -28,6 +28,15 @@ Welcome to the official documentation for **Satellite TLE Tracker & AI Orbital D
 
 ---
 
+## 🚀 One-Click Cloud Deployment Options
+
+Deploy a live instance of the platform to free hosting providers:
+
+- **Deploy to Render**: [![Deploy to Render](https://render.com/images/deploy-to-render.svg)](https://render.com/deploy?repo=https://github.com/sethusrinivasan/satellite-tracker)
+- **Deploy to Koyeb**: [![Deploy to Koyeb](https://www.koyeb.com/static/images/deploy/deploy-png.png)](https://app.koyeb.com/deploy?type=git&repository=github.com/sethusrinivasan/satellite-tracker&branch=main&builder=buildpack)
+
+---
+
 ## 📱 User Experience & Responsive Design Standard
 
 The web interface is engineered around responsive design principles to ensure consistent usability across platforms:
