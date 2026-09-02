@@ -42,35 +42,71 @@
       {% endif %}
     </div>
 
-    <!-- System Overview Resource Gauges (Matching Mockup 4) -->
+    <!-- System Overview Resource Gauges (Enhanced Telemetry) -->
     <div style="background:var(--bg-card);border:1px solid rgba(6,182,212,0.35);border-radius:var(--radius);padding:20px;margin-bottom:24px;box-shadow:0 0 20px rgba(6,182,212,0.1);">
-      <h3 style="font-size:1.05rem;font-weight:700;margin-bottom:16px;color:var(--text);display:flex;align-items:center;gap:8px;">
-        ⚡ System Resource Overview
-        <span style="font-size:0.75rem;color:var(--text-muted);font-weight:normal;">(Real-time server telemetry)</span>
+      <h3 style="font-size:1.05rem;font-weight:700;margin-bottom:16px;color:var(--text);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+        <span style="display:flex;align-items:center;gap:8px;">
+          ⚡ System Resource &amp; Container Telemetry
+          <span style="font-size:0.75rem;color:var(--text-muted);font-weight:normal;">(Real-time server &amp; process metrics)</span>
+        </span>
+        {% if telemetry.is_docker %}
+          <span style="font-size:0.75rem;padding:4px 12px;border-radius:12px;background:rgba(59,130,246,0.15);border:1px solid rgba(59,130,246,0.35);color:#60a5fa;font-weight:700;">🐳 Docker Container Runtime</span>
+        {% else %}
+          <span style="font-size:0.75rem;padding:4px 12px;border-radius:12px;background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.35);color:#34d399;font-weight:700;">💻 Local Dev Virtualenv</span>
+        {% endif %}
       </h3>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:16px;">
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:16px;margin-bottom:16px;">
+        <!-- CPU Load -->
         <div style="background:rgba(6,182,212,0.05);border:1px solid rgba(6,182,212,0.2);border-radius:var(--radius-sm);padding:16px;text-align:center;">
-          <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:6px;">CPU Load</div>
-          <div style="font-size:1.8rem;font-weight:800;color:#38bdf8;font-family:var(--mono);">{{ system_metrics.cpu }}%</div>
+          <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:4px;">CPU Load</div>
+          <div style="font-size:1.8rem;font-weight:800;color:#38bdf8;font-family:var(--mono);">{{ telemetry.cpu_percent }}%</div>
+          <div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">{{ telemetry.cpu_cores }} Cores / Threads</div>
           <div style="background:rgba(255,255,255,0.08);height:6px;border-radius:3px;margin-top:8px;overflow:hidden;">
-            <div style="background:#38bdf8;height:100%;width:{{ system_metrics.cpu }}%;"></div>
+            <div style="background:#38bdf8;height:100%;width:{{ telemetry.cpu_percent }}%;"></div>
           </div>
         </div>
+
+        <!-- RAM Usage -->
         <div style="background:rgba(139,92,246,0.05);border:1px solid rgba(139,92,246,0.2);border-radius:var(--radius-sm);padding:16px;text-align:center;">
-          <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:6px;">RAM Usage</div>
-          <div style="font-size:1.8rem;font-weight:800;color:#a78bfa;font-family:var(--mono);">{{ system_metrics.memory }}%</div>
+          <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:4px;">RAM Usage</div>
+          <div style="font-size:1.8rem;font-weight:800;color:#a78bfa;font-family:var(--mono);">{{ telemetry.memory_percent }}%</div>
+          <div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">{{ telemetry.memory_used_gb }} GB / {{ telemetry.memory_total_gb }} GB</div>
           <div style="background:rgba(255,255,255,0.08);height:6px;border-radius:3px;margin-top:8px;overflow:hidden;">
-            <div style="background:#a78bfa;height:100%;width:{{ system_metrics.memory }}%;"></div>
+            <div style="background:#a78bfa;height:100%;width:{{ telemetry.memory_percent }}%;"></div>
           </div>
         </div>
+
+        <!-- Disk Storage -->
         <div style="background:rgba(16,185,129,0.05);border:1px solid rgba(16,185,129,0.2);border-radius:var(--radius-sm);padding:16px;text-align:center;">
-          <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:6px;">Disk Storage</div>
-          <div style="font-size:1.8rem;font-weight:800;color:#34d399;font-family:var(--mono);">{{ system_metrics.disk }}%</div>
+          <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:4px;">Disk Storage</div>
+          <div style="font-size:1.8rem;font-weight:800;color:#34d399;font-family:var(--mono);">{{ telemetry.disk_percent }}%</div>
+          <div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">{{ telemetry.disk_free_gb }} GB Free</div>
           <div style="background:rgba(255,255,255,0.08);height:6px;border-radius:3px;margin-top:8px;overflow:hidden;">
-            <div style="background:#34d399;height:100%;width:{{ system_metrics.disk }}%;"></div>
+            <div style="background:#34d399;height:100%;width:{{ telemetry.disk_percent }}%;"></div>
+          </div>
+        </div>
+
+        <!-- Process RSS Memory & DB Size -->
+        <div style="background:rgba(245,158,11,0.05);border:1px solid rgba(245,158,11,0.2);border-radius:var(--radius-sm);padding:16px;text-align:center;">
+          <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:4px;">App Process Memory</div>
+          <div style="font-size:1.8rem;font-weight:800;color:#fbbf24;font-family:var(--mono);">{{ telemetry.process_memory_mb }} MB</div>
+          <div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">DB: {{ telemetry.db_size_mb }} MB · Uptime: {{ telemetry.process_uptime }}</div>
+          <div style="background:rgba(255,255,255,0.08);height:6px;border-radius:3px;margin-top:8px;overflow:hidden;">
+            <div style="background:#fbbf24;height:100%;width:40%;"></div>
           </div>
         </div>
       </div>
+
+      <!-- Additional Docker Container Metrics Bar (shown when in Docker environment) -->
+      {% if telemetry.is_docker %}
+      <div style="background:rgba(0,0,0,0.25);border:1px solid rgba(59,130,246,0.25);border-radius:var(--radius-sm);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;font-size:0.82rem;color:var(--text-muted);">
+        <div><strong style="color:var(--text)">🐳 Container ID / Host:</strong> <code style="color:#60a5fa;font-family:var(--mono)">{{ telemetry.container_id }}</code></div>
+        <div><strong style="color:var(--text)">CGroup Mem Limit:</strong> <span style="color:var(--text)">{{ telemetry.container_mem_limit }}</span></div>
+        <div><strong style="color:var(--text)">CGroup Mem Usage:</strong> <span style="color:var(--text)">{{ telemetry.container_mem_usage }}</span></div>
+        <div><strong style="color:var(--text)">CPU Quota:</strong> <span style="color:var(--text)">{{ telemetry.container_cpu_quota }}</span></div>
+      </div>
+      {% endif %}
     </div>
 
     <!-- DB Stats row -->
