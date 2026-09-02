@@ -42,15 +42,26 @@ def init_oauth(app):
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
 def is_local_dev():
-    """Return True if running in local development mode."""
+    """Return True if running in local development or Docker development mode."""
     import os
     env = os.environ.get("FLASK_ENV") or os.environ.get("ENV") or ""
     host = request.host.split(":")[0] if request else ""
+    is_docker = os.path.exists('/.dockerenv') or os.environ.get("RUNNING_IN_DOCKER") == "true" or os.environ.get("CONTAINER_ENV") == "docker"
     return (
         current_app.debug
+        or is_docker
         or env.lower() in ("development", "dev", "local")
-        or host in ("localhost", "127.0.0.1", "0.0.0.0")
+        or host in ("localhost", "127.0.0.1", "0.0.0.0", "host.docker.internal")
     )
+
+
+def is_valid_google_client_id(client_id):
+    """Return True if client_id is set and is not a dummy placeholder from .env.example."""
+    if not client_id or not isinstance(client_id, str):
+        return False
+    cid = client_id.strip().lower()
+    placeholders = ["your-google", "your-client", "your_google", "change-me", "example.com"]
+    return not any(p in cid for p in placeholders)
 
 
 def _allowed_emails(app=None):
@@ -86,15 +97,17 @@ def admin_required(f):
 @auth_bp.route("/login")
 def login():
     local_dev = is_local_dev()
-    # If credentials not configured, show a helpful error page instead of
-    # crashing with a cryptic OAuth error.
-    if not current_app.config.get("GOOGLE_CLIENT_ID"):
+    client_id = current_app.config.get("GOOGLE_CLIENT_ID")
+    
+    # If credentials are not configured or are placeholder strings, show auth_error page
+    if not is_valid_google_client_id(client_id):
         return render_template("auth_error.html",
                                title="OAuth Not Configured",
                                message=(
                                    "GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment "
-                                   "variables are not set. "
-                                   "Add them to your .env file and restart the server."
+                                   "variables are not set or contain dummy placeholders. "
+                                   "To enable Google OAuth2 authentication, obtain valid credentials "
+                                   "from Google Cloud Console and add them to your .env file."
                                ),
                                is_local_dev=local_dev), 503
 
