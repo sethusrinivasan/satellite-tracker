@@ -138,13 +138,14 @@ satellite-tracker/
 │   ├── static/            # CSS & JS assets
 │   ├── templates/         # Jinja2 HTML templates
 │   └── models.py          # SQLAlchemy ORM models (Satellite, TLEElement, Upload)
+├── data/
+│   └── kaggle_tle_data.txt # Default Starlink seed dataset
 ├── docs/
 │   ├── index.md           # GitHub Pages landing page
 │   ├── architecture.md    # System architecture & database schema
 │   └── design.md          # UI/UX design tokens & visual components
 ├── instance/              # SQLite database & file upload storage (git-ignored)
 ├── config.py              # Application settings
-├── kaggle_tle_data.txt    # Default Starlink seed dataset
 ├── requirements.txt       # Dependencies
 ├── run.py                 # Application launcher
 └── run.sh                 # Convenience execution script
@@ -154,7 +155,7 @@ satellite-tracker/
 
 ## 📊 Sample Data
 
-The repository includes `kaggle_tle_data.txt`, sourced from the Kaggle dataset:
+The repository includes `data/kaggle_tle_data.txt`, sourced from the Kaggle dataset:
 > **Starlink Satellite TLE CSV Dataset – April 2025** by Vijay Joshi  
 > [Kaggle Dataset Link](https://www.kaggle.com/datasets/vijayj0shi/starlink-satellite-tlecsv-dataset-april-2025?select=starlink_tle.txt)
 

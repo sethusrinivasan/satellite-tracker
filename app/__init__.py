@@ -57,9 +57,11 @@ def _seed_kaggle_data_if_needed(app):
     if already_seeded:
         return
 
-    seed_path = os.path.join(os.path.dirname(app.root_path), "kaggle_tle_data.txt")
+    seed_path_data = os.path.join(os.path.dirname(app.root_path), "data", "kaggle_tle_data.txt")
+    seed_path_root = os.path.join(os.path.dirname(app.root_path), "kaggle_tle_data.txt")
+    seed_path = seed_path_data if os.path.exists(seed_path_data) else seed_path_root
     if not os.path.exists(seed_path):
-        log.warning("[seed] kaggle_tle_data.txt not found at %s — skipping auto-seed.", seed_path)
+        log.warning("[seed] Seed data file not found at %s — skipping auto-seed.", seed_path_data)
         return
 
     log.info("[seed] First-time startup: importing Kaggle TLE data from %s …", seed_path)
