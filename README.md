@@ -4,6 +4,9 @@
 [![Flask](https://img.shields.io/badge/Flask-3.0+-000000?style=flat-square&logo=flask&logoColor=white)](https://flask.palletsprojects.com/)
 [![SQLite](https://img.shields.io/badge/SQLite-SQLAlchemy-003B57?style=flat-square&logo=sqlite&logoColor=white)](https://www.sqlalchemy.org/)
 [![Offline AI](https://img.shields.io/badge/Offline_AI-llama--cpp--python-FF6F00?style=flat-square&logo=huggingface&logoColor=white)](https://github.com/abetlen/llama-cpp-python)
+[![Deploy to Render](https://img.shields.io/badge/Render-Deploy_1--Click-46E3B7?style=flat-square&logo=render&logoColor=white)](https://render.com/deploy?repo=https://github.com/sethusrinivasan/satellite-tracker)
+[![Deploy on Railway](https://img.shields.io/badge/Railway-Deploy_1--Click-0B0D0E?style=flat-square&logo=railway&logoColor=white)](https://railway.app/new)
+[![Hugging Face](https://img.shields.io/badge/Hugging_Face-Spaces_16GB-FFD21E?style=flat-square&logo=huggingface&logoColor=black)](https://huggingface.co/new-space)
 [![SBOM](https://img.shields.io/badge/SBOM-CycloneDX_v1.5-blue?style=flat-square&logo=json)](sbom.json)
 [![GitHub Pages](https://img.shields.io/badge/Docs-GitHub_Pages-22C55E?style=flat-square&logo=github&logoColor=white)](https://sethusrinivasan.github.io/satellite-tracker/)
 
@@ -222,6 +225,7 @@ Deploy your own instance of the Satellite Tracker & AI Discovery platform to fre
 Render offers a free Web Service tier with automatic SSL certificates and GitHub continuous deployment.
 
 [![Deploy to Render](https://render.com/images/deploy-to-render.svg)](https://render.com/deploy?repo=https://github.com/sethusrinivasan/satellite-tracker)
+[![Render Status](https://img.shields.io/badge/Render-Free_Tier_Ready-46E3B7?style=for-the-badge&logo=render&logoColor=white)](https://render.com/deploy?repo=https://github.com/sethusrinivasan/satellite-tracker)
 
 1. Click the **Deploy to Render** button above.
 2. Render will automatically detect the [`render.yaml`](render.yaml) configuration file.
@@ -231,11 +235,14 @@ Render offers a free Web Service tier with automatic SSL certificates and GitHub
 Railway provides instant container deployments directly from GitHub using the included `Dockerfile`.
 
 [![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new)
+[![Railway Status](https://img.shields.io/badge/Railway-Container_Ready-0B0D0E?style=for-the-badge&logo=railway&logoColor=white)](https://railway.app/new)
 
 ### Option C: Deploy to Hugging Face Spaces (Recommended for AI Models)
 Hugging Face Spaces offers a **free 16 GB RAM CPU tier**, making it ideal for hosting GGUF local model inference:
 
-1. Create a new Space on [Hugging Face Spaces](https://huggingface.co/new-space).
+[![Deploy to Hugging Face Spaces](https://img.shields.io/badge/🤗%20Hugging%20Face-Spaces_Docker_(Free_16GB)-FFD21E?style=for-the-badge&logo=huggingface&logoColor=black)](https://huggingface.co/new-space)
+
+1. Click the **Deploy to Hugging Face** button above to create a new Space.
 2. Select **Docker** as the Space SDK.
 3. Connect your GitHub repository `sethusrinivasan/satellite-tracker`.
 
