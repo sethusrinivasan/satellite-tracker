@@ -31,6 +31,8 @@ A demonstration and experimental Flask web application for uploading, parsing, e
 
 ## 🖼️ Visual Application Feature Showcase
 
+> 💡 **UI Alignment & Component Layout Note**: The visual mockups below showcase high-fidelity conceptual design previews for the application features. The accompanying component layout wireframes map 1-to-1 to the live Flask template elements (`app/templates/report.html`, `app/templates/tracker.html`, `app/templates/upload.html`, `app/templates/admin.html`), including exact field names, performance metrics badges (`⚡ System Performance`), TLE parameters, and dark-mode styling.
+
 ### 1. 💬 Offline AI Natural Language Search (Text-to-SQL)
 Translates plain English queries into validated read-only SQL queries using local GGUF model inference with real-time CPU system load reporting and execution metrics breakdown.
 
