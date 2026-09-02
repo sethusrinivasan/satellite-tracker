@@ -17,11 +17,11 @@
 
     <!-- Search Tabs -->
     <div class="search-tabs" style="display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 8px;">
-      <button type="button" class="tab-btn active" id="tab-keyword-btn" onclick="switchSearchTab('keyword')" style="background: rgba(255,255,255,0.05); color: var(--text); border: 1px solid var(--border); padding: 8px 16px; border-radius: var(--radius-sm); font-size: 0.85rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s;">
-        🔍 Keyword Search
-      </button>
-      <button type="button" class="tab-btn" id="tab-country-btn" onclick="switchSearchTab('country')" style="background: transparent; color: var(--text-muted); border: 1px solid transparent; padding: 8px 16px; border-radius: var(--radius-sm); font-size: 0.85rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s;">
+      <button type="button" class="tab-btn active" id="tab-country-btn" onclick="switchSearchTab('country')" style="background: rgba(255,255,255,0.05); color: var(--text); border: 1px solid var(--border); padding: 8px 16px; border-radius: var(--radius-sm); font-size: 0.85rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s;">
         🌍 Country Proximity Search
+      </button>
+      <button type="button" class="tab-btn" id="tab-keyword-btn" onclick="switchSearchTab('keyword')" style="background: transparent; color: var(--text-muted); border: 1px solid transparent; padding: 8px 16px; border-radius: var(--radius-sm); font-size: 0.85rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s;">
+        🔍 Keyword Search
       </button>
       <button type="button" class="tab-btn" id="tab-ai-btn" onclick="switchSearchTab('ai')" style="background: transparent; color: var(--text-muted); border: 1px solid transparent; padding: 8px 16px; border-radius: var(--radius-sm); font-size: 0.85rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s;">
         💬 AI Search
@@ -29,7 +29,7 @@
     </div>
 
     <!-- Keyword search container -->
-    <div id="keyword-search-container">
+    <div id="keyword-search-container" style="display: none;">
       <form method="GET" action="{{ url_for('report.report') }}" class="search-form" id="search-form" role="search" style="margin-bottom: 24px;">
         <div class="search-bar">
           <svg class="search-bar__icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -48,8 +48,8 @@
       </form>
     </div>
 
-    <!-- Country proximity search container -->
-    <div id="country-search-container" style="display: none; background: var(--bg-card); border: 1px solid var(--border); padding: 20px; border-radius: var(--radius); margin-bottom: 24px; box-shadow: var(--shadow);">
+    <!-- Country proximity search container (Default View) -->
+    <div id="country-search-container" style="display: block; background: var(--bg-card); border: 1px solid var(--border); padding: 20px; border-radius: var(--radius); margin-bottom: 24px; box-shadow: var(--shadow);">
       <h3 style="font-size: 1rem; font-weight: 700; margin-bottom: 8px; color: var(--text);">Track satellites closest to a country</h3>
       <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 16px; line-height: 1.5;">
         Choose a country to run real-time orbit propagation for all satellites in the database. The system will find satellites closest to the country's location and automatically select them for tracking.
