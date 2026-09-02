@@ -1,4 +1,4 @@
-name: Build and Publish Docker Image to Docker Hub
+name: Build and Publish Container Image
 
 on:
   push:
@@ -8,12 +8,16 @@ on:
     branches: [ "main" ]
   workflow_dispatch:
 
+env:
+  DEFAULT_IMAGE_NAME: sethusrinivasan/satellite-tracker
+
 jobs:
   build-and-push:
-    name: Build & Push Docker Image
+    name: Build & Push Container Image
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      packages: write
 
     steps:
       - name: Checkout repository
@@ -22,8 +26,28 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to Docker Hub
+      - name: Check Secrets Configuration
+        id: check_secrets
+        run: |
+          if [ -n "${{ secrets.DOCKERHUB_USERNAME }}" ] && [ -n "${{ secrets.DOCKERHUB_TOKEN }}" ]; then
+            echo "has_dockerhub=true" >> $GITHUB_OUTPUT
+            echo "DOCKER_IMAGE=${{ secrets.DOCKERHUB_USERNAME }}/satellite-tracker" >> $GITHUB_ENV
+          else
+            echo "has_dockerhub=false" >> $GITHUB_OUTPUT
+            echo "DOCKER_IMAGE=${{ env.DEFAULT_IMAGE_NAME }}" >> $GITHUB_ENV
+            echo "::warning::DOCKERHUB_USERNAME or DOCKERHUB_TOKEN repository secrets are not configured. To enable Docker Hub publishing, add DOCKERHUB_USERNAME and DOCKERHUB_TOKEN to your GitHub repository settings under Settings -> Secrets and variables -> Actions."
+          fi
+
+      - name: Log in to GitHub Container Registry (ghcr.io)
         if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Log in to Docker Hub
+        if: github.event_name != 'pull_request' && steps.check_secrets.outputs.has_dockerhub == 'true'
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -33,14 +57,16 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ secrets.DOCKERHUB_USERNAME }}/satellite-tracker
+          images: |
+            ghcr.io/${{ github.repository }}
+            ${{ env.DOCKER_IMAGE }}
           tags: |
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
             type=ref,event=branch
             type=semver,pattern={{version}}
             type=sha,format=short
 
-      - name: Build and push Docker image
+      - name: Build and push container image
         uses: docker/build-push-action@v5
         with:
           context: .
