@@ -138,8 +138,7 @@ satellite-tracker/
 │   ├── static/            # CSS & JS assets
 │   ├── templates/         # Jinja2 HTML templates
 │   └── models.py          # SQLAlchemy ORM models (Satellite, TLEElement, Upload)
-├── data/
-│   └── kaggle_tle_data.txt # Default Starlink seed dataset
+├── data/                  # Local directory for user datasets (git-ignored)
 ├── docs/
 │   ├── index.md           # GitHub Pages landing page
 │   ├── architecture.md    # System architecture & database schema
@@ -153,11 +152,14 @@ satellite-tracker/
 
 ---
 
-## 📊 Sample Data
+## 📊 Sample Datasets & Reference Data
 
-The repository includes `data/kaggle_tle_data.txt`, sourced from the Kaggle dataset:
-> **Starlink Satellite TLE CSV Dataset – April 2025** by Vijay Joshi  
-> [Kaggle Dataset Link](https://www.kaggle.com/datasets/vijayj0shi/starlink-satellite-tlecsv-dataset-april-2025?select=starlink_tle.txt)
+Sample TLE datasets can be retrieved directly from public orbital data sources or Kaggle:
+
+1. **Starlink Satellite TLE Dataset** (Kaggle):  
+   [Starlink Satellite TLE CSV Dataset](https://www.kaggle.com/datasets/vijayj0shi/starlink-satellite-tlecsv-dataset-april-2025?select=starlink_tle.txt) by Vijay Joshi. Save the raw text file to `data/kaggle_tle_data.txt` for local auto-seeding.
+2. **CelesTrak Active Satellites TLE Data**:  
+   [CelesTrak Active Satellites](https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle) — Real-time active satellite element sets. Download and upload directly via the web UI at `/upload`.
 
 ---
 

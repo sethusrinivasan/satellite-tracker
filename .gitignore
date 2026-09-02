@@ -48,6 +48,10 @@ models/
 *.bin
 *.tmp
 
+# Sample Data Files (downloaded locally)
+data/*.txt
+data/*.tle
+
 # IDE & OS Specific
 .vscode/
 .idea/

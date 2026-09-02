@@ -2,7 +2,7 @@
 name: Feature request
 about: Suggest an idea or enhancement for this project
 title: '[FEAT] '
-labels: 'enhancement'
+labels: 'enhancement, Antigravity_generated'
 assignees: ''
 
 ---
