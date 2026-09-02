@@ -40,15 +40,21 @@ Translates plain English queries into validated read-only SQL queries using loca
 
 ```
 +-----------------------------------------------------------------------------------+
-| 💬 AI Natural Language Search                                                     |
-| Prompt: "Show Starlink satellites with inclination > 53 degrees"                  |
+| 🛰️ SatTrack Header Navigation                                                     |
+| [ 📥 Upload ]  [ 🔍 Search & Report ]  [ 📊 Stats ]  [ 🔐 Admin ]                 |
++-----------------------------------------------------------------------------------+
+| Search Mode Tabs: [ 🔍 Filter Satellites ]  [ 🌍 Spatial Overhead ]  [ 💬 AI Search ] |
++-----------------------------------------------------------------------------------+
+| 💬 Natural Language AI Search Composer                                            |
+| Prompt Input: "Show Starlink satellites with inclination > 53 degrees"            |
+| Prompt Chips: [ Starlink over US ] [ Mean motion > 15 ] [ Inclination > 95 ]     |
 | [ 🔍 Ask AI Assistant ]                                                          |
 +-----------------------------------------------------------------------------------+
-| ⚙️ Processing prompt... (Local GGUF AI inference active — CPU load expected)      |
-| Elapsed: 4.2s                                                                     |
+| ⚙️ Processing query... (Local GGUF AI inference active — system load expected)    |
+| Elapsed Time: 4.2s                                                                |
 +-----------------------------------------------------------------------------------+
 | ⚡ System Performance: Total 19.74s (LLM Inference: 19.72s · DB: 0.012s)          |
-| 🛠️ Generated SQL:                                                                 |
+| 🛠️ Generated SQL Query:                                                           |
 | SELECT s.norad_cat_id, s.name, t.inclination_deg, t.mean_motion_rev_day           |
 | FROM satellites s JOIN tle_elements t ON s.id = t.satellite_id                    |
 | WHERE t.inclination_deg > 53.0 LIMIT 50;                                          |
@@ -71,7 +77,7 @@ Interactive 2D Leaflet ground track map and 3D globe visualization rendering rea
 | 🛰️ Live Satellite Orbital Tracker: STARLINK-11 (NORAD #44714)                     |
 | Latitude: 34.05° N | Longitude: 118.24° W | Altitude: 550.2 km | Velocity: 7.59 km/s|
 +-----------------------------------------------------------------------------------+
-|  [ 2D Ground Track Map ]                  |  [ 3D Globe Projection View ]         |
+|  [ 🌍 2D Leaflet Ground Track Map ]       |  [ 🌐 3D Globe Orbit Projection ]     |
 |  . . . . . . . . . . . . . . . . . . . .  |          .---.                        |
 |  . . . . . . . (🛰️ STARLINK) . . . . . .  |        /       \                      |
 |  . . . . . ./~/~~\~\. . . . . . . . . . . |       |    🌍   |  (🛰️ Orbit Vector)  |
@@ -90,14 +96,14 @@ Parses 3-line and 2-line TLE dataset files, verifies modulo-10 checksums, extrac
 ```
 +-----------------------------------------------------------------------------------+
 | 📥 Upload & Ingest TLE Data File                                                  |
-| Select File: [ starlink_tle.txt ]                                                 |
+| Select File: [ starlink_constellation_tle.txt ]                                   |
 | Session Label: [ April 2025 Constellation Batch ]                                 |
 | [ 🚀 Parse & Import TLE Dataset ]                                                |
 +-----------------------------------------------------------------------------------+
 | 📊 Ingestion Audit Summary Report:                                                |
 | Total Records Processed : 1,540                                                   |
 | New Satellites Created  : 85                                                      |
-| Updated Satellites      : 1,455                                                    |
+| Satellites Updated      : 1,455                                                    |
 | Duplicate Epochs Skipped: 0                                                       |
 +-----------------------------------------------------------------------------------+
 ```
@@ -111,13 +117,14 @@ Administrative interface for managing upload sessions, triggering local GGUF mod
 
 ```
 +-----------------------------------------------------------------------------------+
-| 🔐 Admin Control Center                                    Logged in as: admin    |
+| 🔐 Admin Management Center                              Logged in via Google OAuth|
 +-----------------------------------------------------------------------------------+
-| 🤖 Offline AI Model Status: qwen2.5-coder-1.5b-instruct-q4_k_m.gguf [ Active ]    |
-| [ 🔄 Re-Download Model ]  [ 🗑️ Wipe Database ]  [ ⚡ Reset Seed Flag ]             |
+| 🤖 Offline AI Model Management: qwen2.5-coder-1.5b-instruct-q4_k_m.gguf           |
+| Status: [ Model Ready / Active ]                                                  |
+| Actions: [ 🔄 Download GGUF Model ]  [ 🗑️ Wipe Database ]  [ ⚡ Clear Seed Flag ] |
 +-----------------------------------------------------------------------------------+
-| Upload History Log:                                                               |
-| ID | Filename         | Upload Time          | Records | Source      | Actions   |
+| Upload History Audit Log:                                                         |
+| ID | Filename         | Upload UTC           | Records | Source      | Actions   |
 | 1  | kaggle_tle.txt   | 2026-09-02 10:00 UTC | 1,540   | user_upload | [Delete]  |
 +-----------------------------------------------------------------------------------+
 ```
