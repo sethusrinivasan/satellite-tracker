@@ -286,6 +286,9 @@ docker build -t satellite-tracker:latest .
 docker run -p 5000:5000 --env-file .env satellite-tracker:latest
 ```
 
+#### 🔄 Automated CI/CD Docker Publishing
+This repository includes a GitHub Action (`.github/workflows/docker-publish.yml`) that automatically builds and pushes the container image to Docker Hub on every push to `main` or release tag.
+
 ---
 
 ## 🤖 Setting Up Offline AI Search
