@@ -41,6 +41,18 @@ def init_oauth(app):
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
+def is_local_dev():
+    """Return True if running in local development mode."""
+    import os
+    env = os.environ.get("FLASK_ENV") or os.environ.get("ENV") or ""
+    host = request.host.split(":")[0] if request else ""
+    return (
+        current_app.debug
+        or env.lower() in ("development", "dev", "local")
+        or host in ("localhost", "127.0.0.1", "0.0.0.0")
+    )
+
+
 def _allowed_emails(app=None):
     """Return a set of lowercase allowed emails, or empty set (= allow all)."""
     cfg = (app or current_app)
@@ -73,6 +85,7 @@ def admin_required(f):
 
 @auth_bp.route("/login")
 def login():
+    local_dev = is_local_dev()
     # If credentials not configured, show a helpful error page instead of
     # crashing with a cryptic OAuth error.
     if not current_app.config.get("GOOGLE_CLIENT_ID"):
@@ -82,10 +95,34 @@ def login():
                                    "GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment "
                                    "variables are not set. "
                                    "Add them to your .env file and restart the server."
-                               )), 503
+                               ),
+                               is_local_dev=local_dev), 503
 
     redirect_uri = url_for("auth.callback", _external=True)
     return oauth.google.authorize_redirect(redirect_uri)
+
+
+@auth_bp.route("/dev-bypass", methods=["GET", "POST"])
+def dev_bypass():
+    """
+    Dev-only route allowing one-click Admin access without Google OAuth when running locally.
+    Strictly disabled in production mode.
+    """
+    if not is_local_dev():
+        flash("Dev bypass is strictly disabled in production environments.", "error")
+        return redirect(url_for("upload.index")), 403
+
+    session.permanent = True
+    session["admin_user"] = {
+        "email": "dev-admin@localhost",
+        "name": "Local Dev Admin (Bypass)",
+        "picture": "",
+        "sub": "dev-local-001",
+        "is_dev_bypass": True,
+    }
+    flash("⚠️ Logged in to Admin Panel via Local Dev Bypass (Development Mode Only).", "warning")
+    next_url = session.pop("next_url", None)
+    return redirect(next_url or url_for("admin.index"))
 
 
 @auth_bp.route("/callback")

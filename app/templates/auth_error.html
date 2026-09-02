@@ -3,12 +3,28 @@
 
 {% block content %}
 <section class="section">
-  <div class="container--narrow" style="text-align:center;padding-top:80px;">
+  <div class="container--narrow" style="text-align:center;padding-top:60px;max-width:580px;margin:0 auto;">
     <div style="font-size:3.5rem;margin-bottom:20px;">⚙️</div>
     <h1 class="page-title" style="color:var(--warning);">{{ title }}</h1>
-    <p style="color:var(--text-sub);max-width:480px;margin:16px auto 32px;line-height:1.7;">
+    <p style="color:var(--text-sub);margin:16px auto 24px;line-height:1.7;">
       {{ message }}
     </p>
+
+    {% if is_local_dev %}
+    <div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.3);border-radius:var(--radius);padding:20px;margin-bottom:24px;text-align:left;">
+      <div style="font-weight:700;color:var(--warning);margin-bottom:6px;display:flex;align-items:center;gap:6px;">
+        ⚠️ DEV ONLY FEATURE: Local Development Admin Bypass
+      </div>
+      <p style="font-size:0.85rem;color:var(--text-sub);line-height:1.6;margin-bottom:14px;">
+        You are running the application in a local development environment. You can bypass Google OAuth to test the Admin Panel.
+        <strong style="color:var(--warning);">Note: This bypass is strictly disabled in production environments.</strong>
+      </p>
+      <a href="{{ url_for('auth.dev_bypass') }}" class="btn btn--primary" style="width:100%;justify-content:center;background:linear-gradient(135deg, #f59e0b, #d97706);color:#000;font-weight:700;">
+        🚀 Open Admin Panel (Dev Bypass — No Auth)
+      </a>
+    </div>
+    {% endif %}
+
     <a href="{{ url_for('upload.index') }}" class="btn btn--secondary">← Back to Home</a>
   </div>
 </section>

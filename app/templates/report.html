@@ -593,7 +593,7 @@ async function runAiSearch() {
     if (data.perf) {
       const p = data.perf;
       const perfBadge = `
-        <div style="margin-top:8px; font-size:0.72rem; padding:4px 8px; background:rgba(255,255,255,0.05); border-radius:4px; color:var(--text-muted); display:block;">
+        <div class="metrics-badge" style="margin-top:10px; margin-bottom:6px;">
           ⚡ <strong>System Performance:</strong> Total ${p.total_time_sec}s
           ${p.mode === 'offline_llm' ? `(LLM Inference: <strong>${p.llm_inference_sec}s</strong> · DB: <strong>${p.db_query_sec}s</strong>)` : `(SGP4 Geo Propagate: <strong>${p.db_query_sec}s</strong>)`}
         </div>`;
@@ -602,10 +602,10 @@ async function runAiSearch() {
 
     if (data.sql) {
       summaryHtml += `
-        <details style="margin-top:8px;">
-          <summary style="font-size:0.75rem;color:var(--text-muted);cursor:pointer;user-select:none;">Show query</summary>
-          <pre style="margin:6px 0 0;padding:8px 10px;background:rgba(0,0,0,0.25);border-radius:6px;font-size:0.72rem;color:var(--success);overflow-x:auto;white-space:pre-wrap;word-break:break-all;">${data.sql.replace(/</g,'&lt;')}</pre>
-        </details>`;
+        <div class="generated-sql-box">
+          <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:4px; font-weight:600;">🛠️ Generated SQL Query:</div>
+          <pre style="margin:0; font-family:var(--mono); color:#38bdf8; overflow-x:auto; white-space:pre-wrap; word-break:break-all;">${data.sql.replace(/</g,'&lt;')}</pre>
+        </div>`;
     }
 
     if (count === 0) {

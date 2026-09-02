@@ -66,33 +66,69 @@
 .ai-suggestions {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 10px;
+  gap: 8px;
+  margin-top: 12px;
 }
 
 .ai-suggestion {
-  background: rgba(59,130,246,0.08);
-  border: 1px solid rgba(59,130,246,0.22);
+  background: rgba(6, 182, 212, 0.08);
+  border: 1px solid rgba(6, 182, 212, 0.3);
   border-radius: 999px;
-  color: var(--accent);
+  color: #38bdf8;
   cursor: pointer;
   font-family: var(--font);
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   font-weight: 500;
-  padding: 5px 12px;
-  transition: background 0.15s, border-color 0.15s;
+  padding: 6px 14px;
+  transition: all 0.2s ease;
   white-space: nowrap;
 }
 
 .ai-suggestion:hover {
-  background: rgba(59,130,246,0.18);
-  border-color: rgba(59,130,246,0.45);
+  background: rgba(6, 182, 212, 0.2);
+  border-color: rgba(6, 182, 212, 0.6);
+  box-shadow: 0 0 12px rgba(6, 182, 212, 0.25);
 }
 
-/* Composer focus ring */
+/* Composer focus ring & glow */
+#ai-composer {
+  background: var(--bg-card);
+  border: 1px solid rgba(6, 182, 212, 0.35);
+  border-radius: var(--radius);
+  box-shadow: 0 0 15px rgba(6, 182, 212, 0.1);
+  transition: all 0.25s ease;
+}
+
 #ai-composer:focus-within {
-  border-color: rgba(59,130,246,0.5);
-  box-shadow: 0 0 0 3px rgba(59,130,246,0.08);
+  border-color: rgba(6, 182, 212, 0.7);
+  box-shadow: 0 0 24px rgba(6, 182, 212, 0.25);
+}
+
+/* Generated SQL Code Box */
+.generated-sql-box {
+  background: #09101d;
+  border: 1px solid rgba(6, 182, 212, 0.4);
+  border-radius: var(--radius-sm);
+  padding: 14px 18px;
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  color: #38bdf8;
+  box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.5);
+  margin-top: 10px;
+}
+
+/* Execution Metrics Badge */
+.metrics-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(6, 182, 212, 0.12);
+  border: 1px solid rgba(6, 182, 212, 0.35);
+  color: #38bdf8;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 999px;
 }
 
 /* Typing indicator dots */
@@ -107,7 +143,7 @@
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: var(--text-muted);
+  background: #38bdf8;
   animation: typingBounce 1.2s infinite ease-in-out;
 }
 
