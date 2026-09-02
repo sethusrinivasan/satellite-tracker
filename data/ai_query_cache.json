@@ -63,6 +63,14 @@
       "verified": true,
       "verified_at": "2026-09-02T12:00:00Z",
       "use_count": 1
+    },
+    {
+      "prompt": "Find Starlink satellites",
+      "sql": "SELECT norad_cat_id FROM satellites WHERE name LIKE '%Starlink%' LIMIT 5",
+      "category": "user_verified",
+      "verified": true,
+      "verified_at": "2026-09-02T21:34:50.933292+00:00",
+      "use_count": 2
     }
   ]
 }

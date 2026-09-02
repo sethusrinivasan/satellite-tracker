@@ -80,3 +80,22 @@ def test_cache_feedback_requires_admin_login(client):
     )
     assert response.status_code == 302
     assert "/auth/login" in response.headers.get("Location", "")
+
+
+def test_public_routes_are_accessible(client):
+    root = client.get("/", follow_redirects=False)
+    assert root.status_code == 302
+    assert root.headers.get("Location", "").endswith("/report")
+
+    report = client.get("/report")
+    assert report.status_code == 200
+    assert "text/html" in report.headers.get("Content-Type", "")
+
+    stats = client.get("/stats")
+    assert stats.status_code == 200
+    assert "text/html" in stats.headers.get("Content-Type", "")
+
+    latest_tles = client.get("/api/satellites/latest-tles")
+    assert latest_tles.status_code == 200
+    assert latest_tles.is_json
+    assert isinstance(latest_tles.get_json(), list)
