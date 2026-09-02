@@ -38,7 +38,7 @@ jobs:
         run: python -m pytest -q
 
   build-and-push:
-    name: Build & Push Container Image
+    name: Build and test container image
     needs: test
     runs-on: ubuntu-latest
     permissions:
@@ -130,8 +130,35 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
+          load: ${{ github.event_name == 'pull_request' || steps.version.outputs.bumped != 'true' }}
           push: ${{ github.event_name != 'pull_request' && steps.version.outputs.bumped == 'true' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Smoke test container image
+        if: github.event_name == 'pull_request' || steps.version.outputs.bumped != 'true'
+        shell: bash
+        run: |
+          container_id="$(docker run -d \
+            -e GOOGLE_CLIENT_ID=test-client-id.apps.googleusercontent.com \
+            -e GOOGLE_CLIENT_SECRET=test-client-secret \
+            -e ADMIN_ALLOWED_EMAILS= \
+            -e ADMIN_ALLOW_ANY=false \
+            -p 5000:5000 \
+            "ghcr.io/${{ github.repository }}:${{ steps.version.outputs.version }}")"
+          cleanup() {
+            docker logs "$container_id" || true
+            docker rm -f "$container_id" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:5000/auth/login >/dev/null; then
+              echo "Container smoke test passed."
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::Container did not become ready within 60 seconds."
+          exit 1
