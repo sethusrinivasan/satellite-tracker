@@ -687,8 +687,8 @@ def cache_feedback():
         from app.services.query_cache import cache_user_verified_query
         try:
             entry = cache_user_verified_query(prompt, sql, category="user_verified")
-        except ValueError as exc:
-            return jsonify({"error": str(exc)}), 400
+        except ValueError:
+            return jsonify({"error": "Only read-only SELECT SQL may be cached."}), 400
         log.info("[AI Search] User verified query saved to data/ai_query_cache.json: %r", prompt)
         return jsonify({
             "status": "success",

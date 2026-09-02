@@ -27,12 +27,21 @@ def _parse_decimal_packed(s: str) -> float:
         if s.startswith("+"):
             s = s[1:]
 
-    # The exponent sign and value are at the end; split on + or -
-    match = re.fullmatch(r"(\d+)([+-]\d+)", s)
-    if not match:
+    # The exponent sign and value are at the end; split on + or - without
+    # invoking a regex over user-controlled input.
+    exponent_index = None
+    for idx, ch in enumerate(s):
+        if ch in "+-":
+            exponent_index = idx
+            break
+    if exponent_index is None or exponent_index == 0:
         return 0.0
 
-    mantissa_str, exp_str = match.group(1), match.group(2)
+    mantissa_str = s[:exponent_index]
+    exp_str = s[exponent_index:]
+    if not mantissa_str or not exp_str:
+        return 0.0
+
     mantissa = float("0." + mantissa_str) if mantissa_str else 0.0
     exponent = int(exp_str)
     return mantissa_sign * mantissa * (10 ** exponent)
