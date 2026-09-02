@@ -25,54 +25,80 @@
   </div>
 </section>
 
-<!-- ── Upload Card ── -->
+<!-- ── Upload & Data Audit Grid (Matching Mockup 3) ── -->
 <section class="section">
   <div class="container">
-    <div class="upload-card" id="upload-card">
-      <form method="POST" action="{{ url_for('upload.upload_file') }}" enctype="multipart/form-data" id="upload-form">
-        <div class="drop-zone" id="drop-zone" tabindex="0" role="button" aria-label="File upload drop zone">
-          <div class="drop-zone__icon">
-            <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="upload-icon">
-              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
-              <polyline points="17 8 12 3 7 8"/>
-              <line x1="12" y1="3" x2="12" y2="15"/>
-            </svg>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 24px; margin-bottom: 32px;">
+      
+      <!-- Left Column: Upload Dropzone Card -->
+      <div class="upload-card" id="upload-card" style="margin-bottom: 0;">
+        <h2 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 16px; color: var(--text); display: flex; align-items: center; gap: 8px;">
+          📥 TLE Data Ingestion Dropzone
+        </h2>
+        <form method="POST" action="{{ url_for('upload.upload_file') }}" enctype="multipart/form-data" id="upload-form">
+          <div class="drop-zone" id="drop-zone" tabindex="0" role="button" aria-label="File upload drop zone">
+            <div class="drop-zone__icon">
+              <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="upload-icon">
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+            </div>
+            <p class="drop-zone__title">Drag &amp; Drop TLE File Here</p>
+            <p class="drop-zone__subtitle">or <label for="file-input" class="file-label">browse to select file</label></p>
+            <p class="drop-zone__hint">Supports .txt, .tle, .dat files up to 16 MB</p>
+            <input type="file" name="file" id="file-input" accept=".txt,.tle,.dat" class="file-input" required />
           </div>
-          <p class="drop-zone__title">Drop your TLE file here</p>
-          <p class="drop-zone__subtitle">or <label for="file-input" class="file-label">browse to upload</label></p>
-          <p class="drop-zone__hint">Supports .txt, .tle, .dat files up to 16 MB</p>
-          <input type="file" name="file" id="file-input" accept=".txt,.tle,.dat" class="file-input" required />
-        </div>
-        <div class="file-preview" id="file-preview" hidden>
-          <div class="file-preview__icon">📄</div>
-          <div class="file-preview__info">
-            <span class="file-preview__name" id="file-preview-name"></span>
-            <span class="file-preview__size" id="file-preview-size"></span>
+          <div class="file-preview" id="file-preview" hidden>
+            <div class="file-preview__icon">📄</div>
+            <div class="file-preview__info">
+              <span class="file-preview__name" id="file-preview-name"></span>
+              <span class="file-preview__size" id="file-preview-size"></span>
+            </div>
+            <button type="button" class="file-preview__remove" id="file-remove" aria-label="Remove file">✕</button>
           </div>
-          <button type="button" class="file-preview__remove" id="file-remove" aria-label="Remove file">✕</button>
-        </div>
-        <button type="submit" class="btn btn--primary btn--full" id="upload-btn" disabled>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-          Upload &amp; Parse TLE
-        </button>
-      </form>
-    </div>
-
-    <!-- What is TLE info box -->
-    <div class="info-card">
-      <div class="info-card__header">
-        <span class="info-card__icon">ℹ️</span>
-        <h2 class="info-card__title">What is a TLE File?</h2>
+          <button type="submit" class="btn btn--primary btn--full" id="upload-btn" disabled style="margin-top: 16px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            Upload &amp; Parse TLE
+          </button>
+        </form>
       </div>
-      <p class="info-card__body">
-        A <strong>Two-Line Element set (TLE)</strong> is a standardized format used by NASA, NORAD, and space agencies worldwide to describe the orbit of an Earth-orbiting object. Each record consists of a <em>name line</em> followed by two lines of orbital parameters.
-      </p>
-      <div class="tle-example">
-        <div class="tle-example__label">Example TLE — International Space Station (ISS)</div>
-        <pre class="tle-example__code">ISS (ZARYA)
+
+      <!-- Right Column: Data Audit Summary & TLE Reference Card -->
+      <div class="info-card" style="display: flex; flex-direction: column; justify-content: space-between;">
+        <div>
+          <div class="info-card__header">
+            <span class="info-card__icon">📊</span>
+            <h2 class="info-card__title">Ingestion &amp; Parsing Overview</h2>
+          </div>
+          <p class="info-card__body">
+            Upload standard two-line element sets to update orbital ephemeris. The system automatically deduplicates records by NORAD ID and epoch timestamp.
+          </p>
+
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 16px 0 20px;">
+            <div style="background: rgba(6,182,212,0.06); border: 1px solid rgba(6,182,212,0.25); border-radius: var(--radius-sm); padding: 12px 8px; text-align: center;">
+              <div style="font-size: 1.2rem; font-weight: 800; color: #38bdf8; font-family: var(--mono);">Auto</div>
+              <div style="font-size: 0.7rem; color: var(--text-muted);">Deduplication</div>
+            </div>
+            <div style="background: rgba(16,185,129,0.06); border: 1px solid rgba(16,185,129,0.25); border-radius: var(--radius-sm); padding: 12px 8px; text-align: center;">
+              <div style="font-size: 1.2rem; font-weight: 800; color: #34d399; font-family: var(--mono);">SGP4</div>
+              <div style="font-size: 0.7rem; color: var(--text-muted);">Propagation</div>
+            </div>
+            <div style="background: rgba(139,92,246,0.06); border: 1px solid rgba(139,92,246,0.25); border-radius: var(--radius-sm); padding: 12px 8px; text-align: center;">
+              <div style="font-size: 1.2rem; font-weight: 800; color: #a78bfa; font-family: var(--mono);">SQLite</div>
+              <div style="font-size: 0.7rem; color: var(--text-muted);">Storage</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="tle-example">
+          <div class="tle-example__label">Standard Format — ISS (ZARYA)</div>
+          <pre class="tle-example__code" style="font-size: 0.75rem;">ISS (ZARYA)
 1 25544U 98067A   24001.50000000  .00002182  00000-0  47972-4 0  9999
 2 25544  51.6416 247.4627 0006703 130.5360 325.0288 15.50377579430900</pre>
+        </div>
       </div>
+
     </div>
   </div>
 </section>
