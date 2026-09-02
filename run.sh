@@ -8,9 +8,20 @@ export PATH="/usr/local/bin:/usr/bin:/bin:$PATH"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"
 
-# Check for optional Docker deployment flag
+echo "=========================================================================="
+echo "🛰️  SatTrack Launch Manager — Execution Mode Selection"
+echo "=========================================================================="
+echo "  [1] Local Dev Environment (Default - Native Python Virtualenv)"
+echo "      → Usage: ./run.sh  OR  ./run.sh --local"
+echo ""
+echo "  [2] Local Docker Container Environment"
+echo "      → Usage: ./run.sh --docker"
+echo "=========================================================================="
+
+# Check for Docker deployment flag
 if [ "$1" = "--docker" ] || [ "$1" = "docker" ]; then
-    echo "🐳 Deploying Satellite TLE Tracker in local Docker container..."
+    echo ""
+    echo "🐳 Selected Mode: Local Docker Container Environment"
     
     # Locate docker executable
     DOCKER_BIN="$(command -v docker || echo "")"
@@ -36,8 +47,10 @@ if [ "$1" = "--docker" ] || [ "$1" = "docker" ]; then
     fi
 fi
 
-echo "🛰️ Starting Satellite TLE Tracker (Local Python Virtualenv)..."
-echo "💡 Hint: Run './run.sh --docker' to deploy in a local Docker container instead."
+# Default execution mode: Local Dev Environment (Python Virtualenv)
+echo ""
+echo "💻 Selected Mode: Local Dev Environment (Native Python Virtualenv - Default)"
+echo "🚀 Initializing local Python virtual environment..."
 
 # Create virtual environment if it doesn't exist
 if [ ! -d "venv" ]; then
