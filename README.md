@@ -34,6 +34,8 @@ A demonstration and experimental Flask web application for uploading, parsing, e
 ### 1. 💬 Offline AI Natural Language Search (Text-to-SQL)
 Translates plain English queries into validated read-only SQL queries using local GGUF model inference with real-time CPU system load reporting and execution metrics breakdown.
 
+![AI Natural Language Search Screenshot](docs/images/ai_search.png)
+
 ```
 +-----------------------------------------------------------------------------------+
 | 💬 AI Natural Language Search                                                     |
@@ -57,26 +59,10 @@ Translates plain English queries into validated read-only SQL queries using loca
 
 ---
 
-### 2. 🌍 Geo-Spatial Country Proximity & SGP4 Orbital Propagation
-Calculates real-time satellite locations using SGP4 orbit mechanics algorithms to discover satellites passing over specific geographic bounding boxes (e.g. United States).
-
-```
-+-----------------------------------------------------------------------------------+
-| 🌍 Spatial & Geo-Proximity Filter                                                  |
-| Country Bounding Box: [ United States (Contiguous) ]                              |
-| [ 📡 Filter Active Satellites Overhead ]                                         |
-+-----------------------------------------------------------------------------------+
-| 🛰️ Satellites Currently Passing Overhead: 42 Matched                              |
-| NORAD ID | Name         | Sub-Satellite Lat/Lon | Altitude (km) | Velocity (km/s)  |
-| 25544    | ISS (ZARYA)  | 38.89° N, 77.03° W     | 418.5 km      | 7.66 km/s        |
-| 44714    | STARLINK-11  | 34.05° N, 118.24° W    | 550.2 km      | 7.59 km/s        |
-+-----------------------------------------------------------------------------------+
-```
-
----
-
-### 3. 🛰️ Live 2D Ground Track & 3D Globe Satellite Tracker
+### 2. 🛰️ Live 2D Ground Track & 3D Globe Satellite Tracker
 Interactive 2D Leaflet ground track map and 3D globe visualization rendering real-time orbital path projections, ground station footings, and position vectors.
+
+![Live 3D Globe Orbit Tracker Screenshot](docs/images/tracker.png)
 
 ```
 +-----------------------------------------------------------------------------------+
@@ -94,8 +80,10 @@ Interactive 2D Leaflet ground track map and 3D globe visualization rendering rea
 
 ---
 
-### 4. 📥 3-Line TLE Ingestion & Deduplication Upload Interface
+### 3. 📥 3-Line TLE Ingestion & Deduplication Upload Interface
 Parses 3-line and 2-line TLE dataset files, verifies modulo-10 checksums, extracts Keplerian elements, and prevents duplicate epoch ingestion.
+
+![TLE Data Upload Interface Screenshot](docs/images/tle_upload.png)
 
 ```
 +-----------------------------------------------------------------------------------+
@@ -114,8 +102,10 @@ Parses 3-line and 2-line TLE dataset files, verifies modulo-10 checksums, extrac
 
 ---
 
-### 5. 🔐 Protected Admin Dashboard & OAuth Access Control
+### 4. 🔐 Protected Admin Dashboard & OAuth Access Control
 Administrative interface for managing upload sessions, triggering local GGUF model downloads, clearing seed flags, and monitoring system resource allocations.
+
+![Admin Control Dashboard Screenshot](docs/images/admin_panel.png)
 
 ```
 +-----------------------------------------------------------------------------------+
