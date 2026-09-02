@@ -33,7 +33,7 @@ jobs:
           pip install -r requirements.txt pytest
 
       - name: Run pytest
-        run: pytest -q
+        run: python -m pytest -q
 
   build-and-push:
     name: Build & Push Container Image
