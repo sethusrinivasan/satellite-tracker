@@ -20,6 +20,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -33,10 +35,10 @@ jobs:
           pip install -r requirements.txt pytest
 
       - name: Run pytest
-        run: pytest -q
+        run: python -m pytest -q
 
   build-and-push:
-    name: Build & Push Container Image
+    name: Build and test container image
     needs: test
     runs-on: ubuntu-latest
     permissions:
@@ -46,9 +48,39 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+
+      - name: Validate version and detect version bump
+        id: version
+        shell: bash
+        run: |
+          version="$(tr -d '[:space:]' < VERSION)"
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::VERSION must contain a semantic version (for example, 1.2.3)."
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          previous="$(git show HEAD^:VERSION 2>/dev/null | tr -d '[:space:]' || true)"
+          if [[ -z "$previous" ]]; then
+            echo "bumped=false" >> "$GITHUB_OUTPUT"
+            echo "No previous VERSION found; the image will only be built."
+          elif [[ ! "$previous" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::The previous VERSION is not a semantic version."
+            exit 1
+          elif [[ "$version" == "$previous" ]]; then
+            echo "bumped=false" >> "$GITHUB_OUTPUT"
+            echo "VERSION was not bumped; the image will only be built."
+          elif [[ "$(printf '%s\n' "$previous" "$version" | sort -V | tail -n1)" != "$version" ]]; then
+            echo "::error::VERSION must be greater than the previous version ($previous)."
+            exit 1
+          else
+            echo "bumped=true" >> "$GITHUB_OUTPUT"
+            echo "VERSION bumped from $previous to $version; publishing is enabled."
+          fi
 
       - name: Check Docker Hub credentials
         id: check_secrets
@@ -65,7 +97,7 @@ jobs:
           fi
 
       - name: Log in to GitHub Container Registry (ghcr.io)
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && steps.version.outputs.bumped == 'true'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -73,7 +105,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Log in to Docker Hub
-        if: github.event_name != 'pull_request' && steps.check_secrets.outputs.has_dockerhub == 'true'
+        if: github.event_name != 'pull_request' && steps.version.outputs.bumped == 'true' && steps.check_secrets.outputs.has_dockerhub == 'true'
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -85,9 +117,10 @@ jobs:
         with:
           images: |
             ghcr.io/${{ github.repository }}
-            ${{ secrets.DOCKERHUB_USERNAME && format('{0}/satellite-tracker', secrets.DOCKERHUB_USERNAME) || 'satellite-tracker' }}
+            ${{ secrets.DOCKERHUB_USERNAME && format('{0}/satellite-tracker', secrets.DOCKERHUB_USERNAME) || '' }}
           tags: |
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=raw,value=${{ steps.version.outputs.version }}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' && steps.version.outputs.bumped == 'true' }}
             type=ref,event=branch
             type=semver,pattern={{version}}
             type=sha,format=short
@@ -97,8 +130,35 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
-          push: ${{ github.event_name != 'pull_request' }}
+          load: ${{ github.event_name == 'pull_request' || steps.version.outputs.bumped != 'true' }}
+          push: ${{ github.event_name != 'pull_request' && steps.version.outputs.bumped == 'true' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Smoke test container image
+        if: github.event_name == 'pull_request' || steps.version.outputs.bumped != 'true'
+        shell: bash
+        run: |
+          container_id="$(docker run -d \
+            -e GOOGLE_CLIENT_ID=test-client-id.apps.googleusercontent.com \
+            -e GOOGLE_CLIENT_SECRET=test-client-secret \
+            -e ADMIN_ALLOWED_EMAILS= \
+            -e ADMIN_ALLOW_ANY=false \
+            -p 5000:5000 \
+            "ghcr.io/${{ github.repository }}:${{ steps.version.outputs.version }}")"
+          cleanup() {
+            docker logs "$container_id" || true
+            docker rm -f "$container_id" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:5000/auth/login >/dev/null; then
+              echo "Container smoke test passed."
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::Container did not become ready within 60 seconds."
+          exit 1
