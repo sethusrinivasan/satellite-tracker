@@ -43,6 +43,16 @@ def create_app(config_object="config.Config"):
         # ── Auto-seed from Kaggle TLE file on very first run ──────────────────
         _seed_kaggle_data_if_needed(app)
 
+    @app.context_processor
+    def inject_environment_info():
+        is_docker = os.path.exists('/.dockerenv') or os.getenv('RUNNING_IN_DOCKER') == 'true' or os.getenv('CONTAINER_ENV') == 'docker'
+        is_dev = app.debug or os.getenv('FLASK_ENV') == 'development' or os.getenv('DEBUG') == 'true'
+        return {
+            'is_docker': is_docker,
+            'is_dev': is_dev,
+            'runtime_env_name': 'Docker Container' if is_docker else ('Local Virtualenv' if is_dev else 'Production Host')
+        }
+
     return app
 
 

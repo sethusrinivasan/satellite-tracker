@@ -77,6 +77,32 @@
     </div>
   </nav>
 
+  <!-- ── Runtime Environment Indicator Blurb ── -->
+  <div class="runtime-env-banner {% if is_docker %}env-docker{% else %}env-local{% endif %}" role="region" aria-label="Runtime Environment Indicator">
+    <div class="env-banner-inner">
+      <div class="env-banner-title">
+        {% if is_docker %}
+          <span class="env-icon">🐳</span>
+          <strong>Docker Container Environment</strong>
+          <span class="env-badge env-badge-docker">Isolated Linux Container</span>
+        {% else %}
+          <span class="env-icon">💻</span>
+          <strong>Local Host Environment</strong>
+          <span class="env-badge env-badge-local">Native Python Virtualenv</span>
+        {% endif %}
+      </div>
+      <div class="env-banner-details">
+        {% if is_docker %}
+          <span>Running inside an isolated container image. Ports mapped to <code>5000:5000</code>.</span>
+          <span class="env-tag">Gunicorn WSGI</span>
+        {% else %}
+          <span>Running on native host system via <code>venv</code>. Debug mode active.</span>
+          <span class="env-tag">Werkzeug Dev Server</span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
   <!-- ── Flash Messages ── -->
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
