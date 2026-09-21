@@ -976,9 +976,12 @@ function wireCheckboxListeners() {
 
 function trackSelected() {
   const checked = document.querySelectorAll('.sat-checkbox:checked');
-  const ids = Array.from(checked).map(cb => cb.value).join(',');
-  if (ids) {
-    window.location.href = "{{ url_for('report.tracker') }}?ids=" + ids;
+  const idList = Array.from(checked)
+    .map(cb => cb.value)
+    .filter(v => /^\d+$/.test(v));
+  if (idList.length > 0) {
+    const params = new URLSearchParams({ ids: idList.join(',') });
+    window.location.href = "{{ url_for('report.tracker') }}?" + params.toString();
   }
 }
 
