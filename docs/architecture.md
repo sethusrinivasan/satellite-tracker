@@ -68,15 +68,16 @@ The application is a modular Flask 3 app. Persistence is **SQLAlchemy 2** agains
 - Default tiles: Esri World Dark Gray + reference overlay (no API key).
 - If `CARTO_API_KEY` is set, templates expose `window.SATTRACK_CARTO_KEY` and CARTO `dark_all` is used with `?key=`.
 - Satellite detail (`#orbit-map-card`) and tracker (`#tracker-map-shell`) toggle a CSS fullscreen overlay and call Leaflet `invalidateSize`. Escape exits.
-- Optional tracker overlays (checkboxes, off by default) are read-only proxies to **free** APIs. External overlay payloads are stored in a **shared 60-second file cache** (`app/services/overlay_cache.py`) so a second user (or a later request) reuses the same fetch instead of calling the provider again. The map credit strip and popups attribute each source:
+- Optional tracker overlays (checkboxes, off by default) are read-only proxies to **free** APIs. External overlay payloads are stored in a **shared file+memory cache** (`app/services/overlay_cache.py`) with per-feed TTLs (about 25s for live flights, 60–90s for quotes and cloud pings, minutes for news, up to an hour for daily city temperatures). Expired entries are served immediately while a background refresh runs. HTTP calls go through `app/services/overlay_http.py`, which honors `429` / `Retry-After` and backs off that host so a throttle does not hammer every overlay. The map renders partial data as it arrives (city pins before Open-Meteo trends, GDACS before RSS headlines, cloud-DC pins before p50/p95/p99). The map credit strip and popups attribute each source:
   - `GET /api/world-events` — NASA EONET weather/climate events plus USGS earthquakes (`app/services/world_events.py`) and million-city temperature trends (`app/services/city_temperature.py`, Open-Meteo ERA5). Response includes `events` and `temperatures` (7d / 30d / 90d / 1y °C change). Quake markers include `magnitude`; the map scales bubble size and color by severity.
-  - `GET /api/market-indices` — major world indexes, CNBC last + 1d % (`app/services/market_indices.py`).
+  - `GET /api/market-indices` — major world indexes, CNBC last + 1d %, plus 7d / 30d / 1q / 6m / 1y / 2y / 5y / 10y % computed from Yahoo Finance daily closes (`app/services/market_indices.py`).
   - `GET /api/currencies` — local units to buy 1 USD / EUR / yen / oz gold / barrel of WTI / Big Mac, plus 1d / 7d / 30d / 90d / 6m / 1y / 5y FX/gold % (`app/services/currency_overlay.py`; Frankfurter, CNBC, The Economist).
   - `GET /api/flights` — OpenSky Network airborne states plus adsbdb origin/destination and estimated on-time; optional `lamin/lomin/lamax/lomax` (`app/services/flight_overlay.py`).
-  - `GET /api/geo-news` — GDACS disaster alerts plus Wikipedia featured stories with article coordinates; popup title links open the report/article (`app/services/news_overlay.py`).
+  - `GET /api/geo-news` — last-24h GDACS alerts plus UN News, Global Voices, The Conversation, and Deutsche Welle RSS; gazetteer geocode when the feed has no lat/lng (`app/services/news_overlay.py`).
   - `GET /api/shipping` — schematic world sea lanes plus Fintraffic Digitraffic AIS (`app/services/shipping_overlay.py`). Live ships are Finland/Baltic only (CC BY 4.0).
   - `GET /api/webcams` — official public webcam pages worldwide plus OpenStreetMap `webcam:url` via Overpass (world hubs at global scale, current bbox when zoomed in) (`app/services/webcam_overlay.py`).
-- Overlay routes do not forward user search text. News uses fixed GDACS / Wikipedia feeds. No paid data vendors.
+  - `GET /api/cloud-datacenters` — AWS / Azure / GCP region pins with HTTPS ping p50 / p95 / p99 from this server (`app/services/cloud_datacenters.py`).
+- Overlay routes do not forward user search text. News uses fixed GDACS / RSS feeds (no user query forwarded). No paid data vendors.
 
 ### 2.6 Web analytics (PostHog)
 - Official HTML snippet in `app/templates/_posthog.html`, included from `base.html`.

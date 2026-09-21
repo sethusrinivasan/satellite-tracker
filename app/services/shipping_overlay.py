@@ -6,7 +6,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Any
 
-import requests
+from app.services import overlay_http
 
 log = logging.getLogger(__name__)
 
@@ -80,9 +80,10 @@ def _downsample(rows: list[dict[str, Any]], limit: int) -> list[dict[str, Any]]:
 
 
 def fetch_json(url: str) -> Any:
-    response = requests.get(url, headers=HEADERS, timeout=REQUEST_TIMEOUT)
-    response.raise_for_status()
-    return response.json()
+    payload = overlay_http.get_json(url, headers=HEADERS, timeout=REQUEST_TIMEOUT, source="shipping")
+    if payload is None:
+        raise RuntimeError(f"Digitraffic unavailable: {url}")
+    return payload
 
 
 def _parse_vessel_meta(payload: Any) -> dict[str, dict[str, Any]]:
@@ -154,7 +155,7 @@ def normalize_locations(payload: dict[str, Any] | None, meta: dict[int, dict[str
     return _downsample(rows, MAX_SHIPS)
 
 
-def _empty_shipping() -> dict[str, Any]:
+def _empty_shipping(pending: bool = False, status: str | None = None) -> dict[str, Any]:
     return {
         "ship_count": 0,
         "ships": [],
@@ -163,6 +164,8 @@ def _empty_shipping() -> dict[str, Any]:
             "Current AIS positions from Fintraffic Digitraffic (Finland/Baltic, CC BY 4.0). "
             "Each marker is the latest reported location at that report time."
         ),
+        "pending": pending,
+        "status": status or "No AIS positions",
     }
 
 
@@ -178,16 +181,29 @@ def _load_shipping() -> dict[str, Any]:
         if stale:
             return stale
         raise
-    payload = _empty_shipping()
+    payload = _empty_shipping(pending=False, status=f"{len(ships)} current AIS positions")
     payload["ship_count"] = len(ships)
     payload["ships"] = ships
     return payload
 
 
 def list_shipping(force_refresh: bool = False) -> dict[str, Any]:
-    from app.services.overlay_cache import get_or_set, get_stale
+    from app.services.overlay_cache import get_or_set, get_stale, is_refreshing
 
     try:
-        return get_or_set("shipping", _load_shipping, force_refresh=force_refresh)
+        data = get_or_set(
+            "shipping",
+            _load_shipping,
+            force_refresh=force_refresh,
+            skeleton=_empty_shipping(True, "Loading AIS positions…"),
+        )
     except Exception:
-        return get_stale("shipping") or _empty_shipping()
+        data = get_stale("shipping") or _empty_shipping()
+    if not data:
+        return _empty_shipping()
+    pending = bool(data.get("pending")) or is_refreshing("shipping")
+    data = dict(data)
+    data["pending"] = pending
+    if pending and not data.get("status"):
+        data["status"] = "Loading AIS positions…"
+    return data

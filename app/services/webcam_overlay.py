@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-import requests
+from app.services import overlay_http
 
 log = logging.getLogger(__name__)
 
@@ -250,39 +250,45 @@ def fetch_overpass(
     bbox: tuple[float, float, float, float] | None = None,
     hubs: list[tuple[float, float]] | None = None,
 ) -> list[dict[str, Any]]:
+    payload = overlay_http.post_json(
+        OVERPASS_URL,
+        data={"data": _overpass_query(bbox, hubs)},
+        headers=HEADERS,
+        timeout=REQUEST_TIMEOUT,
+        source="webcams",
+    )
+    if payload is None:
+        return []
     try:
-        response = requests.post(
-            OVERPASS_URL,
-            data={"data": _overpass_query(bbox, hubs)},
-            headers=HEADERS,
-            timeout=REQUEST_TIMEOUT,
-        )
-        response.raise_for_status()
-        return normalize_overpass(response.json())
+        return normalize_overpass(payload)
     except Exception as exc:
         log.warning("[webcams] Overpass failed: %s", exc)
         return []
 
 
 def list_webcams(bbox: tuple[float, float, float, float] | None = None, force_refresh: bool = False) -> dict[str, Any]:
-    from app.services.overlay_cache import get_or_set
+    from app.services.overlay_cache import get_or_set, is_refreshing
 
     official = [dict(cam) for cam in PUBLIC_CAMS if _in_bbox(cam["lat"], cam["lng"], bbox)]
-    osm: list[dict[str, Any]] = []
     if bbox and _bbox_span(bbox) <= MAX_BBOX_SPAN:
+        cache_key = _cache_key(bbox)
         osm = get_or_set(
             "webcams-osm",
             lambda: fetch_overpass(bbox),
-            key=_cache_key(bbox),
+            key=cache_key,
             force_refresh=force_refresh,
+            skeleton=[],
         )
+        osm_pending = is_refreshing("webcams-osm", cache_key)
     else:
         osm = get_or_set(
             "webcams-osm",
             lambda: fetch_overpass(hubs=WORLD_HUBS),
             key="world-hubs",
             force_refresh=force_refresh,
+            skeleton=[],
         )
+        osm_pending = is_refreshing("webcams-osm", "world-hubs")
 
     seen = {row["url"] for row in official}
     merged = official[:]
@@ -300,6 +306,11 @@ def list_webcams(bbox: tuple[float, float, float, float] | None = None, force_re
         "count": len(merged),
         "webcams": merged,
         "sources": SOURCES,
+        "pending": bool(osm_pending),
+        "status": (
+            f"{len(merged)} webcams"
+            + (" (OpenStreetMap still loading)" if osm_pending else "")
+        ),
         "note": (
             "Pins link out to the publisher page. Official public camera indexes "
             "show worldwide. Extra OpenStreetMap webcams load around world hubs "

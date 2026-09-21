@@ -65,7 +65,7 @@
               <input type="checkbox" id="world-events-overlay" onchange="toggleWorldEventsOverlay(this.checked)">
               Weather &amp; quakes
             </label>
-            <label class="map-control-btn" id="markets-toggle" title="Major world market indexes. Level and 1-day % from CNBC public quotes." style="display:flex;align-items:center;gap:6px;margin:0;cursor:pointer;">
+            <label class="map-control-btn" id="markets-toggle" title="Major world market indexes. Level and 1-day % from CNBC; 7d–10y % from Yahoo daily closes." style="display:flex;align-items:center;gap:6px;margin:0;cursor:pointer;">
               <input type="checkbox" id="markets-overlay" onchange="toggleMarketsOverlay(this.checked)">
               Markets
             </label>
@@ -77,7 +77,7 @@
               <input type="checkbox" id="flights-overlay" onchange="toggleFlightsOverlay(this.checked)">
               Flights
             </label>
-            <label class="map-control-btn" id="news-toggle" title="Geo-tagged alerts from GDACS and Wikipedia featured news." style="display:flex;align-items:center;gap:6px;margin:0;cursor:pointer;">
+            <label class="map-control-btn" id="news-toggle" title="Last-24h headlines from GDACS, UN News, Global Voices, The Conversation, and Deutsche Welle." style="display:flex;align-items:center;gap:6px;margin:0;cursor:pointer;">
               <input type="checkbox" id="news-overlay" onchange="toggleNewsOverlay(this.checked)">
               News
             </label>
@@ -89,7 +89,12 @@
               <input type="checkbox" id="webcams-overlay" onchange="toggleWebcamsOverlay(this.checked)">
               Webcams
             </label>
+            <label class="map-control-btn" id="cloud-dc-toggle" title="AWS, Azure, and GCP regions. Hover for HTTPS ping p50 / p95 / p99 from this server." style="display:flex;align-items:center;gap:6px;margin:0;cursor:pointer;">
+              <input type="checkbox" id="cloud-dc-overlay" onchange="toggleCloudDatacentersOverlay(this.checked)">
+              Cloud DCs
+            </label>
           </div>
+          <div id="overlay-loading-chip" class="overlay-loading-chip" hidden role="status" aria-live="polite"></div>
           <div id="map-data-credits" class="map-data-credits">Basemap: Esri, HERE, Garmin, FAO, NOAA, USGS</div>
           <div id="multi-map"></div>
         </div>

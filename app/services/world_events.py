@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-import requests
+from app.services import overlay_http
 
 log = logging.getLogger(__name__)
 
@@ -84,13 +85,13 @@ def is_weather_climate_category(categories: list[Any]) -> bool:
 
 
 def _fetch_json(url: str, params: dict[str, Any] | None = None) -> dict[str, Any] | None:
-    try:
-        response = requests.get(url, params=params, timeout=REQUEST_TIMEOUT)
-        response.raise_for_status()
-        return response.json()
-    except Exception as exc:
-        log.warning("[world-events] Failed %s: %s", url, exc)
-        return None
+    payload = overlay_http.get_json(
+        url,
+        params=params,
+        timeout=REQUEST_TIMEOUT,
+        source="world-events",
+    )
+    return payload if isinstance(payload, dict) else None
 
 
 def _eonet_weather_climate_events(cutoff: datetime) -> list[dict[str, Any]]:
@@ -172,7 +173,21 @@ def _usgs_earthquakes(cutoff: datetime) -> list[dict[str, Any]]:
 
 def _load_world_events() -> list[dict[str, Any]]:
     cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
-    events = _eonet_weather_climate_events(cutoff) + _usgs_earthquakes(cutoff)
+    events: list[dict[str, Any]] = []
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        futures = {
+            pool.submit(_eonet_weather_climate_events, cutoff): "NASA EONET",
+            pool.submit(_usgs_earthquakes, cutoff): "USGS",
+        }
+        for future in as_completed(futures):
+            source = futures[future]
+            try:
+                rows = future.result() or []
+            except Exception as exc:
+                log.warning("[world-events] %s failed: %s", source, exc)
+                continue
+            log.info("[world-events] %s returned %s events", source, len(rows))
+            events.extend(rows)
     events.sort(key=lambda row: row.get("time") or "", reverse=True)
     return events[:MAX_EVENTS]
 
@@ -180,4 +195,10 @@ def _load_world_events() -> list[dict[str, Any]]:
 def list_world_events(force_refresh: bool = False) -> list[dict[str, Any]]:
     from app.services.overlay_cache import get_or_set
 
-    return list(get_or_set("world-events", _load_world_events, force_refresh=force_refresh))
+    data = get_or_set(
+        "world-events",
+        _load_world_events,
+        force_refresh=force_refresh,
+        skeleton=[],
+    )
+    return list(data or [])

@@ -9,7 +9,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from typing import Any
 
-import requests
+from app.services import overlay_http
 
 log = logging.getLogger(__name__)
 
@@ -262,15 +262,20 @@ def fetch_adsbdb_route(callsign: str) -> dict[str, Any] | None:
     ident = (callsign or "").strip().upper()
     if len(ident) < 3:
         return None
+    if overlay_http.remaining_backoff(ADSBdb_CALLSIGN) > 0:
+        return None
+    response = overlay_http.request(
+        "GET",
+        f"{ADSBdb_CALLSIGN}{ident}",
+        headers=HEADERS,
+        timeout=ROUTE_TIMEOUT,
+        source="flights",
+        allow_statuses={404},
+        throttle_timeouts=False,
+    )
+    if response is None or response.status_code == 404:
+        return None
     try:
-        response = requests.get(
-            f"{ADSBdb_CALLSIGN}{ident}",
-            headers=HEADERS,
-            timeout=ROUTE_TIMEOUT,
-        )
-        if response.status_code == 404:
-            return None
-        response.raise_for_status()
         return parse_adsbdb_route(response.json())
     except Exception as exc:
         log.warning("[flights] adsbdb route failed for %s: %s", ident, exc)
@@ -323,19 +328,17 @@ def fetch_opensky_recent_flights() -> dict[str, dict[str, Any]]:
         return _recent_flights_cache["data"]
     end = int(now)
     begin = end - 7200
-    try:
-        response = requests.get(
-            OPENSKY_FLIGHTS,
-            params={"begin": begin, "end": end},
-            headers=HEADERS,
-            timeout=REQUEST_TIMEOUT,
-        )
-        response.raise_for_status()
-        rows = response.json()
-    except Exception as exc:
-        log.warning("[flights] OpenSky recent flights failed: %s", exc)
+    payload = overlay_http.get_json(
+        OPENSKY_FLIGHTS,
+        params={"begin": begin, "end": end},
+        headers=HEADERS,
+        timeout=REQUEST_TIMEOUT,
+        source="flights",
+    )
+    if not isinstance(payload, list):
         cached = _recent_flights_cache.get("data")
         return cached if cached else {"icao": {}, "callsign": {}}
+    rows = payload
 
     by_icao: dict[str, dict[str, Any]] = {}
     by_callsign: dict[str, dict[str, Any]] = {}
@@ -397,18 +400,14 @@ def fetch_opensky_states(bbox: tuple[float, float, float, float] | None = None) 
     params = {}
     if bbox:
         params = {"lamin": bbox[0], "lomin": bbox[1], "lamax": bbox[2], "lomax": bbox[3]}
-    try:
-        response = requests.get(
-            OPENSKY_STATES,
-            params=params or None,
-            headers=HEADERS,
-            timeout=REQUEST_TIMEOUT,
-        )
-        response.raise_for_status()
-        return response.json()
-    except Exception as exc:
-        log.warning("[flights] OpenSky request failed: %s", exc)
-        return None
+    payload = overlay_http.get_json(
+        OPENSKY_STATES,
+        params=params or None,
+        headers=HEADERS,
+        timeout=REQUEST_TIMEOUT,
+        source="flights",
+    )
+    return payload if isinstance(payload, dict) else None
 
 
 def normalize_states(payload: dict[str, Any] | None) -> tuple[list[dict[str, Any]], str | None]:
@@ -426,29 +425,51 @@ def normalize_states(payload: dict[str, Any] | None) -> tuple[list[dict[str, Any
     return _downsample(rows, MAX_FLIGHTS), iso
 
 
-def _load_flights() -> dict[str, Any]:
-    flights, observed = normalize_states(fetch_opensky_states(None))
+def _load_flights() -> dict[str, Any] | None:
+    raw = fetch_opensky_states(None)
+    if raw is None:
+        return None
+    flights, observed = normalize_states(raw)
     return {
         "count": len(flights),
         "time": observed,
         "flights": flights,
         "source": SOURCE,
+        "pending": False,
+        "status": f"{len(flights)} airborne",
     }
 
 
 def list_flights(bbox: tuple[float, float, float, float] | None = None, force_refresh: bool = False) -> dict[str, Any]:
-    from app.services.overlay_cache import get_or_set
+    from app.services.overlay_cache import get_or_set, is_refreshing
 
-    payload = get_or_set("flights", _load_flights, force_refresh=force_refresh)
+    empty = {
+        "count": 0,
+        "time": None,
+        "flights": [],
+        "source": SOURCE,
+        "pending": True,
+        "status": "Loading OpenSky…",
+    }
+    payload = get_or_set("flights", _load_flights, force_refresh=force_refresh, skeleton=empty) or empty
     flights = [dict(row) for row in payload.get("flights") or [] if _in_bbox(row, bbox)]
-    routes = lookup_routes([row.get("callsign") or "" for row in flights])
-    recent = fetch_opensky_recent_flights()
-    now = time.time()
-    flights = [enrich_flight(row, routes, recent, now) for row in flights]
+    pending = bool(payload.get("pending")) or is_refreshing("flights")
+    if flights and overlay_http.remaining_backoff(ADSBdb_CALLSIGN) <= 0:
+        routes = lookup_routes([row.get("callsign") or "" for row in flights])
+        recent = fetch_opensky_recent_flights()
+        now = time.time()
+        flights = [enrich_flight(row, routes, recent, now) for row in flights]
+    elif flights:
+        log.info("[flights] Skipping adsbdb routes; host is backing off")
+    status = payload.get("status") or f"{len(flights)} airborne"
+    if pending:
+        status = f"{status} (loading)"
     return {
         "count": len(flights),
         "time": payload.get("time"),
         "flights": flights,
         "source": payload.get("source") or SOURCE,
         "sources": [SOURCE, ROUTE_SOURCE],
+        "pending": pending,
+        "status": status,
     }

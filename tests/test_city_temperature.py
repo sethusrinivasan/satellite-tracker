@@ -74,6 +74,24 @@ def test_list_city_temperatures_uses_shared_cache(monkeypatch):
     assert calls["n"] == 1
 
 
+def test_list_city_temperatures_returns_pins_before_archive_finishes(monkeypatch):
+    city_temperature._worker = None
+    monkeypatch.setattr(city_temperature, "MILLION_CITIES", [
+        {"name": "Testville", "country": "Nowhere", "lat": 1.0, "lng": 2.0, "pop_m": 1.2},
+    ])
+    monkeypatch.setattr(
+        city_temperature,
+        "fetch_city_archive",
+        lambda _cities: (__import__("time").sleep(30) or []),
+    )
+    started = __import__("time").time()
+    payload = city_temperature.list_city_temperatures()
+    assert __import__("time").time() - started < 2
+    assert payload["pending"] is True
+    assert payload["cities"][0]["name"] == "Testville"
+    assert payload["cities"][0]["temp_c"] is None
+
+
 def test_world_events_api_includes_city_temperatures(client, monkeypatch):
     from app.services import world_events
 

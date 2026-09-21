@@ -1,16 +1,17 @@
-"""Major stock-market index pins from free CNBC public quotes."""
+"""Major stock-market index pins from CNBC quotes plus Yahoo daily history."""
 
 from __future__ import annotations
 
 import csv
 import io
 import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
 from typing import Any
+from urllib.parse import quote
 
-import requests
-
-from app.services.overlay_cache import get_or_set
+from app.services import overlay_http
+from app.services.overlay_cache import get_fresh, get_or_set, get_stale, store
 
 log = logging.getLogger(__name__)
 
@@ -20,9 +21,13 @@ NASDAQ_HIST = "https://api.nasdaq.com/api/quote/{symbol}/historical"
 NASDAQ_HOME = "https://www.nasdaq.com"
 STOOQ_DAILY = "https://stooq.com/q/d/l/"
 STOOQ_HOME = "https://stooq.com"
+YAHOO_CHART = "https://query1.finance.yahoo.com/v8/finance/chart/"
+YAHOO_HOME = "https://finance.yahoo.com"
 REQUEST_TIMEOUT = 12
-HIST_TIMEOUT = 4
-HIST_RANK_LIMIT = 4
+HIST_TIMEOUT = 18
+HIST_WORKERS = 8
+HIST_NS = "markets-hist"
+CACHE_NS = "markets"
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (compatible; SatTrack/1.0; +https://github.com/sethusrinivasan/satellite-tracker)",
     "Accept": "application/json,text/csv,text/plain,*/*",
@@ -38,10 +43,19 @@ SOURCE = {
     "license": "Public quote widget; no API key",
     "attribution": (
         "Index levels and 1-day % from CNBC public quotes. "
-        "Longer horizons are reserved for a follow-up once Nasdaq.com history is reliable."
+        "7d / 30d / 1q / 6m / 1y / 2y / 5y / 10y % are computed locally from Yahoo Finance daily closes."
     ),
 }
-SOURCES = [SOURCE]
+YAHOO_SOURCE = {
+    "name": "Yahoo Finance",
+    "url": YAHOO_HOME,
+    "license": "Public chart endpoint; no API key",
+    "attribution": (
+        "Daily historical closes from Yahoo Finance. Period changes are calculated "
+        "on this server from those closes, not from a paid market-data feed."
+    ),
+}
+SOURCES = [SOURCE, YAHOO_SOURCE]
 
 # Confirmed CNBC public index symbols. nasdaq_* is optional history (index or ETF proxy).
 TOP_MARKETS: list[dict[str, Any]] = [
@@ -174,9 +188,73 @@ PERIODS = (
     ("7d", 7),
     ("30d", 30),
     ("1q", 91),
+    ("6m", 182),
     ("1y", 365),
+    ("2y", 730),
+    ("5y", 1826),
     ("10y", 3650),
 )
+
+# Yahoo Finance chart symbols (or a close ETF proxy) keyed by CNBC index symbol.
+YAHOO_HISTORY: dict[str, str] = {
+    ".SPX": "^GSPC",
+    ".IXIC": "^IXIC",
+    ".SSEC": "000001.SS",
+    ".FCHI": "^FCHI",
+    ".N225": "^N225",
+    ".SZI": "399001.SZ",
+    ".HSI": "^HSI",
+    ".NSEI": "^NSEI",
+    ".FTSE": "^FTSE",
+    ".GDAXI": "^GDAXI",
+    ".GSPTSE": "^GSPTSE",
+    ".KS11": "^KS11",
+    ".TWII": "^TWII",
+    ".AXJO": "^AXJO",
+    ".SSMI": "^SSMI",
+    ".BVSP": "^BVSP",
+    ".IBEX": "^IBEX",
+    ".FTMIB": "FTSEMIB.MI",
+    ".AEX": "^AEX",
+    ".OMXS30": "^OMX",
+    ".XU100": "XU100.IS",
+    ".MXX": "^MXX",
+    ".STI": "^STI",
+    ".SETI": "THD",
+    ".KLSE": "^KLSE",
+    ".PSI": "PSEI.PS",
+    ".VNI": "VNM",
+    ".NZ50": "^NZ50",
+    ".TA35": "TA35.TA",
+    ".EGX30": "^CASE30",
+    ".DFMGI": "DFMGI.AE",
+    ".MERV": "^MERV",
+    ".BFX": "^BFX",
+    ".PSI20": "PSI20.LS",
+    ".ISEQ": "^ISEQ",
+    ".OSEBX": "OSEBX.OL",
+    ".OMXH25": "^OMXH25",
+    ".STOXX50": "^STOXX50E",
+    ".DJI": "^DJI",
+    ".RUT": "^RUT",
+    ".NYA": "^NYA",
+    ".NDX": "^NDX",
+    ".MID": "^MID",
+    ".SML": "IJR",
+    ".SOX": "^SOX",
+    ".FTMC": "^FTMC",
+    ".TOPX": "1306.T",
+    ".HSTECH": "3067.HK",
+    ".HSCE": "^HSCE",
+    ".SET50": "THD",
+    ".XU030": "XU030.IS",
+    ".OBX": "OBX.OL",
+    ".HEX": "^OMXHPI",
+    ".N300": "^N300",
+    ".FTAI": "^FTAI",
+    ".RUA": "^RUA",
+}
+ETF_PROXIES = {"THD", "VNM", "IJR", "1306.T", "3067.HK"}
 
 
 def _as_float(value: Any) -> float | None:
@@ -197,15 +275,27 @@ def _pct_change(current: float | None, past: float | None) -> float | None:
     return round((current - past) / past * 100.0, 2)
 
 
-def _close_on_or_before(points: list[tuple[float, float]], target: datetime) -> float | None:
+def _slop_days(horizon_days: int) -> int:
+    return max(5, min(45, int(horizon_days) // 8 or 5))
+
+
+def _close_on_or_before(
+    points: list[tuple[float, float]],
+    target: datetime,
+    slop_days: int = 21,
+) -> float | None:
     target_ts = target.timestamp()
-    chosen = None
+    chosen: tuple[float, float] | None = None
     for ts, close in points:
         if ts <= target_ts:
-            chosen = close
+            chosen = (ts, close)
         else:
             break
-    return chosen
+    if chosen is None:
+        return None
+    if target_ts - chosen[0] > slop_days * 86400:
+        return None
+    return chosen[1]
 
 
 def parse_stooq_csv(text: str) -> list[tuple[float, float]]:
@@ -261,31 +351,102 @@ def parse_nasdaq_history(payload: dict[str, Any] | None) -> list[tuple[float, fl
 def fetch_cnbc_quotes(symbols: list[str]) -> dict[str, dict[str, float | None]]:
     if not symbols:
         return {}
+    payload = overlay_http.get_json(
+        CNBC_QUOTE,
+        params={
+            "symbols": "|".join(symbols),
+            "requestMethod": "itv",
+            "noform": "1",
+            "partnerId": "2",
+            "output": "json",
+        },
+        headers=HEADERS,
+        timeout=REQUEST_TIMEOUT,
+        source="markets",
+    )
+    if payload is None:
+        return {}
     try:
-        response = requests.get(
-            CNBC_QUOTE,
-            params={
-                "symbols": "|".join(symbols),
-                "requestMethod": "itv",
-                "noform": "1",
-                "partnerId": "2",
-                "output": "json",
-            },
-            headers=HEADERS,
-            timeout=REQUEST_TIMEOUT,
-        )
-        response.raise_for_status()
-        return parse_cnbc_quotes(response.json())
+        return parse_cnbc_quotes(payload)
     except Exception as exc:
         log.warning("[markets] CNBC quotes failed: %s", exc)
         return {}
+
+
+def parse_yahoo_chart(payload: dict[str, Any] | None) -> list[tuple[float, float]]:
+    result = ((payload or {}).get("chart") or {}).get("result") or []
+    if not result:
+        return []
+    row = result[0] or {}
+    timestamps = row.get("timestamp") or []
+    closes = ((row.get("indicators") or {}).get("quote") or [{}])[0].get("close") or []
+    points: list[tuple[float, float]] = []
+    for ts, close in zip(timestamps, closes):
+        if ts is None or close is None:
+            continue
+        try:
+            points.append((float(ts), float(close)))
+        except (TypeError, ValueError):
+            continue
+    points.sort(key=lambda item: item[0])
+    return points
+
+
+def _as_points(payload: Any) -> list[tuple[float, float]]:
+    points: list[tuple[float, float]] = []
+    for row in payload or []:
+        try:
+            points.append((float(row[0]), float(row[1])))
+        except (TypeError, ValueError, IndexError):
+            continue
+    return points
+
+
+def fetch_yahoo_history(symbol: str) -> list[tuple[float, float]]:
+    if not symbol:
+        return []
+    if overlay_http.remaining_backoff(YAHOO_CHART) > 0:
+        return _as_points(get_stale(HIST_NS, key=symbol))
+    fresh = get_fresh(HIST_NS, key=symbol)
+    if fresh:
+        return _as_points(fresh)
+    payload = overlay_http.get_json(
+        f"{YAHOO_CHART}{quote(symbol, safe='')}",
+        params={"range": "10y", "interval": "1d", "includeAdjustedClose": "true"},
+        headers=HEADERS,
+        timeout=HIST_TIMEOUT,
+        source="markets",
+    )
+    points = parse_yahoo_chart(payload if isinstance(payload, dict) else None)
+    if points:
+        store(HIST_NS, [[ts, close] for ts, close in points], key=symbol)
+        return points
+    return _as_points(get_stale(HIST_NS, key=symbol))
+
+
+def apply_history(row: dict[str, Any], points: list[tuple[float, float]]) -> dict[str, Any]:
+    quote = _quote_from_points(points)
+    changes = dict(row.get("changes") or {})
+    for key, value in (quote.get("changes") or {}).items():
+        if key == "1d" and changes.get("1d") is not None:
+            continue
+        changes[key] = value
+    row["changes"] = changes
+    if row.get("value") is None and quote.get("value") is not None:
+        row["value"] = quote["value"]
+    row["color"] = _pin_color(changes.get("1d"))
+    yahoo = YAHOO_HISTORY.get(str(row.get("cnbc") or "").upper()) or ""
+    row["history_source"] = YAHOO_SOURCE["name"]
+    row["history_symbol"] = yahoo
+    row["history_proxy"] = yahoo in ETF_PROXIES
+    return row
 
 
 def fetch_nasdaq_history(symbol: str, asset_class: str, days: int = 400) -> list[tuple[float, float]]:
     end = datetime.now(timezone.utc).date()
     start = end - timedelta(days=days + 20)
     try:
-        response = requests.get(
+        payload = overlay_http.get_json(
             NASDAQ_HIST.format(symbol=symbol),
             params={
                 "assetclass": asset_class,
@@ -295,9 +456,12 @@ def fetch_nasdaq_history(symbol: str, asset_class: str, days: int = 400) -> list
             },
             headers=NASDAQ_HEADERS,
             timeout=HIST_TIMEOUT,
+            source="markets",
+            throttle_timeouts=False,
         )
-        response.raise_for_status()
-        return parse_nasdaq_history(response.json())
+        if payload is None:
+            return []
+        return parse_nasdaq_history(payload)
     except Exception as exc:
         log.warning("[markets] Nasdaq history failed for %s: %s", symbol, exc)
         return []
@@ -311,9 +475,11 @@ def _quote_from_points(points: list[tuple[float, float]]) -> dict[str, Any]:
     now = datetime.now(timezone.utc)
     changes = {}
     for key, days in PERIODS:
-        past = _close_on_or_before(points, now - timedelta(days=days))
-        if past is None:
-            past = points[0][1]
+        past = _close_on_or_before(
+            points,
+            now - timedelta(days=days),
+            slop_days=_slop_days(days),
+        )
         changes[key] = _pct_change(current, past)
     return {
         "value": round(current, 2),
@@ -332,8 +498,7 @@ def _pin_color(day: float | None) -> str:
     return "#94a3b8"
 
 
-def _load_market_indices() -> list[dict[str, Any]]:
-    quotes = fetch_cnbc_quotes([entry["cnbc"] for entry in TOP_MARKETS if entry.get("cnbc")])
+def _market_rows(quotes: dict[str, dict[str, float | None]]) -> list[dict[str, Any]]:
     rows = []
     for entry in TOP_MARKETS:
         cnbc = quotes.get(str(entry.get("cnbc") or "").upper()) or {}
@@ -351,10 +516,54 @@ def _load_market_indices() -> list[dict[str, Any]]:
             "source": SOURCE["name"],
             "source_url": SOURCE["url"],
             "history_source": None,
+            "history_symbol": None,
+            "history_proxy": False,
             "as_of": datetime.now(timezone.utc).isoformat(),
         })
     return rows
 
 
+def _fill_history(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    jobs: dict[Any, int] = {}
+    with ThreadPoolExecutor(max_workers=HIST_WORKERS) as pool:
+        for index, row in enumerate(rows):
+            symbol = YAHOO_HISTORY.get(str(row.get("cnbc") or "").upper())
+            if not symbol:
+                continue
+            jobs[pool.submit(fetch_yahoo_history, symbol)] = index
+        done = 0
+        for future in as_completed(jobs):
+            index = jobs[future]
+            try:
+                points = future.result() or []
+            except Exception as exc:
+                log.warning("[markets] History failed for %s: %s", rows[index].get("index"), exc)
+                points = []
+            if points:
+                apply_history(rows[index], points)
+            done += 1
+            if done == 1 or done % 8 == 0 or done == len(jobs):
+                store(CACHE_NS, rows)
+                log.info("[markets] History %s/%s indexes", done, len(jobs))
+    return rows
+
+
+def _load_market_indices() -> list[dict[str, Any]] | None:
+    quotes = fetch_cnbc_quotes([entry["cnbc"] for entry in TOP_MARKETS if entry.get("cnbc")])
+    rows = _market_rows(quotes)
+    store(CACHE_NS, rows)
+    log.info("[markets] CNBC quotes for %s indexes; loading Yahoo daily history", sum(1 for row in rows if row.get("value") is not None))
+    rows = _fill_history(rows)
+    if not quotes and not any(row.get("value") is not None for row in rows):
+        return None
+    return rows
+
+
 def list_market_indices(force_refresh: bool = False) -> list[dict[str, Any]]:
-    return list(get_or_set("markets", _load_market_indices, force_refresh=force_refresh))
+    data = get_or_set(
+        CACHE_NS,
+        _load_market_indices,
+        force_refresh=force_refresh,
+        skeleton=_market_rows({}),
+    )
+    return list(data or [])

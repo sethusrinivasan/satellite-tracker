@@ -92,8 +92,13 @@ def test_tracker_page_has_weather_climate_checkbox(client):
     assert "earthquakeMarkerRadius" in js
     assert "earthquakeMarkerColor" in js
     assert "temperaturePopupHtml" in js
-    assert "data.temperatures" in js
+    assert "data.pending" in js
+    assert "applyOverlayProgress" in js
+    assert "scheduleOverlayPoll" in js
     assert "Open-Meteo" in js
     assert "['7d', changes['7d']]" in js or "changes['7d']" in js
     assert "changes['90d']" in js
     assert "changes['1y']" in js
+    assert 'id="overlay-loading-chip"' in html
+    assert "setOverlayLoading" in js
+    assert "overlay-loading-chip" in js

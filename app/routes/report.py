@@ -195,11 +195,21 @@ def latest_tles_api():
 
 @report_bp.route("/api/market-indices", methods=["GET"])
 def market_indices_api():
-    """Major world market indexes from CNBC public quotes (level + 1d %)."""
+    """Major world market indexes from CNBC quotes plus Yahoo daily history (7d–10y %)."""
     from app.services.market_indices import SOURCE, SOURCES, list_market_indices
+    from app.services.overlay_cache import is_refreshing
 
     markets = list_market_indices()
-    return jsonify({"count": len(markets), "markets": markets, "source": SOURCE, "sources": SOURCES})
+    pending = is_refreshing("markets")
+    status = f"{len(markets)} market indexes" + (" (quotes loading)" if pending else "")
+    return jsonify({
+        "count": len(markets),
+        "markets": markets,
+        "source": SOURCE,
+        "sources": SOURCES,
+        "pending": pending,
+        "status": status,
+    })
 
 
 @report_bp.route("/api/currencies", methods=["GET"])
@@ -215,10 +225,19 @@ def world_events_api():
     """Weather/climate (EONET), earthquakes (USGS), and million-city temperature trends (Open-Meteo)."""
     from app.services.city_temperature import SOURCE as TEMP_SOURCE
     from app.services.city_temperature import list_city_temperatures
+    from app.services.overlay_cache import is_refreshing
     from app.services.world_events import SOURCES, list_world_events
 
     events = list_world_events()
     temps = list_city_temperatures()
+    pending = bool(temps.get("pending")) or is_refreshing("world-events")
+    parts = [f"{len(events)} weather/quake events"]
+    if is_refreshing("world-events") and not events:
+        parts = ["Loading weather and quakes"]
+    if temps.get("status"):
+        parts.append(str(temps["status"]))
+    elif temps.get("cities"):
+        parts.append(f"{len(temps.get('cities') or [])} city pins")
     return jsonify({
         "hours": 24,
         "count": len(events),
@@ -226,6 +245,8 @@ def world_events_api():
         "temperatures": temps.get("cities") or [],
         "temperature_as_of": temps.get("as_of"),
         "sources": SOURCES + [TEMP_SOURCE],
+        "pending": pending,
+        "status": " · ".join(parts),
     })
 
 
@@ -239,7 +260,7 @@ def flights_api():
 
 @report_bp.route("/api/geo-news", methods=["GET"])
 def geo_news_api():
-    """Geo-tagged news pins from GDACS alerts and Wikipedia featured stories."""
+    """Geo-tagged news pins from free, attributed last-24h feeds."""
     from app.services.news_overlay import list_geo_news
 
     return jsonify(list_geo_news())
@@ -260,6 +281,14 @@ def webcams_api():
     from app.services.flight_overlay import parse_bbox
 
     return jsonify(list_webcams(parse_bbox(request.args)))
+
+
+@report_bp.route("/api/cloud-datacenters", methods=["GET"])
+def cloud_datacenters_api():
+    """AWS, Azure, and GCP region pins with HTTPS ping p50/p95/p99 from this server."""
+    from app.services.cloud_datacenters import list_cloud_datacenters
+
+    return jsonify(list_cloud_datacenters())
 
 
 @report_bp.route("/api/proximity/options", methods=["GET"])

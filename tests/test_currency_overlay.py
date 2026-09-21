@@ -131,6 +131,7 @@ def test_tracker_has_currencies_checkbox(client):
     js = client.get("/static/js/tracker.js").get_data(as_text=True)
     assert 'id="currencies-overlay"' in html
     assert "toggleCurrenciesOverlay" in js
+    assert "let currenciesLayer" in js
     assert "how many" in js
     assert "1 Big Mac" in js
     assert "1 barrel oil" in js

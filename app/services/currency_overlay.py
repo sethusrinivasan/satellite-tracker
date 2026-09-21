@@ -8,8 +8,7 @@ import logging
 from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
-import requests
-
+from app.services import overlay_http
 from app.services.overlay_cache import get_or_set
 
 log = logging.getLogger(__name__)
@@ -228,31 +227,34 @@ def parse_big_mac_prices(text: str) -> dict[str, float]:
 
 
 def fetch_oil_usd() -> float | None:
+    payload = overlay_http.get_json(
+        CNBC_QUOTE,
+        params={
+            "symbols": "@CL.1",
+            "requestMethod": "itv",
+            "noform": "1",
+            "partnerId": "2",
+            "output": "json",
+        },
+        headers=HEADERS,
+        timeout=REQUEST_TIMEOUT,
+        source="currencies",
+    )
+    if payload is None:
+        return None
     try:
-        response = requests.get(
-            CNBC_QUOTE,
-            params={
-                "symbols": "@CL.1",
-                "requestMethod": "itv",
-                "noform": "1",
-                "partnerId": "2",
-                "output": "json",
-            },
-            headers=HEADERS,
-            timeout=REQUEST_TIMEOUT,
-        )
-        response.raise_for_status()
-        return parse_cnbc_last(response.json())
+        return parse_cnbc_last(payload)
     except Exception as exc:
         log.warning("[currencies] CNBC oil quote failed: %s", exc)
         return None
 
 
 def fetch_big_mac_prices() -> dict[str, float]:
+    text = overlay_http.get_text(BIGMAC_CSV, headers=HEADERS, timeout=REQUEST_TIMEOUT, source="currencies")
+    if not text:
+        return {}
     try:
-        response = requests.get(BIGMAC_CSV, headers=HEADERS, timeout=REQUEST_TIMEOUT)
-        response.raise_for_status()
-        return parse_big_mac_prices(response.text)
+        return parse_big_mac_prices(text)
     except Exception as exc:
         log.warning("[currencies] Big Mac Index failed: %s", exc)
         return {}
@@ -261,16 +263,15 @@ def fetch_big_mac_prices() -> dict[str, float]:
 def fetch_frankfurter_history(codes: list[str]) -> list[dict[str, Any]]:
     quotes = sorted({code.upper() for code in codes if code.upper() != "USD"} | {"EUR", "JPY", "XAU"})
     start = (datetime.now(timezone.utc).date() - timedelta(days=1900)).isoformat()
-    response = requests.get(
+    payload = overlay_http.get_json(
         FRANKFURTER_RATES,
         params={"base": "USD", "quotes": ",".join(quotes), "from": start},
         headers=HEADERS,
         timeout=REQUEST_TIMEOUT,
+        source="currencies",
     )
-    response.raise_for_status()
-    payload = response.json()
     if not isinstance(payload, list):
-        raise ValueError("Frankfurter rates response was not a list")
+        raise ValueError("Frankfurter rates unavailable")
     return payload
 
 
@@ -285,16 +286,13 @@ def _pin_color(day_change: float | None) -> str:
     return "#94a3b8"
 
 
-def _load_currencies() -> dict[str, Any]:
-    codes = [row["code"] for row in WORLD_CURRENCIES]
-    try:
-        series = parse_frankfurter_rates(fetch_frankfurter_history(codes))
-    except Exception as exc:
-        log.warning("[currencies] Frankfurter request failed: %s", exc)
-        series = {}
-    oil_usd = fetch_oil_usd()
-    bigmac = fetch_big_mac_prices()
-
+def _currency_payload(
+    series: dict[str, Any],
+    oil_usd: float | None,
+    bigmac: dict[str, float],
+    pending: bool,
+    status: str,
+) -> dict[str, Any]:
     rows = []
     as_of = None
     for entry in WORLD_CURRENCIES:
@@ -322,8 +320,29 @@ def _load_currencies() -> dict[str, Any]:
         "currencies": rows,
         "source": SOURCE,
         "sources": SOURCES,
+        "pending": pending,
+        "status": status,
     }
 
 
+def _load_currencies() -> dict[str, Any] | None:
+    codes = [row["code"] for row in WORLD_CURRENCIES]
+    try:
+        series = parse_frankfurter_rates(fetch_frankfurter_history(codes))
+    except Exception as exc:
+        log.warning("[currencies] Frankfurter request failed: %s", exc)
+        series = {}
+    oil_usd = fetch_oil_usd()
+    bigmac = fetch_big_mac_prices()
+    if not series and oil_usd is None and not bigmac:
+        return None
+    return _currency_payload(series, oil_usd, bigmac, False, f"{len(WORLD_CURRENCIES)} currencies")
+
+
 def list_currencies(force_refresh: bool = False) -> dict[str, Any]:
-    return get_or_set("currencies", _load_currencies, force_refresh=force_refresh)
+    return get_or_set(
+        "currencies",
+        _load_currencies,
+        force_refresh=force_refresh,
+        skeleton=_currency_payload({}, None, {}, True, "Currency pins ready; fetching rates"),
+    ) or _currency_payload({}, None, {}, True, "Currency pins ready; fetching rates")

@@ -189,11 +189,96 @@ function initFlatMap() {
   if (document.getElementById('webcams-overlay')?.checked) {
     toggleWebcamsOverlay(true);
   }
+  if (document.getElementById('cloud-dc-overlay')?.checked) {
+    toggleCloudDatacentersOverlay(true);
+  }
   updateMapDataCredits();
 }
 
 let worldEventsLayer = null;
 let worldEventsLoaded = false;
+const overlayLoadingNames = {};
+
+function setOverlayLoading(toggleId, loading, name) {
+  const label = document.getElementById(toggleId);
+  const box = label?.querySelector('input[type="checkbox"]')
+    || document.getElementById(String(toggleId || '').replace(/-toggle$/, '-overlay'));
+  if (label) {
+    label.classList.toggle('is-loading', !!loading);
+    if (loading) label.setAttribute('aria-busy', 'true');
+    else label.removeAttribute('aria-busy');
+  }
+  if (loading) {
+    overlayLoadingNames[toggleId] = name || (label?.textContent || 'layer').trim();
+  } else {
+    delete overlayLoadingNames[toggleId];
+  }
+  const chip = document.getElementById('overlay-loading-chip');
+  if (!chip) return;
+  const names = Object.values(overlayLoadingNames);
+  if (!names.length) {
+    chip.hidden = true;
+    chip.textContent = '';
+    return;
+  }
+  chip.hidden = false;
+  chip.textContent = names.length === 1 ? `Loading ${names[0]}…` : `Loading ${names.length} layers…`;
+}
+
+window.setOverlayLoading = setOverlayLoading;
+
+const overlayPollers = {};
+
+function stopOverlayPoll(id) {
+  if (overlayPollers[id]) {
+    clearTimeout(overlayPollers[id]);
+    overlayPollers[id] = null;
+  }
+}
+
+function scheduleOverlayPoll(id, fn, ms) {
+  stopOverlayPoll(id);
+  overlayPollers[id] = setTimeout(() => {
+    fn().catch((err) => overlayDebug('error', `${id} poll failed`, String(err && err.message ? err.message : err)));
+  }, ms || 800);
+}
+
+function applyOverlayProgress(toggleId, data, fallbackName) {
+  const pending = !!data?.pending;
+  const status = data?.status || fallbackName;
+  overlayDebug('api', status, pending ? 'still loading' : 'complete');
+  if (pending) {
+    setOverlayLoading(toggleId, true, status);
+    return true;
+  }
+  setOverlayLoading(toggleId, false);
+  return false;
+}
+
+function overlayDebug(type, message, detail) {
+  try {
+    if (window.SatDebug) {
+      const category = (type === 'warn' || type === 'error' || type === 'geo') ? type : 'api';
+      window.SatDebug.log(type === 'warn' || type === 'error' ? type : 'api', category, message, detail);
+    }
+  } catch (err) { /* debug panel optional */ }
+  if (type === 'error') console.error(message, detail || '');
+  else if (type === 'warn') console.warn(message, detail || '');
+  else console.debug(message, detail || '');
+}
+
+async function overlayFetch(url, label) {
+  overlayDebug('api', `${label}: requesting`, url);
+  const started = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+  const res = await fetch(url);
+  const ms = Math.round(((typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now()) - started);
+  if (!res.ok) {
+    overlayDebug('error', `${label}: HTTP ${res.status} after ${ms}ms`, url);
+    throw new Error(`${label} failed (${res.status})`);
+  }
+  overlayDebug('api', `${label}: ${res.status} in ${ms}ms`, url);
+  return res.json();
+}
 
 function eventMarkerColor(category) {
   const text = (category || '').toLowerCase();
@@ -343,6 +428,8 @@ window.toggleWorldEventsOverlay = async function(enabled) {
   const box = document.getElementById('world-events-overlay');
   const label = document.getElementById('world-events-toggle');
   if (!enabled) {
+    stopOverlayPoll('world-events-toggle');
+    setOverlayLoading('world-events-toggle', false);
     if (worldEventsLayer && map) map.removeLayer(worldEventsLayer);
     if (label) label.title = 'Weather and climate events (NASA EONET), earthquakes (USGS), and temperature trends for cities over 1 million (Open-Meteo).';
     updateMapDataCredits();
@@ -350,22 +437,34 @@ window.toggleWorldEventsOverlay = async function(enabled) {
   }
   if (!map) return;
   try {
-    if (box) box.disabled = true;
-    const res = await fetch('/api/world-events');
-    const data = await res.json();
-    renderWorldEvents(data.events || [], data.temperatures || []);
-    worldEventsLoaded = true;
-    const tempCount = (data.temperatures || []).length;
-    if (label) label.title = `${data.count || 0} events (24h) · ${tempCount} city temperature trends (7d / 30d / 90d / 1y)`;
-    updateMapDataCredits();
+    setOverlayLoading('world-events-toggle', true, 'Weather & quakes');
+    overlayDebug('api', 'Weather & quakes: drawing whatever is cached, then filling remaining feeds');
+    await refreshWorldEventsOverlay();
   } catch (err) {
     console.error(err);
+    overlayDebug('error', 'Weather & quakes failed to load', String(err && err.message ? err.message : err));
     alert('Could not load the weather and earthquake overlay.');
     if (box) box.checked = false;
-  } finally {
-    if (box) box.disabled = false;
+    setOverlayLoading('world-events-toggle', false);
   }
 };
+
+async function refreshWorldEventsOverlay() {
+  const box = document.getElementById('world-events-overlay');
+  const label = document.getElementById('world-events-toggle');
+  if (!box?.checked || !map) return;
+  const data = await overlayFetch('/api/world-events', 'Weather & quakes');
+  renderWorldEvents(data.events || [], data.temperatures || []);
+  worldEventsLoaded = true;
+  const tempCount = (data.temperatures || []).length;
+  if (label) label.title = `${data.count || 0} events (24h) · ${tempCount} city temperature trends (7d / 30d / 90d / 1y)`;
+  updateMapDataCredits();
+  if (applyOverlayProgress('world-events-toggle', data, 'Weather & quakes')) {
+    scheduleOverlayPoll('world-events-toggle', refreshWorldEventsOverlay);
+  } else {
+    stopOverlayPoll('world-events-toggle');
+  }
+}
 
 let marketsLayer = null;
 
@@ -391,7 +490,10 @@ function marketPopupHtml(market) {
     ['7d', changes['7d']],
     ['30d', changes['30d']],
     ['1 quarter', changes['1q']],
+    ['6 months', changes['6m']],
     ['1 year', changes['1y']],
+    ['2 years', changes['2y']],
+    ['5 years', changes['5y']],
     ['10 years', changes['10y']],
   ].map(([label, pct]) => {
     const change = formatChange(pct);
@@ -403,7 +505,7 @@ function marketPopupHtml(market) {
       <span style="opacity:0.8">${escapeHtml(market.city)} · ~${escapeHtml(market.market_cap_tn)}T USD cap</span><br>
       ${escapeHtml(market.index)} <strong>${formatIndexValue(market.value)}</strong>
       ${rows}
-      <div class="overlay-credit">Quotes: <a href="https://www.cnbc.com" target="_blank" rel="noopener noreferrer">CNBC</a> public index levels and 1-day %</div>
+      <div class="overlay-credit">Quotes: <a href="https://www.cnbc.com" target="_blank" rel="noopener noreferrer">CNBC</a> 1-day %${market.history_source ? ` · History: <a href="https://finance.yahoo.com" target="_blank" rel="noopener noreferrer">Yahoo Finance</a> daily closes (7d–10y calculated locally${market.history_proxy ? ', ETF proxy' : ''})` : ''}</div>
     </div>`;
 }
 
@@ -431,29 +533,41 @@ window.toggleMarketsOverlay = async function(enabled) {
   const box = document.getElementById('markets-overlay');
   const label = document.getElementById('markets-toggle');
   if (!enabled) {
+    stopOverlayPoll('markets-toggle');
+    setOverlayLoading('markets-toggle', false);
     if (marketsLayer && map) map.removeLayer(marketsLayer);
-    if (label) label.title = 'Major world market indexes. Level and 1-day % from CNBC public quotes.';
+    if (label) label.title = 'Major world market indexes. Level and 1-day % from CNBC; 7d–10y % from Yahoo daily closes.';
     updateMapDataCredits();
     return;
   }
   if (!map) return;
   try {
-    if (box) box.disabled = true;
-    const res = await fetch('/api/market-indices');
-    const data = await res.json();
-    renderMarkets(data.markets || []);
-    if (label) label.title = `${data.count || 0} market indexes · CNBC 1d`;
-    updateMapDataCredits();
+    setOverlayLoading('markets-toggle', true, 'Markets');
+    overlayDebug('api', 'Markets: drawing index pins, then filling CNBC 1d and Yahoo history');
+    await refreshMarketsOverlay();
   } catch (err) {
     console.error(err);
+    overlayDebug('error', 'Markets failed to load', String(err && err.message ? err.message : err));
     alert('Could not load the markets overlay.');
     if (box) box.checked = false;
-  } finally {
-    if (box) box.disabled = false;
+    setOverlayLoading('markets-toggle', false);
   }
 };
 
-let currenciesLayer = null;
+async function refreshMarketsOverlay() {
+  const box = document.getElementById('markets-overlay');
+  const label = document.getElementById('markets-toggle');
+  if (!box?.checked || !map) return;
+  const data = await overlayFetch('/api/market-indices', 'Markets');
+  renderMarkets(data.markets || []);
+  if (label) label.title = `${data.count || 0} market indexes · CNBC 1d · Yahoo 7d–10y`;
+  updateMapDataCredits();
+  if (applyOverlayProgress('markets-toggle', data, 'Markets')) {
+    scheduleOverlayPoll('markets-toggle', refreshMarketsOverlay);
+  } else {
+    stopOverlayPoll('markets-toggle');
+  }
+}
 
 const CURRENCY_HORIZONS = [
   ['1d', '1d'],
@@ -523,6 +637,8 @@ function currencyPopupHtml(item) {
     </div>`;
 }
 
+let currenciesLayer = null;
+
 function renderCurrencies(currencies) {
   if (!map) return;
   if (currenciesLayer) map.removeLayer(currenciesLayer);
@@ -552,6 +668,8 @@ window.toggleCurrenciesOverlay = async function(enabled) {
   const box = document.getElementById('currencies-overlay');
   const label = document.getElementById('currencies-toggle');
   if (!enabled) {
+    stopOverlayPoll('currencies-toggle');
+    setOverlayLoading('currencies-toggle', false);
     if (currenciesLayer && map) map.removeLayer(currenciesLayer);
     if (label) label.title = 'Local units needed to buy 1 USD, 1 EUR, 1 yen, 1 oz gold, 1 barrel of oil, and 1 Big Mac.';
     updateMapDataCredits();
@@ -559,20 +677,32 @@ window.toggleCurrenciesOverlay = async function(enabled) {
   }
   if (!map) return;
   try {
-    if (box) box.disabled = true;
-    const res = await fetch('/api/currencies');
-    const data = await res.json();
-    renderCurrencies(data.currencies || []);
-    if (label) label.title = `${data.count || 0} currencies · Frankfurter / CNBC / Big Mac Index`;
-    updateMapDataCredits();
+    setOverlayLoading('currencies-toggle', true, 'Currencies');
+    overlayDebug('api', 'Currencies: drawing pins, then filling Frankfurter / oil / Big Mac');
+    await refreshCurrenciesOverlay();
   } catch (err) {
     console.error(err);
+    overlayDebug('error', 'Currencies failed to load', String(err && err.message ? err.message : err));
     alert('Could not load the currencies overlay.');
     if (box) box.checked = false;
-  } finally {
-    if (box) box.disabled = false;
+    setOverlayLoading('currencies-toggle', false);
   }
 };
+
+async function refreshCurrenciesOverlay() {
+  const box = document.getElementById('currencies-overlay');
+  const label = document.getElementById('currencies-toggle');
+  if (!box?.checked || !map) return;
+  const data = await overlayFetch('/api/currencies', 'Currencies');
+  renderCurrencies(data.currencies || []);
+  if (label) label.title = `${data.count || 0} currencies · Frankfurter / CNBC / Big Mac Index`;
+  updateMapDataCredits();
+  if (applyOverlayProgress('currencies-toggle', data, 'Currencies')) {
+    scheduleOverlayPoll('currencies-toggle', refreshCurrenciesOverlay);
+  } else {
+    stopOverlayPoll('currencies-toggle');
+  }
+}
 
 let flightsLayer = null;
 let flightsTimer = null;
@@ -650,11 +780,15 @@ async function refreshFlightsOverlay() {
   const label = document.getElementById('flights-toggle');
   if (!box?.checked || !map) return;
   const query = currentFlightQuery();
-  const res = await fetch(`/api/flights${query ? `?${query}` : ''}`);
-  const data = await res.json();
+  const data = await overlayFetch(`/api/flights${query ? `?${query}` : ''}`, 'Flights');
   renderFlights(data.flights || []);
   if (label) label.title = `${data.count || 0} airborne · OpenSky Network`;
   updateMapDataCredits();
+  if (applyOverlayProgress('flights-toggle', data, 'Flights')) {
+    scheduleOverlayPoll('flights-toggle', refreshFlightsOverlay, 900);
+  } else {
+    stopOverlayPoll('flights-toggle');
+  }
 }
 
 window.toggleFlightsOverlay = async function(enabled) {
@@ -669,6 +803,8 @@ window.toggleFlightsOverlay = async function(enabled) {
     flightsMoveHandler = null;
   }
   if (!enabled) {
+    stopOverlayPoll('flights-toggle');
+    setOverlayLoading('flights-toggle', false);
     if (flightsLayer && map) map.removeLayer(flightsLayer);
     if (label) label.title = 'Live aircraft from The OpenSky Network';
     updateMapDataCredits();
@@ -676,7 +812,8 @@ window.toggleFlightsOverlay = async function(enabled) {
   }
   if (!map) return;
   try {
-    if (box) box.disabled = true;
+    setOverlayLoading('flights-toggle', true, 'Flights');
+    overlayDebug('api', 'Flights: drawing OpenSky positions as they arrive');
     await refreshFlightsOverlay();
     flightsTimer = setInterval(() => {
       refreshFlightsOverlay().catch((err) => console.error(err));
@@ -691,14 +828,30 @@ window.toggleFlightsOverlay = async function(enabled) {
     map.on('moveend', flightsMoveHandler);
   } catch (err) {
     console.error(err);
+    overlayDebug('error', 'Flights failed to load', String(err && err.message ? err.message : err));
     alert('Could not load the flights overlay.');
     if (box) box.checked = false;
-  } finally {
-    if (box) box.disabled = false;
+    setOverlayLoading('flights-toggle', false);
   }
 };
 
 let newsLayer = null;
+
+const NEWS_SOURCE_FALLBACK = [
+  { name: 'GDACS', url: 'https://www.gdacs.org' },
+  { name: 'UN News', url: 'https://news.un.org' },
+  { name: 'Global Voices', url: 'https://globalvoices.org' },
+  { name: 'The Conversation', url: 'https://theconversation.com' },
+  { name: 'Deutsche Welle', url: 'https://www.dw.com' },
+];
+let newsSources = NEWS_SOURCE_FALLBACK;
+
+function newsSourcesLabel(sources) {
+  const names = (sources || newsSources || [])
+    .map((row) => row && row.name)
+    .filter(Boolean);
+  return names.length ? names.join(' · ') : 'GDACS · UN News · Global Voices · The Conversation · Deutsche Welle';
+}
 
 function newsPopupHtml(item) {
   const links = (item.articles && item.articles.length ? item.articles : [{ title: item.title, url: item.url }])
@@ -707,10 +860,17 @@ function newsPopupHtml(item) {
       `<a class="news-popup__link" href="${escapeHtml(article.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(article.title || 'Open article')}</a>`
     ))
     .join('');
+  const sourceName = item.source || 'News';
+  const sourceUrl = item.source_url || '';
+  const sourceLink = /^https?:\/\//i.test(sourceUrl)
+    ? `<a href="${escapeHtml(sourceUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(sourceName)}</a>`
+    : escapeHtml(sourceName);
+  const license = item.license ? ` · ${escapeHtml(item.license)}` : '';
+  const geo = item.geo_basis ? ` · ${escapeHtml(item.geo_basis)}` : '';
   return `
     <div class="news-popup">
       ${links || escapeHtml(item.title || 'News')}
-      <div class="overlay-credit">${escapeHtml(item.region || '')} · ${escapeHtml(item.source || 'News')} · <a href="https://www.gdacs.org" target="_blank" rel="noopener noreferrer">GDACS</a> / <a href="https://en.wikipedia.org" target="_blank" rel="noopener noreferrer">Wikipedia</a></div>
+      <div class="overlay-credit">${escapeHtml(item.region || '')}${geo} · ${sourceLink}${license}</div>
     </div>`;
 }
 
@@ -738,27 +898,42 @@ window.toggleNewsOverlay = async function(enabled) {
   const box = document.getElementById('news-overlay');
   const label = document.getElementById('news-toggle');
   if (!enabled) {
+    stopOverlayPoll('news-toggle');
+    setOverlayLoading('news-toggle', false);
     if (newsLayer && map) map.removeLayer(newsLayer);
-    if (label) label.title = 'Geo-tagged alerts from GDACS and Wikipedia featured news.';
+    if (label) label.title = 'Last-24h headlines from GDACS, UN News, Global Voices, The Conversation, and Deutsche Welle.';
     updateMapDataCredits();
     return;
   }
   if (!map) return;
   try {
-    if (box) box.disabled = true;
-    const res = await fetch('/api/geo-news');
-    const data = await res.json();
-    renderNews(data.news || []);
-    if (label) label.title = `${data.count || 0} stories · GDACS / Wikipedia`;
-    updateMapDataCredits();
+    setOverlayLoading('news-toggle', true, 'News');
+    overlayDebug('api', 'News: drawing GDACS alerts, then free attributed feeds as they geocode');
+    await refreshNewsOverlay();
   } catch (err) {
     console.error(err);
+    overlayDebug('error', 'News failed to load', String(err && err.message ? err.message : err));
     alert('Could not load the news overlay.');
     if (box) box.checked = false;
-  } finally {
-    if (box) box.disabled = false;
+    setOverlayLoading('news-toggle', false);
   }
 };
+
+async function refreshNewsOverlay() {
+  const box = document.getElementById('news-overlay');
+  const label = document.getElementById('news-toggle');
+  if (!box?.checked || !map) return;
+  const data = await overlayFetch('/api/geo-news', 'News');
+  newsSources = (data.sources && data.sources.length) ? data.sources : NEWS_SOURCE_FALLBACK;
+  renderNews(data.news || []);
+  if (label) label.title = `${data.count || 0} stories · ${newsSourcesLabel(newsSources)}`;
+  updateMapDataCredits();
+  if (applyOverlayProgress('news-toggle', data, 'News')) {
+    scheduleOverlayPoll('news-toggle', refreshNewsOverlay);
+  } else {
+    stopOverlayPoll('news-toggle');
+  }
+}
 
 let shipsLayer = null;
 let shipsTimer = null;
@@ -826,11 +1001,15 @@ async function refreshShipsOverlay() {
   const box = document.getElementById('ships-overlay');
   const label = document.getElementById('ships-toggle');
   if (!box?.checked || !map) return;
-  const res = await fetch('/api/shipping');
-  const data = await res.json();
+  const data = await overlayFetch('/api/shipping', 'Ships');
   renderShipping(data);
   if (label) label.title = `${data.ship_count || 0} current AIS positions (Digitraffic, CC BY 4.0)`;
   updateMapDataCredits();
+  if (applyOverlayProgress('ships-toggle', data, 'Ships')) {
+    scheduleOverlayPoll('ships-toggle', refreshShipsOverlay, 900);
+  } else {
+    stopOverlayPoll('ships-toggle');
+  }
 }
 
 window.toggleShipsOverlay = async function(enabled) {
@@ -841,6 +1020,8 @@ window.toggleShipsOverlay = async function(enabled) {
     shipsTimer = null;
   }
   if (!enabled) {
+    stopOverlayPoll('ships-toggle');
+    setOverlayLoading('ships-toggle', false);
     if (shipsLayer && map) map.removeLayer(shipsLayer);
     if (label) label.title = 'Current AIS positions from Fintraffic Digitraffic (CC BY 4.0). Hover a vessel for its latest location.';
     updateMapDataCredits();
@@ -848,17 +1029,18 @@ window.toggleShipsOverlay = async function(enabled) {
   }
   if (!map) return;
   try {
-    if (box) box.disabled = true;
+    setOverlayLoading('ships-toggle', true, 'Ships');
+    overlayDebug('api', 'Ships: drawing cached AIS, then refreshing Digitraffic');
     await refreshShipsOverlay();
     shipsTimer = setInterval(() => {
       refreshShipsOverlay().catch((err) => console.error(err));
     }, 15000);
   } catch (err) {
     console.error(err);
+    overlayDebug('error', 'Ships failed to load', String(err && err.message ? err.message : err));
     alert('Could not load current AIS positions from Digitraffic.');
     if (box) box.checked = false;
-  } finally {
-    if (box) box.disabled = false;
+    setOverlayLoading('ships-toggle', false);
   }
 };
 
@@ -903,11 +1085,15 @@ async function refreshWebcamsOverlay() {
   const label = document.getElementById('webcams-toggle');
   if (!box?.checked || !map) return;
   const query = currentFlightQuery();
-  const res = await fetch(`/api/webcams${query ? `?${query}` : ''}`);
-  const data = await res.json();
+  const data = await overlayFetch(`/api/webcams${query ? `?${query}` : ''}`, 'Webcams');
   renderWebcams(data.webcams || []);
-    if (label) label.title = `${data.count || 0} public webcams · official pages / OpenStreetMap`;
+  if (label) label.title = `${data.count || 0} public webcams · official pages / OpenStreetMap`;
   updateMapDataCredits();
+  if (applyOverlayProgress('webcams-toggle', data, 'Webcams')) {
+    scheduleOverlayPoll('webcams-toggle', refreshWebcamsOverlay, 900);
+  } else {
+    stopOverlayPoll('webcams-toggle');
+  }
 }
 
 window.toggleWebcamsOverlay = async function(enabled) {
@@ -918,6 +1104,8 @@ window.toggleWebcamsOverlay = async function(enabled) {
     webcamsMoveHandler = null;
   }
   if (!enabled) {
+    stopOverlayPoll('webcams-toggle');
+    setOverlayLoading('webcams-toggle', false);
     if (webcamsLayer && map) map.removeLayer(webcamsLayer);
     if (label) label.title = 'Public webcam pages worldwide. Official indexes plus OpenStreetMap. Click a pin to open the feed.';
     updateMapDataCredits();
@@ -925,7 +1113,8 @@ window.toggleWebcamsOverlay = async function(enabled) {
   }
   if (!map) return;
   try {
-    if (box) box.disabled = true;
+    setOverlayLoading('webcams-toggle', true, 'Webcams');
+    overlayDebug('api', 'Webcams: drawing official pins first, then OpenStreetMap extras');
     await refreshWebcamsOverlay();
     let moveTimer = null;
     webcamsMoveHandler = function() {
@@ -937,10 +1126,147 @@ window.toggleWebcamsOverlay = async function(enabled) {
     map.on('moveend', webcamsMoveHandler);
   } catch (err) {
     console.error(err);
+    overlayDebug('error', 'Webcams failed to load', String(err && err.message ? err.message : err));
     alert('Could not load the webcams overlay.');
     if (box) box.checked = false;
-  } finally {
-    if (box) box.disabled = false;
+    setOverlayLoading('webcams-toggle', false);
+  }
+};
+
+let cloudDcLayer = null;
+let cloudDcMarkers = {};
+let cloudDcPollTimer = null;
+
+function formatMs(value) {
+  if (value == null || Number.isNaN(Number(value))) return '—';
+  return `${Math.round(Number(value))} ms`;
+}
+
+function cloudDcLatencyRows(site) {
+  return [
+    ['p50', site.p50],
+    ['p95', site.p95],
+    ['p99', site.p99],
+  ].map(([label, ms]) => (
+    `<tr><th>${escapeHtml(label)}</th><td>${formatMs(ms)}</td></tr>`
+  )).join('');
+}
+
+function cloudDcTooltipHtml(site) {
+  return `
+    <div class="cloud-dc-tooltip">
+      <strong>${escapeHtml(site.provider_label || '')} ${escapeHtml(site.region || '')}</strong>
+      <div class="cloud-dc-tooltip__place">${escapeHtml(site.name || site.city || '')}</div>
+      <table class="cloud-dc-tooltip__lat">${cloudDcLatencyRows(site)}</table>
+    </div>`;
+}
+
+function cloudDcPopupHtml(site) {
+  const docs = /^https?:\/\//i.test(site.docs_url || '') ? site.docs_url : '';
+  const docsLink = docs
+    ? `<a href="${escapeHtml(docs)}" target="_blank" rel="noopener noreferrer">${escapeHtml(site.provider_label || 'Docs')}</a>`
+    : escapeHtml(site.provider_label || '');
+  return `
+    <div class="cloud-dc-popup">
+      <strong>${escapeHtml(site.provider_label || '')} ${escapeHtml(site.region || '')}</strong>
+      <div class="cloud-dc-popup__place">${escapeHtml(site.name || '')} · ${escapeHtml(site.city || '')}</div>
+      <table class="cloud-dc-popup__lat">${cloudDcLatencyRows(site)}</table>
+      <div class="overlay-credit">HTTPS RTT from this server (${escapeHtml(String(site.samples || 0))} samples), not ICMP. ${docsLink}</div>
+    </div>`;
+}
+
+function cloudDcKey(site) {
+  return site.id || `${site.provider}:${site.region}`;
+}
+
+function stopCloudDcPoll() {
+  if (cloudDcPollTimer) {
+    clearTimeout(cloudDcPollTimer);
+    cloudDcPollTimer = null;
+  }
+}
+
+function upsertCloudDcMarker(site) {
+  if (!map || !cloudDcLayer) return;
+  if (typeof site.lat !== 'number' || typeof site.lng !== 'number') return;
+  const key = cloudDcKey(site);
+  const existing = cloudDcMarkers[key];
+  if (existing) {
+    existing.setTooltipContent(cloudDcTooltipHtml(site));
+    existing.setPopupContent(cloudDcPopupHtml(site));
+    return;
+  }
+  const color = site.color || '#94a3b8';
+  const letter = escapeHtml(site.letter || (site.provider_label || '?').slice(0, 1));
+  const icon = L.divIcon({
+    className: 'cloud-dc-pin-wrap',
+    html: `<div class="cloud-dc-pin" style="background:${color}">${letter}</div>`,
+    iconSize: [20, 20],
+    iconAnchor: [10, 10],
+  });
+  const marker = L.marker([site.lat, site.lng], { icon: icon, zIndexOffset: 380 });
+  marker.bindTooltip(cloudDcTooltipHtml(site), { direction: 'top', opacity: 0.96, sticky: true });
+  marker.bindPopup(cloudDcPopupHtml(site));
+  cloudDcLayer.addLayer(marker);
+  cloudDcMarkers[key] = marker;
+}
+
+function renderCloudDatacenters(sites) {
+  if (!map) return;
+  if (!cloudDcLayer) {
+    cloudDcLayer = L.layerGroup();
+    cloudDcMarkers = {};
+    cloudDcLayer.addTo(map);
+  }
+  (sites || []).forEach(upsertCloudDcMarker);
+}
+
+async function refreshCloudDatacenters() {
+  const box = document.getElementById('cloud-dc-overlay');
+  const label = document.getElementById('cloud-dc-toggle');
+  if (!box?.checked || !map) return;
+  const data = await overlayFetch('/api/cloud-datacenters', 'Cloud DCs');
+  renderCloudDatacenters(data.datacenters || []);
+  const pinged = data.pinged || 0;
+  const total = data.total || (data.datacenters || []).length;
+  overlayDebug('api', data.status || `Cloud DCs ${pinged}/${total}`, `${total} region pins`);
+  if (label) label.title = `${total} cloud regions · pinged ${pinged}/${total} · AWS orange · Azure blue · GCP green`;
+  updateMapDataCredits();
+  if (applyOverlayProgress('cloud-dc-toggle', {
+    pending: data.pending,
+    status: data.status || `Cloud DCs ${pinged}/${total}`,
+  }, `Cloud DCs ${pinged}/${total}`)) {
+    scheduleOverlayPoll('cloud-dc-toggle', refreshCloudDatacenters, 700);
+  } else {
+    stopOverlayPoll('cloud-dc-toggle');
+  }
+}
+
+window.toggleCloudDatacentersOverlay = async function(enabled) {
+  const box = document.getElementById('cloud-dc-overlay');
+  const label = document.getElementById('cloud-dc-toggle');
+  if (!enabled) {
+    stopOverlayPoll('cloud-dc-toggle');
+    stopCloudDcPoll();
+    setOverlayLoading('cloud-dc-toggle', false);
+    if (cloudDcLayer && map) map.removeLayer(cloudDcLayer);
+    cloudDcLayer = null;
+    cloudDcMarkers = {};
+    if (label) label.title = 'AWS, Azure, and GCP regions. Hover for HTTPS ping p50 / p95 / p99 from this server.';
+    updateMapDataCredits();
+    return;
+  }
+  if (!map) return;
+  try {
+    setOverlayLoading('cloud-dc-toggle', true, 'Cloud DCs');
+    overlayDebug('api', 'Cloud DCs: drawing region pins, then filling HTTPS ping p50/p95/p99');
+    await refreshCloudDatacenters();
+  } catch (err) {
+    console.error(err);
+    overlayDebug('error', 'Cloud DCs failed to load', String(err && err.message ? err.message : err));
+    alert('Could not load the cloud datacenter overlay.');
+    if (box) box.checked = false;
+    setOverlayLoading('cloud-dc-toggle', false);
   }
 };
 
@@ -952,7 +1278,7 @@ function updateMapDataCredits() {
     parts.push('Weather & climate: NASA EONET · Earthquakes: USGS · City temps: Open-Meteo ERA5 (7d / 30d / 90d / 1y)');
   }
   if (document.getElementById('markets-overlay')?.checked) {
-    parts.push('Index quotes: CNBC (level + 1d %)');
+    parts.push('Index quotes: CNBC (level + 1d %) · history: Yahoo Finance daily closes (7d / 30d / 1q / 6m / 1y / 2y / 5y / 10y)');
   }
   if (document.getElementById('currencies-overlay')?.checked) {
     parts.push('FX & gold: Frankfurter · oil: CNBC WTI · burger: The Economist Big Mac Index');
@@ -961,13 +1287,16 @@ function updateMapDataCredits() {
     parts.push('Aircraft: OpenSky Network');
   }
   if (document.getElementById('news-overlay')?.checked) {
-    parts.push('News: GDACS disaster alerts · Wikipedia featured stories');
+    parts.push(`News: ${newsSourcesLabel(newsSources)} (last 24h, attributed)`);
   }
   if (document.getElementById('ships-overlay')?.checked) {
     parts.push('Current AIS positions: Fintraffic Digitraffic (CC BY 4.0, Finland/Baltic)');
   }
   if (document.getElementById('webcams-overlay')?.checked) {
     parts.push('Webcams: USGS, NPS, NOAA, INGV, GeoNet and other official pages · extra pins © OpenStreetMap contributors (ODbL)');
+  }
+  if (document.getElementById('cloud-dc-overlay')?.checked) {
+    parts.push('Cloud DCs: AWS DynamoDB /ping · Azure Speed Test blobs · GCPing (HTTPS RTT from this server)');
   }
   el.textContent = parts.join(' · ');
 }

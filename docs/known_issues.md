@@ -58,8 +58,8 @@ All issue items generated during system audits are tagged with `Antigravity_gene
 - **Status**: Default basemap is Esri World Dark Gray (`app/static/js/basemap.js`). Set `CARTO_API_KEY` (free CARTO basemap key) to restore CARTO tiles.
 
 ### 8. 🟡 [P2] Overlay provider gaps
-- **Summary**: Some free overlay feeds are incomplete or delayed. Open-Meteo city temperatures use ERA5 daily means and can lag a few days. Currency oil and Big Mac rows have no multi-horizon %. Market pins currently show CNBC level + 1d % (Nasdaq 7d–10y history times out). Flight on-time is estimated, not an airline schedule. Live AIS is Finland/Baltic only. OSM extra webcams can be empty at world zoom if Overpass is slow.
-- **Status**: Live overlays work with the documented free sources. Follow-ups: restore multi-horizon market %, richer geo-news, tourist/Wikipedia-edit overlays, denser global webcams.
+- **Summary**: Some free overlay feeds are incomplete or delayed. Open-Meteo city temperatures use ERA5 daily means and can lag a few days. Currency oil and Big Mac rows have no multi-horizon %. A few market indexes have no Yahoo daily series (those pins keep CNBC 1d only, or use a named ETF proxy). Flight on-time is estimated, not an airline schedule. Live AIS is Finland/Baltic only. OSM extra webcams can be empty at world zoom if Overpass is slow. Cloud DC pins are city-level; latency is HTTPS RTT from this server (not ICMP, not the viewer’s browser). Some Azure Speed Test blobs may be missing. Overlay HTTP backs off a host after `429`/`503` and keeps serving stale or partial pins.
+- **Status**: Live overlays work with the documented free sources. Follow-ups: richer geo-news, tourist/Wikipedia-edit overlays, denser global webcams.
 - **Labels / Tags**: `overlay`, `p2`
 
 ### 9. 🟡 [P2] `instance/datastore.json` Permission denied — **mitigated**
@@ -71,7 +71,7 @@ All issue items generated during system audits are tagged with `Antigravity_gene
 ## 🗺️ TODO Roadmap & Feature Backlog
 
 - [x] 🟢 **[P3] PostgreSQL driver support**: SQLite and PostgreSQL are selectable on first launch and from Admin → Database. Compose pins `postgres:18.6-alpine`. (`database`)
-- [ ] 🟡 **[P2] Overlay follow-ups**: Nasdaq 7d–10y market %, denser geo-news, tourist destinations, Wikipedia geolocated edits, and more OSM/official webcams outside hub cities. (`overlay`, `p2`)
+- [ ] 🟡 **[P2] Overlay follow-ups**: denser geo-news, tourist destinations, Wikipedia geolocated edits, and more OSM/official webcams outside hub cities. (`overlay`, `p2`)
 - [ ] 🟢 **[P3] Enhanced 3D WebGL Globe View**: Upgrade 2D/3D tracking interface with CesiumJS / Three.js for realistic Earth textures and orbital trajectory rendering. (`Antigravity_generated`, `frontend`, `p3`) ([Issue #6](https://github.com/sethusrinivasan/satellite-tracker/issues/6))
 - [ ] 🟢 **[P3] TimescaleDB hypertables**: Optional time-series backend for historical TLE epochs beyond plain PostgreSQL. (`Antigravity_generated`, `database`, `p3`) ([Issue #7](https://github.com/sethusrinivasan/satellite-tracker/issues/7))
 

@@ -33,6 +33,9 @@ def overlay_cache_dir(tmp_path, monkeypatch):
     from app.services import overlay_cache
 
     overlay_cache._memory.clear()
+    overlay_cache.reset_runtime_state()
+    from app.services import overlay_http
+    overlay_http.reset_runtime_state()
 
 
 @pytest.fixture

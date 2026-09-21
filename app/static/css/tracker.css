@@ -52,7 +52,7 @@ body.map-fullscreen-open {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
-  max-width: min(720px, calc(100% - 56px));
+  max-width: min(820px, calc(100% - 56px));
   gap: 6px;
   z-index: 1100;
   background: rgba(15, 23, 42, 0.88);
@@ -79,11 +79,67 @@ body.map-fullscreen-open {
   border-color: rgba(59,130,246,0.5);
 }
 
+.map-control-btn.is-loading {
+  cursor: progress;
+  opacity: 0.9;
+}
+.map-control-btn.is-loading input {
+  opacity: 1;
+}
+.map-control-btn.is-loading::after {
+  content: '';
+  width: 10px;
+  height: 10px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: overlay-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes overlay-spin {
+  to { transform: rotate(360deg); }
+}
+
+.overlay-loading-chip {
+  position: absolute;
+  left: 12px;
+  bottom: 44px;
+  top: auto;
+  z-index: 1100;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px 6px 8px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.86);
+  border: 1px solid rgba(96, 165, 250, 0.35);
+  color: #93c5fd;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  pointer-events: none;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.28);
+}
+.overlay-loading-chip[hidden] {
+  display: none !important;
+}
+.overlay-loading-chip::before {
+  content: '';
+  width: 10px;
+  height: 10px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: overlay-spin 0.7s linear infinite;
+}
+
 .market-pin-wrap,
 .currency-pin-wrap,
 .temp-pin-wrap,
 .flight-pin-wrap,
-.ship-pin-wrap {
+.ship-pin-wrap,
+.cloud-dc-pin-wrap {
   background: none !important;
   border: none !important;
 }
@@ -93,6 +149,49 @@ body.map-fullscreen-open {
   border-radius: 3px;
   border: 2px solid #0b0f19;
   box-shadow: 0 0 0 1px rgba(255,255,255,0.25), 0 0 8px currentColor;
+}
+.cloud-dc-pin {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  border: 2px solid #0b0f19;
+  color: #f8fafc;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.28), 0 0 8px currentColor;
+}
+.cloud-dc-tooltip,
+.cloud-dc-popup {
+  min-width: 160px;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+.cloud-dc-tooltip__place,
+.cloud-dc-popup__place {
+  opacity: 0.8;
+  margin: 2px 0 6px;
+}
+.cloud-dc-tooltip__lat,
+.cloud-dc-popup__lat {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+.cloud-dc-tooltip__lat th,
+.cloud-dc-popup__lat th {
+  text-align: left;
+  font-weight: 600;
+  opacity: 0.8;
+  padding: 1px 10px 1px 0;
+}
+.cloud-dc-tooltip__lat td,
+.cloud-dc-popup__lat td {
+  text-align: right;
+  white-space: nowrap;
 }
 .flight-pin {
   width: 18px;

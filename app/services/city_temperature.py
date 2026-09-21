@@ -3,12 +3,17 @@
 from __future__ import annotations
 
 import logging
+import threading
 from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
-import requests
-
-from app.services.overlay_cache import get_or_set
+from app.services import overlay_http
+from app.services.overlay_cache import (
+    PENDING_TTL_SECONDS,
+    get_fresh,
+    get_stale,
+    store,
+)
 
 log = logging.getLogger(__name__)
 
@@ -362,8 +367,10 @@ def _archive_payloads(rows: list[Any]) -> list[dict[str, Any]]:
 def fetch_city_archive(cities: list[dict[str, Any]]) -> list[dict[str, Any]]:
     end = datetime.now(timezone.utc).date()
     start = end - timedelta(days=380)
-    response = requests.get(
+    payload = overlay_http.get_json(
         OPEN_METEO_ARCHIVE,
+        timeout=REQUEST_TIMEOUT,
+        headers=HEADERS,
         params={
             "latitude": ",".join(f"{city['lat']:.4f}" for city in cities),
             "longitude": ",".join(f"{city['lng']:.4f}" for city in cities),
@@ -372,11 +379,67 @@ def fetch_city_archive(cities: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "daily": "temperature_2m_mean",
             "timezone": "UTC",
         },
-        headers=HEADERS,
-        timeout=REQUEST_TIMEOUT,
+        source="city-temps",
     )
-    response.raise_for_status()
-    return _archive_payloads(response.json())
+    if payload is None:
+        raise RuntimeError("Open-Meteo archive unavailable")
+    return _archive_payloads(payload)
+
+
+CACHE_NS = "city-temps"
+_worker_guard = threading.Lock()
+_worker: threading.Thread | None = None
+
+
+def _city_pin(city: dict[str, Any], quote: dict[str, Any] | None = None) -> dict[str, Any]:
+    quote = quote or trends_from_points([])
+    return {
+        **city,
+        "id": f"temp-{city['name']}-{city['country']}".lower().replace(" ", "-"),
+        "temp_c": quote["temp_c"],
+        "changes": quote["changes"],
+        "as_of": quote["as_of"],
+        "color": _pin_color((quote["changes"] or {}).get("7d")),
+        "source": SOURCE["name"],
+        "source_url": SOURCE["url"],
+    }
+
+
+def _payload(quotes: dict[int, dict[str, Any]], pending: bool, status: str) -> dict[str, Any]:
+    cities = _unique_cities()
+    rows = []
+    loaded = 0
+    as_of = None
+    for index, city in enumerate(cities):
+        quote = quotes.get(index)
+        if quote and quote.get("temp_c") is not None:
+            loaded += 1
+        quote = quote or trends_from_points([])
+        as_of = as_of or quote["as_of"]
+        rows.append(_city_pin(city, quote))
+    return {
+        "count": len(rows),
+        "as_of": as_of,
+        "cities": rows,
+        "source": SOURCE,
+        "pending": bool(pending),
+        "loaded": loaded,
+        "total": len(rows),
+        "status": status,
+    }
+
+
+def _quotes_from_payload(payload: dict[str, Any] | None) -> dict[int, dict[str, Any]]:
+    quotes: dict[int, dict[str, Any]] = {}
+    for index, row in enumerate((payload or {}).get("cities") or []):
+        if row.get("temp_c") is None:
+            continue
+        quotes[index] = {
+            "temp_c": row.get("temp_c"),
+            "changes": row.get("changes") or trends_from_points([])["changes"],
+            "as_of": row.get("as_of"),
+        }
+    return quotes
 
 
 def _load_city_temperatures() -> dict[str, Any]:
@@ -391,29 +454,62 @@ def _load_city_temperatures() -> dict[str, Any]:
             continue
         for index, payload in enumerate(payloads):
             quotes[offset + index] = trends_from_points(parse_daily_points(payload.get("daily")))
+    status = f"City temps {len(quotes)}/{len(cities)}"
+    return _payload(quotes, pending=len(quotes) < len(cities), status=status)
 
-    rows = []
-    as_of = None
-    for index, city in enumerate(cities):
-        quote = quotes.get(index) or trends_from_points([])
-        as_of = as_of or quote["as_of"]
-        rows.append({
-            **city,
-            "id": f"temp-{city['name']}-{city['country']}".lower().replace(" ", "-"),
-            "temp_c": quote["temp_c"],
-            "changes": quote["changes"],
-            "as_of": quote["as_of"],
-            "color": _pin_color((quote["changes"] or {}).get("7d")),
-            "source": SOURCE["name"],
-            "source_url": SOURCE["url"],
-        })
-    return {
-        "count": len(rows),
-        "as_of": as_of,
-        "cities": rows,
-        "source": SOURCE,
-    }
+
+def _run_temps() -> None:
+    cities = _unique_cities()
+    quotes = _quotes_from_payload(get_stale(CACHE_NS))
+    log.info("[city-temps] Fetching ERA5 trends for %s cities (batches of %s)", len(cities), BATCH_SIZE)
+    for offset in range(0, len(cities), BATCH_SIZE):
+        batch = cities[offset:offset + BATCH_SIZE]
+        if all((offset + index) in quotes for index in range(len(batch))):
+            continue
+        try:
+            payloads = fetch_city_archive(batch)
+        except Exception as exc:
+            log.warning("[city-temps] Open-Meteo archive failed: %s", exc)
+            continue
+        for index, payload in enumerate(payloads):
+            quotes[offset + index] = trends_from_points(parse_daily_points(payload.get("daily")))
+        loaded = len(quotes)
+        pending = loaded < len(cities)
+        status = f"City temps {loaded}/{len(cities)}"
+        log.info("[city-temps] %s", status)
+        store(CACHE_NS, _payload(quotes, pending, status), ttl=PENDING_TTL_SECONDS if pending else None)
+    final = _payload(quotes, pending=len(quotes) < len(cities), status=f"City temps {len(quotes)}/{len(cities)}")
+    store(CACHE_NS, final, ttl=PENDING_TTL_SECONDS if final["pending"] else None)
+    log.info("[city-temps] Finished %s", final["status"])
+
+
+def _ensure_worker() -> None:
+    global _worker
+    with _worker_guard:
+        if _worker is not None and _worker.is_alive():
+            return
+        _worker = threading.Thread(target=_run_temps, name="city-temps", daemon=True)
+        _worker.start()
 
 
 def list_city_temperatures(force_refresh: bool = False) -> dict[str, Any]:
-    return get_or_set("city-temps", _load_city_temperatures, force_refresh=force_refresh)
+    if force_refresh:
+        payload = _load_city_temperatures()
+        store(CACHE_NS, payload)
+        return payload
+    current = get_stale(CACHE_NS)
+    if current and current.get("pending"):
+        _ensure_worker()
+        return current
+    fresh = get_fresh(CACHE_NS)
+    if fresh is not None:
+        return fresh
+    stale = get_stale(CACHE_NS)
+    if stale is not None:
+        _ensure_worker()
+        return stale
+    skeleton = _payload({}, True, "City pins ready; fetching Open-Meteo trends")
+    store(CACHE_NS, skeleton, ttl=PENDING_TTL_SECONDS)
+    _ensure_worker()
+    log.info("[city-temps] Serving %s city pins while Open-Meteo loads", skeleton["count"])
+    return skeleton
