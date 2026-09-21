@@ -1,10 +1,32 @@
 from flask import Blueprint, request, render_template, jsonify
-from sqlalchemy import or_, func
+from sqlalchemy import or_, func, cast, String
 from app.models import Satellite, TLEElement, Upload
 from app import db
 from app.routes.auth import admin_required
 
 report_bp = Blueprint("report", __name__)
+
+
+def _keyword_search_query(term: str):
+    """List all satellites, or match LIKE against any text field."""
+    base_q = Satellite.query
+    if term:
+        like = f"%{term}%"
+        base_q = (
+            base_q.outerjoin(TLEElement)
+            .filter(
+                or_(
+                    Satellite.name.ilike(like),
+                    Satellite.int_designator.ilike(like),
+                    Satellite.classification.ilike(like),
+                    cast(Satellite.norad_cat_id, String).ilike(like),
+                    TLEElement.raw_line1.ilike(like),
+                    TLEElement.raw_line2.ilike(like),
+                )
+            )
+            .distinct()
+        )
+    return base_q
 
 
 @report_bp.route("/report", methods=["GET"])
@@ -13,19 +35,14 @@ def report():
     page = request.args.get("page", 1, type=int)
     per_page = 20
 
-    satellites = []
-    total = 0
-
-    if query:
-        # Search by name (partial, case-insensitive) or NORAD ID
-        base_q = Satellite.query.filter(
-            or_(
-                Satellite.name.ilike(f"%{query}%"),
-                Satellite.norad_cat_id == _try_int(query),
-            )
-        )
-        total = base_q.count()
-        satellites = base_q.order_by(Satellite.name).offset((page - 1) * per_page).limit(per_page).all()
+    base_q = _keyword_search_query(query)
+    total = base_q.count()
+    satellites = (
+        base_q.order_by(Satellite.name)
+        .offset((page - 1) * per_page)
+        .limit(per_page)
+        .all()
+    )
 
     total_pages = max(1, (total + per_page - 1) // per_page)
     return render_template(
@@ -52,7 +69,7 @@ def satellite_detail(norad_id: int):
 
 @report_bp.route("/tracker", methods=["GET"])
 def tracker():
-    ids_raw = request.args.get("ids", "").strip()
+    ids_raw = (request.args.get("ids") or request.args.get("sats") or "").strip()
     tracked = []
     if ids_raw:
         try:
@@ -174,6 +191,87 @@ def latest_tles_api():
         })
         
     return jsonify(data)
+
+
+@report_bp.route("/api/market-indices", methods=["GET"])
+def market_indices_api():
+    """Major world market indexes from CNBC public quotes (level + 1d %)."""
+    from app.services.market_indices import SOURCE, SOURCES, list_market_indices
+
+    markets = list_market_indices()
+    return jsonify({"count": len(markets), "markets": markets, "source": SOURCE, "sources": SOURCES})
+
+
+@report_bp.route("/api/currencies", methods=["GET"])
+def currencies_api():
+    """Local units needed to buy 1 USD, 1 EUR, 1 yen, 1 oz gold, 1 barrel of oil, and 1 Big Mac."""
+    from app.services.currency_overlay import list_currencies
+
+    return jsonify(list_currencies())
+
+
+@report_bp.route("/api/world-events", methods=["GET"])
+def world_events_api():
+    """Weather/climate (EONET), earthquakes (USGS), and million-city temperature trends (Open-Meteo)."""
+    from app.services.city_temperature import SOURCE as TEMP_SOURCE
+    from app.services.city_temperature import list_city_temperatures
+    from app.services.world_events import SOURCES, list_world_events
+
+    events = list_world_events()
+    temps = list_city_temperatures()
+    return jsonify({
+        "hours": 24,
+        "count": len(events),
+        "events": events,
+        "temperatures": temps.get("cities") or [],
+        "temperature_as_of": temps.get("as_of"),
+        "sources": SOURCES + [TEMP_SOURCE],
+    })
+
+
+@report_bp.route("/api/flights", methods=["GET"])
+def flights_api():
+    """Airborne aircraft from the free OpenSky Network REST API."""
+    from app.services.flight_overlay import list_flights, parse_bbox
+
+    return jsonify(list_flights(parse_bbox(request.args)))
+
+
+@report_bp.route("/api/geo-news", methods=["GET"])
+def geo_news_api():
+    """Geo-tagged news pins from GDACS alerts and Wikipedia featured stories."""
+    from app.services.news_overlay import list_geo_news
+
+    return jsonify(list_geo_news())
+
+
+@report_bp.route("/api/shipping", methods=["GET"])
+def shipping_api():
+    """Current AIS positions from Fintraffic Digitraffic."""
+    from app.services.shipping_overlay import list_shipping
+
+    return jsonify(list_shipping())
+
+
+@report_bp.route("/api/webcams", methods=["GET"])
+def webcams_api():
+    """Public webcam pins (OSM Overpass + official USGS/NPS/NOAA pages)."""
+    from app.services.webcam_overlay import list_webcams
+    from app.services.flight_overlay import parse_bbox
+
+    return jsonify(list_webcams(parse_bbox(request.args)))
+
+
+@report_bp.route("/api/proximity/options", methods=["GET"])
+def proximity_options_api():
+    """Countries with geo data, plus satellite name prefixes present in the catalogue."""
+    from app.services.geo_query_service import list_available_countries, name_prefixes_from_satellites
+
+    names = [row[0] for row in db.session.query(Satellite.name).all()]
+    return jsonify({
+        "countries": list_available_countries(),
+        "prefixes": name_prefixes_from_satellites(names),
+    })
 
 
 # ── Geo Query (country bounding-box satellite filter) ───────────────────────

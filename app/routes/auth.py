@@ -34,8 +34,6 @@ def init_oauth(app):
         client_secret=app.config["GOOGLE_CLIENT_SECRET"],
         client_kwargs={
             "scope": "openid email profile",
-            # Prompt for account selection every time so users can switch accounts
-            "prompt": "select_account",
         },
     )
 
@@ -43,16 +41,20 @@ def init_oauth(app):
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
 def is_local_dev():
-    """Return True if running in local development or Docker development mode."""
-    import os
-    env = os.environ.get("FLASK_ENV") or os.environ.get("ENV") or ""
-    host = request.host.split(":")[0] if request else ""
-    is_docker = os.path.exists('/.dockerenv') or os.environ.get("RUNNING_IN_DOCKER") == "true" or os.environ.get("CONTAINER_ENV") == "docker"
+    """Return True for native local/dev, never solely because the process is in Docker."""
+    env = (os.environ.get("FLASK_ENV") or os.environ.get("ENV") or "").lower()
+    if env == "production":
+        return False
+    host = ""
+    try:
+        if request:
+            host = request.host.split(":")[0]
+    except RuntimeError:
+        pass
     return (
         current_app.debug
-        or is_docker
-        or env.lower() in ("development", "dev", "local")
-        or host in ("localhost", "127.0.0.1", "0.0.0.0", "host.docker.internal")
+        or env in ("development", "dev", "local")
+        or host in ("localhost", "127.0.0.1", "0.0.0.0", "::1")
     )
 
 
@@ -61,7 +63,10 @@ def is_valid_google_client_id(client_id):
     if not client_id or not isinstance(client_id, str):
         return False
     cid = client_id.strip().lower()
-    placeholders = ["your-google", "your-client", "your_google", "change-me", "example.com"]
+    placeholders = [
+        "your-google", "your-client", "your_google", "change-me", "example.com",
+        "test-client", "dummy", "placeholder", "invalid",
+    ]
     return not any(p in cid for p in placeholders)
 
 
@@ -74,6 +79,9 @@ def _allowed_emails(app=None):
 
 def is_admin_email_allowed(email: str | None) -> bool:
     """Fail closed when an admin allowlist is not configured outside local development."""
+    user = current_user()
+    if user and user.get("is_dev_bypass") and is_local_dev():
+        return True
     if not email:
         return False
     email = email.lower().strip()
@@ -101,7 +109,7 @@ def admin_required(f):
     def decorated(*args, **kwargs):
         user = current_user()
         if not user:
-            flash("Please sign in with Google to access the Admin panel.", "warning")
+            flash("Sign in to open Admin.", "warning")
             session["next_url"] = request.url
             return redirect(url_for("auth.login"))
 
@@ -115,25 +123,32 @@ def admin_required(f):
 
 # ── Routes ───────────────────────────────────────────────────────────────────
 
-@auth_bp.route("/login")
-def login():
-    local_dev = is_local_dev()
+def _start_google_login():
     client_id = current_app.config.get("GOOGLE_CLIENT_ID")
-    
-    # If credentials are not configured or are placeholder strings, show auth_error page
     if not is_valid_google_client_id(client_id):
-        return render_template("auth_error.html",
-                               title="OAuth Not Configured",
-                               message=(
-                                   "GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment "
-                                   "variables are not set or contain dummy placeholders. "
-                                   "To enable Google OAuth2 authentication, obtain valid credentials "
-                                   "from Google Cloud Console and add them to your .env file."
-                               ),
-                               is_local_dev=local_dev), 503
+        return redirect(url_for("auth.login"))
 
     redirect_uri = url_for("auth.callback", _external=True)
     return oauth.google.authorize_redirect(redirect_uri)
+
+
+@auth_bp.route("/login")
+def login():
+    """Chooser page. Local/debug can continue without Google; never auto-redirect to OAuth."""
+    user = current_user()
+    if user and is_admin_email_allowed(user.get("email")):
+        return redirect(session.pop("next_url", None) or url_for("admin.index"))
+
+    return render_template(
+        "login.html",
+        google_configured=is_valid_google_client_id(current_app.config.get("GOOGLE_CLIENT_ID")),
+        is_local_dev=is_local_dev(),
+    )
+
+
+@auth_bp.route("/google")
+def google():
+    return _start_google_login()
 
 
 @auth_bp.route("/dev-bypass", methods=["GET", "POST"])
@@ -143,7 +158,16 @@ def dev_bypass():
     Strictly disabled in production mode.
     """
     if not is_local_dev():
-        flash("Dev bypass is strictly disabled in production environments.", "error")
+        from app.services.posthog import capture_event
+        capture_event(
+            "admin_debug_bypass_blocked",
+            {
+                "reason": "not_debug_or_production",
+                "flask_env": (os.environ.get("FLASK_ENV") or ""),
+            },
+            distinct_id="anonymous",
+        )
+        flash("Debug admin skip is disabled in production. It is not intended for production use.", "error")
         return redirect(url_for("upload.index")), 403
 
     session.permanent = True
@@ -154,7 +178,21 @@ def dev_bypass():
         "sub": "dev-local-001",
         "is_dev_bypass": True,
     }
-    flash("⚠️ Logged in to Admin Panel via Local Dev Bypass (Development Mode Only).", "warning")
+    from app.services.posthog import capture_event
+    capture_event(
+        "admin_debug_bypass_used",
+        {
+            "auth_method": "debug_skip",
+            "intended_for_production": False,
+            "flask_debug": bool(current_app.debug),
+            "flask_env": (os.environ.get("FLASK_ENV") or ""),
+        },
+        distinct_id="dev-admin@localhost",
+    )
+    flash(
+        "Signed in by skipping Google — debug mode only. This is not intended for production.",
+        "warning",
+    )
     next_url = session.pop("next_url", None)
     return redirect(next_url or url_for("admin.index"))
 

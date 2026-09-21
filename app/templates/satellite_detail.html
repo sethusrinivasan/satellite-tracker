@@ -39,10 +39,15 @@
 
     <!-- Real-time map visualization -->
     {% if elements %}
-    <div class="map-card" style="background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 24px; box-shadow: var(--shadow);">
-      <h2 class="section-title" style="font-size: 1.15rem; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
-        <span style="font-size: 1.3rem;">🌍</span> Live Orbit Tracking
-      </h2>
+    <div class="map-card" id="orbit-map-card" style="background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 24px; box-shadow: var(--shadow);">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+        <h2 class="section-title" style="font-size: 1.15rem; margin-bottom: 0; display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 1.3rem;">🌍</span> Live Orbit Tracking
+        </h2>
+        <button type="button" class="btn btn--secondary" id="map-fullscreen-btn" style="margin-bottom:0;" onclick="toggleOrbitMapFullscreen()" aria-pressed="false">
+          Full screen
+        </button>
+      </div>
       
       <!-- Leaflet CSS & JS via CDN -->
       <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
@@ -59,6 +64,31 @@
           display: grid;
           grid-template-columns: 1fr 280px;
           gap: 20px;
+        }
+        .map-card.is-fullscreen {
+          position: fixed;
+          inset: 0;
+          z-index: 5000;
+          margin: 0;
+          border-radius: 0;
+          height: 100vh;
+          width: 100vw;
+          display: flex;
+          flex-direction: column;
+          padding: 16px 20px 20px;
+          box-sizing: border-box;
+        }
+        .map-card.is-fullscreen .map-layout {
+          flex: 1;
+          min-height: 0;
+          grid-template-rows: minmax(0, 1fr);
+        }
+        .map-card.is-fullscreen #map {
+          height: 100% !important;
+          min-height: 240px;
+        }
+        body.map-fullscreen-open {
+          overflow: hidden;
         }
         @media (max-width: 768px) {
           .map-layout {
@@ -124,10 +154,8 @@
           worldCopyJump: true
         });
 
-        // Dark matter tiles
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-        }).addTo(map);
+        // Dark basemap (Esri World Dark Gray — no API key; CARTO if CARTO_API_KEY is set)
+        SatTrackBasemap.addDefaultBasemap(map);
 
         // Satellite icon / marker
         const satIcon = L.divIcon({
@@ -223,6 +251,30 @@
         // Call update immediately and then every 2 seconds
         updatePosition();
         const _updateTimer = setInterval(updatePosition, 2000);
+        window._orbitMap = map;
+
+        window.toggleOrbitMapFullscreen = function() {
+          const card = document.getElementById('orbit-map-card');
+          const btn = document.getElementById('map-fullscreen-btn');
+          if (!card || !btn) return;
+          const on = card.classList.toggle('is-fullscreen');
+          document.body.classList.toggle('map-fullscreen-open', on);
+          btn.textContent = on ? 'Exit full screen' : 'Full screen';
+          btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+          btn.setAttribute('aria-label', on ? 'Exit full screen map' : 'Open map full screen');
+          setTimeout(function() {
+            if (window._orbitMap) window._orbitMap.invalidateSize();
+          }, 80);
+        };
+
+        document.addEventListener('keydown', function(event) {
+          if (event.key === 'Escape') {
+            const card = document.getElementById('orbit-map-card');
+            if (card && card.classList.contains('is-fullscreen')) {
+              window.toggleOrbitMapFullscreen();
+            }
+          }
+        });
 
         // Clean up map and timer when navigating away (prevents memory leak)
         window.addEventListener('pagehide', function() {

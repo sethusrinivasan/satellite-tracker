@@ -8,12 +8,12 @@ Use the following complete, self-contained prompt to generate or recreate this e
 You are an expert full-stack developer, software architect, and aerospace software engineer. Your task is to build a complete, production-ready Flask web application for satellite Two-Line Element (TLE) data management, real-time SGP4 orbital propagation, 2D/3D map tracking, geo-spatial country proximity filtering, and offline AI Text-to-SQL search.
 
 ## 🛠️ Technology Stack Requirements
-1. **Backend Framework**: Python 3.9+ with Flask 3.0+. Use Flask Blueprints to organize routes (`upload`, `report`, `tracker`, `admin`, `auth`).
-2. **Database & ORM**: SQLite database with SQLAlchemy 2.0+. Enforce relational schema constraints, unique indices, and deduplication logic.
+1. **Backend Framework**: Python 3.9+ with Flask 3.0+. Use Flask Blueprints to organize routes (`setup`, `upload`, `report`, `tracker`, `admin`, `auth`).
+2. **Database & ORM**: SQLAlchemy 2.0+ with **selectable SQLite or PostgreSQL** (`psycopg[binary]`, URI `postgresql+psycopg://`). Engine choice lives in `instance/datastore.json` (not in the satellite tables). First launch shows `/setup`; Admin can switch later with optional row copy. Compose pins `postgres:18.6-alpine`.
 3. **Orbital Mechanics**: `sgp4` (v2.20+) Python package for computing satellite ECI position vector (x, y, z) and velocity vector (vx, vy, vz) converted to geodetic latitude, longitude, and altitude.
 4. **Offline AI Natural Language Search**: In-process Text-to-SQL generation using `llama-cpp-python` with quantized GGUF models (`Qwen2.5-Coder-1.5B-Instruct-Q4_K_M.gguf`). Must execute 100% offline without external cloud APIs.
-5. **Security**: Read-only AST/regex SQL validator blocking non-`SELECT` statements (`DROP`, `DELETE`, `UPDATE`, `INSERT`, `ALTER`, `CREATE`, `PRAGMA`). Google OAuth 2.0 authentication via Authlib with an environment-gated local development bypass for testing.
-6. **Frontend & Map Engine**: Vanilla HTML5, modern Vanilla CSS (cyber dark mode with glassmorphism and cyan `#38bdf8` glow design system), Leaflet.js 1.9+, and `satellite.js` for client-side orbit path calculation.
+5. **Security**: Read-only SQL validators blocking non-`SELECT` statements (`DROP`, `DELETE`, `UPDATE`, `INSERT`, `ALTER`, `CREATE`, `PRAGMA`). Admin SQL console allows only a single `SELECT` / `WITH` / `EXPLAIN`. Google OAuth 2.0 via Authlib. `is_local_dev()` must return **false** when `FLASK_ENV=production` and must **not** treat `RUNNING_IN_DOCKER` as local.
+6. **Frontend & Map Engine**: Vanilla HTML5/CSS (cyber dark mode), Leaflet.js 1.9+, `satellite.js`. Default basemap is **Esri World Dark Gray** (no API key). Optional `CARTO_API_KEY` enables CARTO `dark_all`. Maps support CSS fullscreen pop-out and Escape to return.
 
 ---
 
@@ -61,6 +61,12 @@ You are an expert full-stack developer, software architect, and aerospace softwa
 - `value` (Text)
 - `updated_at` (DateTime)
 
+### 5. `saved_queries` Table
+Admin SQL editor bookmarks stored in the **active** datastore (survive restarts and migrate with engine switch).
+- `id`, `name`, `sql`, `row_limit`, `created_at`
+- `last_run_at`, `last_run_ms`, `last_run_row_count`, `run_count`
+- `latency_p50_ms`, `latency_p95_ms`, `latency_p99_ms`, `latency_p100_ms`, `latency_samples_json` (cap 200 samples)
+
 ---
 
 ## 💻 Core Application Modules & Functional Requirements
@@ -71,11 +77,13 @@ You are an expert full-stack developer, software architect, and aerospace softwa
 - Compute Keplerian orbital elements from Line 1 & Line 2 formatted columns.
 - Implement atomic transaction deduplication: match existing satellites by `norad_cat_id`. Skip inserting `tle_elements` if `(satellite_id, epoch_datetime)` already exists in DB.
 
-### 2. SGP4 Propagation & Country Proximity Filter (`app/services/sgp4_service.py`)
+### 2. SGP4 Propagation & Country Proximity Filter (`app/services/geo_query_service.py`)
 - Load satellite TLE strings into `sgp4.api.Satrec.twoline2rv`.
 - Propagate orbit to specified UTC datetime (current time by default) to return ECI position $(x, y, z)$ in kilometers.
 - Convert ECI position to Greenwich Hour Angle (GHA) and calculate geodetic Latitude, Longitude, and Altitude above Earth ellipsoid.
-- Provide country bounding-box lookup (e.g. United States, India, Germany, United Kingdom, Japan) to filter satellites currently overhead.
+- Country dropdown lists only countries that have both bounding-box and center data (`GET /api/proximity/options`).
+- Prefix table: first word of each satellite name (`CSS (TIANHE)` → `CSS`, `STARLINK-1007` → `STARLINK`).
+- **Keyword Search** (default Search tab): empty `q` lists all rows; non-empty `q` `ILIKE`s name, NORAD ID, designator, classification, and raw TLE lines.
 
 ### 3. Offline AI Text-to-SQL Search (`app/services/llm_search.py`)
 - Download and load quantized GGUF model `Qwen2.5-Coder-1.5B-Instruct-Q4_K_M.gguf` using `llama-cpp-python`.
@@ -84,16 +92,19 @@ You are an expert full-stack developer, software architect, and aerospace softwa
 - Track execution telemetry: breakdown timing into `Total Execution Time`, `LLM Inference Time`, and `Database Query Time`.
 
 ### 4. 2D Map & 3D Globe Interactive Tracker (`app/templates/tracker.html` & `app/static/js/tracker.js`)
-- Render 2D map using Leaflet.js with dark-mode satellite tiles.
+- Render 2D map using Leaflet.js via `app/static/js/basemap.js` (Esri default; CARTO if `CARTO_API_KEY`).
 - Dynamically project orbit paths, ground tracks, sub-satellite points, and coverage footprints for selected satellites using `satellite.js`.
 - Telemetry sidebar displaying live updating values: Latitude, Longitude, Altitude (km), Velocity (km/s), Azimuth, Elevation, and TLE Keplerian parameters.
+- Full screen / Exit full screen (and Escape) on satellite detail `#orbit-map-card` and tracker `#tracker-map-shell`; call Leaflet `invalidateSize` after toggle.
+- Optional tracker overlays (off by default), free sources only, attributed on the map: **Weather & quakes** (NASA EONET weather/climate plus USGS earthquakes; quake bubbles scale size and color by magnitude; Open-Meteo ERA5 daily means for cities over 1 million with 7d / 30d / 90d / 1y °C change), **Markets** (CNBC levels + 1d %), **Currencies** (Frankfurter FX/gold, CNBC WTI, The Economist Big Mac Index; local units to buy 1 USD/EUR/yen/oz gold/barrel/Big Mac plus 1d / 7d / 30d / 90d / 6m / 1y / 5y %), **Flights** (OpenSky positions; adsbdb origin/destination; estimated on-time), **News** (GDACS + Wikipedia featured; title link opens the report/article), **Ships** (Fintraffic Digitraffic AIS current position, CC BY 4.0, Finland/Baltic), **Webcams** (official worldwide pages plus OpenStreetMap webcam URLs via Overpass; tooltip title opens the feed in a new tab).
 
-### 5. Admin Panel & Dev Bypass (`app/routes/admin.py` & `app/routes/auth.py`)
-- Dashboard displaying database stats (Total Satellites, TLE Records, Upload Sessions, Kaggle Seed status).
-- System Resource Telemetry Gauges (`CPU Load %`, `RAM Usage %`, `Disk Storage %`) computed via `psutil`.
-- Upload Session History table with one-click session deletion and full database reset triggers.
-- GGUF model downloader manager with real-time download progress reporting.
-- Google OAuth 2.0 authentication flow with local development mode auto-detection (`is_local_dev()`) providing an optional one-click **Local Dev Admin Bypass** button when OAuth keys are unconfigured.
+### 5. Admin Panel, Datastore, SQL Explorer & Dev Bypass
+- First-launch `/setup` (`app/routes/setup.py`) writes `instance/datastore.json`. Headless bootstrap via `DATABASE_URL` or `DB_ENGINE`.
+- If `data/kaggle_tle_data.txt` is missing, seed bundled demo TLEs marked `source=demo` (`app/services/demo_tle.py`). `ensure_database_schema()` before routes that query `uploads`.
+- Dashboard: database stats, datastore switch form, link to **Tables & SQL editor**.
+- `/admin/database`: table counts, read-only SQL, row cap, CSV/Excel export, saved queries with latency percentiles.
+- Google OAuth 2.0. `is_local_dev()` is false in production; Docker alone must not enable `/auth/dev-bypass`.
+- Compose: `user: ${SATTRACK_UID:-1000}:${SATTRACK_GID:-1000}` so `instance/` is not root-owned mode 600.
 
 ---
 
@@ -114,34 +125,39 @@ satellite-tracker/
 │   ├── __init__.py          # Flask application factory, DB & OAuth setup
 │   ├── models.py            # SQLAlchemy models (Satellite, TLEElement, etc.)
 │   ├── routes/
-│   │   ├── admin.py         # Admin dashboard, resets, model manager
-│   │   ├── auth.py          # Google OAuth2 & dev bypass route
-│   │   ├── main.py          # Index & static landing routes
-│   │   ├── report.py        # Search, country filter, AI query routes
-│   │   └── upload.py        # File ingestion & deduplication routes
+│   │   ├── admin.py         # Admin dashboard, datastore switch, SQL explorer
+│   │   ├── auth.py          # Google OAuth2 & fail-closed local bypass
+│   │   ├── report.py        # Keyword, proximity, AI query, tracker routes
+│   │   ├── setup.py         # First-launch SQLite / PostgreSQL wizard
+│   │   └── upload.py        # GET form + POST ingest
 │   ├── services/
-│   │   ├── llm_search.py    # llama-cpp-python Text-to-SQL & SQL safety check
-│   │   ├── parser.py        # 3-line TLE file parser & epoch calculation
-│   │   └── sgp4_service.py  # SGP4 orbit propagation & position calculations
+│   │   ├── datastore.py     # URI build, schema ensure, snapshot migrate
+│   │   ├── demo_tle.py      # Bundled demo TLE seed
+│   │   ├── sql_console.py   # Read-only SQL, saved queries, latency
+│   │   ├── geo_query_service.py
+│   │   └── tle_parser.py
 │   ├── static/
 │   │   ├── css/
-│   │   │   ├── report.css   # AI search & metrics styling
-│   │   │   ├── style.css    # Global cyber design system & tokens
-│   │   │   └── tracker.css  # Leaflet map & telemetry sidebar styles
+│   │   │   ├── report.css
+│   │   │   ├── style.css
+│   │   │   └── tracker.css
 │   │   └── js/
-│   │       └── tracker.js   # Real-time Leaflet & satellite.js tracking logic
+│   │       ├── basemap.js   # Esri default / optional CARTO
+│   │       ├── datastore.js
+│   │       └── tracker.js
 │   └── templates/
-│       ├── admin.html       # Admin control center & resource gauges
-│       ├── auth_error.html  # OAuth error page with local dev bypass button
-│       ├── base.html        # Main Jinja2 layout header/footer structure
-│       ├── index.html       # Landing page with feature showcases
-│       ├── report.html      # Search, country proximity & AI search tab UI
-│       ├── tracker.html     # Live 2D/3D orbital tracker interface
-│       └── upload.html      # TLE dropzone & ingestion audit grid
-├── config.py                # Environment configuration settings
-├── run.py                   # Application entry point script
-├── Dockerfile               # Container build instructions
-├── requirements.txt         # Python dependencies
-└── README.md                # Documentation & quickstart guide
+│       ├── admin.html
+│       ├── admin_database.html
+│       ├── setup.html
+│       ├── report.html      # Keyword default, country + prefix table, AI
+│       ├── satellite_detail.html
+│       ├── tracker.html
+│       └── upload.html
+├── docker-compose.yml       # App + postgres:18.6-alpine + test profiles
+├── config.py
+├── run.py
+├── Dockerfile               # FLASK_ENV=production (no Docker-as-local bypass)
+├── requirements.txt
+└── README.md
 ```
 ```

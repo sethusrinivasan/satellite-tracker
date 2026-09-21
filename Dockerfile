@@ -22,4 +22,7 @@ ENV PORT=5000
 ENV FLASK_ENV=production
 ENV RUNNING_IN_DOCKER=true
 
-CMD ["gunicorn", "run:app", "--bind", "0.0.0.0:5000", "--workers", "2", "--threads", "4"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=5 \
+  CMD curl -fsS "http://127.0.0.1:${PORT}/health" || exit 1
+
+CMD ["gunicorn", "run:app", "--bind", "0.0.0.0:5000", "--workers", "2", "--threads", "4", "--timeout", "120"]

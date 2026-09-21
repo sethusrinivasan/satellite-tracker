@@ -105,3 +105,43 @@ class SystemSetting(db.Model):
 
     def __repr__(self):
         return f"<SystemSetting {self.key}={self.value}>"
+
+
+class SavedQuery(db.Model):
+    """Admin SQL editor queries stored in the active datastore."""
+    __tablename__ = "saved_queries"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.Text, nullable=False)
+    sql = db.Column(db.Text, nullable=False)
+    row_limit = db.Column(db.Integer, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    last_run_at = db.Column(db.DateTime, nullable=True)
+    last_run_ms = db.Column(db.Float, nullable=True)
+    last_run_row_count = db.Column(db.Integer, nullable=True)
+    run_count = db.Column(db.Integer, default=0, nullable=False)
+    latency_p50_ms = db.Column(db.Float, nullable=True)
+    latency_p95_ms = db.Column(db.Float, nullable=True)
+    latency_p99_ms = db.Column(db.Float, nullable=True)
+    latency_p100_ms = db.Column(db.Float, nullable=True)
+    latency_samples_json = db.Column(db.Text, nullable=True)
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "name": self.name,
+            "sql": self.sql,
+            "row_limit": self.row_limit,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "last_run_at": self.last_run_at.isoformat() if self.last_run_at else None,
+            "last_run_ms": self.last_run_ms,
+            "last_run_row_count": self.last_run_row_count,
+            "run_count": self.run_count or 0,
+            "latency_p50_ms": self.latency_p50_ms,
+            "latency_p95_ms": self.latency_p95_ms,
+            "latency_p99_ms": self.latency_p99_ms,
+            "latency_p100_ms": self.latency_p100_ms,
+        }
+
+    def __repr__(self):
+        return f"<SavedQuery {self.id} {self.name}>"

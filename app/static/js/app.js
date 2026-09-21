@@ -36,7 +36,10 @@ if (fileInput) {
 }
 
 if (dropZone) {
-  dropZone.addEventListener('click', () => fileInput && fileInput.click());
+  dropZone.addEventListener('click', (e) => {
+    if (e.target.closest('label, input, button')) return;
+    fileInput && fileInput.click();
+  });
   dropZone.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') fileInput && fileInput.click(); });
 
   ['dragenter','dragover'].forEach(evt => {

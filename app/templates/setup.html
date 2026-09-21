@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% from "_datastore_form.html" import datastore_fields %}
+{% block title %}Choose a datastore — SatTrack{% endblock %}
+{% block meta_desc %}First-launch database setup for SatTrack{% endblock %}
+
+{% block content %}
+<section class="section">
+  <div class="container--narrow" style="max-width:720px;margin:0 auto;padding-top:24px;">
+    <p class="page-subtitle" style="margin-bottom:8px;">First launch</p>
+    <h1 class="page-title">Choose a datastore</h1>
+    {% if datastore_error %}
+    <p class="flash flash--error" role="alert" style="margin-bottom:20px;">{{ datastore_error }}</p>
+    {% endif %}
+    <p class="page-subtitle" style="margin-bottom:28px;">
+      Pick SQLite or PostgreSQL. You can switch later from Admin → Database.
+      Connection details are stored in <code>instance/datastore.json</code>, not in the database itself.
+    </p>
+
+    <form method="POST" action="{{ url_for('setup.index') }}" class="ds-panel" id="datastore-form" data-test-url="{{ url_for('setup.test') }}">
+      {{ datastore_fields(datastore, 'setup') }}
+    </form>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/datastore.js') }}"></script>
+{% endblock %}

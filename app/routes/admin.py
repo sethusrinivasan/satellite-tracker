@@ -9,7 +9,7 @@ Provides:
 All routes require Google OAuth authentication via @admin_required.
 """
 
-from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
+from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, current_app
 import os
 import threading
 import requests
@@ -17,6 +17,16 @@ from sqlalchemy import func
 from app import db
 from app.models import Upload, Satellite, TLEElement, SystemSetting
 from app.routes.auth import admin_required
+from app.services.datastore import (
+    apply_and_initialize,
+    build_database_uri,
+    config_from_form,
+    config_path_for_app,
+    empty_config,
+    load_datastore_config,
+    public_config,
+    test_connection,
+)
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 
@@ -130,6 +140,7 @@ def get_system_telemetry():
         "process_memory_mb": "120.0",
         "process_uptime": "0m",
         "db_size_mb": "0.0",
+        "datastore_engine": "unconfigured",
         "container_id": os.uname().nodename if hasattr(os, 'uname') else "local-host",
         "container_mem_limit": "Unlimited",
         "container_mem_usage": "N/A",
@@ -168,13 +179,13 @@ def get_system_telemetry():
 
     # 2. Database File Size
     try:
-        db_file = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-            "instance", "satellite_tracker.db"
-        )
-        if os.path.exists(db_file):
-            size_b = os.path.getsize(db_file)
-            metrics["db_size_mb"] = f"{size_b / (1024**2):.2f}"
+        from flask import current_app
+        metrics["datastore_engine"] = current_app.config.get("DATASTORE_ENGINE") or "unconfigured"
+        uri = current_app.config.get("SQLALCHEMY_DATABASE_URI") or ""
+        if uri.startswith("sqlite:///") and ":memory:" not in uri:
+            db_file = uri.replace("sqlite:///", "", 1)
+            if os.path.exists(db_file):
+                metrics["db_size_mb"] = f"{os.path.getsize(db_file) / (1024**2):.2f}"
     except Exception:
         pass
 
@@ -215,14 +226,29 @@ def get_system_telemetry():
     return metrics
 
 
+def _datastore_template_context():
+    path = config_path_for_app(current_app)
+    cfg = load_datastore_config(path) or empty_config()
+    cfg["engine"] = current_app.config.get("DATASTORE_ENGINE") or cfg.get("engine")
+    return public_config(cfg)
+
+
 @admin_bp.route("/", methods=["GET"])
 @admin_required
 def index():
-    sessions = _build_session_list()
-    total_satellites = Satellite.query.count()
-    total_elements = TLEElement.query.count()
-    seed_imported = SystemSetting.query.get("kaggle_seed_imported") is not None
-    
+    db_error = None
+    sessions = []
+    total_satellites = 0
+    total_elements = 0
+    seed_imported = False
+    try:
+        sessions = _build_session_list()
+        total_satellites = Satellite.query.count()
+        total_elements = TLEElement.query.count()
+        seed_imported = SystemSetting.query.get("kaggle_seed_imported") is not None
+    except Exception as exc:
+        db_error = str(exc)
+
     telemetry = get_system_telemetry()
     system_metrics = {
         "cpu": telemetry["cpu_percent"],
@@ -238,7 +264,51 @@ def index():
         seed_imported=seed_imported,
         system_metrics=system_metrics,
         telemetry=telemetry,
+        datastore=_datastore_template_context(),
+        db_error=db_error,
     )
+
+
+@admin_bp.route("/datastore", methods=["POST"])
+@admin_required
+def update_datastore():
+    path = config_path_for_app(current_app)
+    existing = load_datastore_config(path) or empty_config()
+    try:
+        new_cfg = config_from_form(request.form, existing)
+        migrate = request.form.get("migrate_data") in {"1", "on", "true", "yes"}
+        previous_uri = current_app.config.get("SQLALCHEMY_DATABASE_URI")
+        result = apply_and_initialize(
+            current_app,
+            new_cfg,
+            migrate_from_uri=previous_uri if migrate else None,
+        )
+        copied = result.get("copied") or {}
+        extra = ""
+        if migrate and any(copied.values()):
+            extra = (
+                f" Copied {copied.get('satellites', 0)} satellites and "
+                f"{copied.get('tle_elements', 0)} TLE rows."
+            )
+        flash(f"Datastore is now {new_cfg.get('engine')}.{extra}", "success")
+    except Exception as exc:
+        flash(str(exc), "error")
+    return redirect(url_for("admin.index"))
+
+
+@admin_bp.route("/datastore/test", methods=["POST"])
+@admin_required
+def test_datastore():
+    path = config_path_for_app(current_app)
+    existing = load_datastore_config(path) or empty_config()
+    try:
+        payload = request.get_json(silent=True) or request.form
+        cfg = config_from_form(payload, existing)
+        uri = build_database_uri(cfg)
+        ok, message = test_connection(uri)
+        return jsonify({"ok": ok, "message": message, "engine": cfg.get("engine")}), (200 if ok else 400)
+    except Exception as exc:
+        return jsonify({"ok": False, "message": str(exc)}), 400
 
 
 @admin_bp.route("/delete/<int:upload_id>", methods=["POST"])
@@ -352,4 +422,91 @@ def delete_model():
                 return jsonify({"error": "Failed to delete the model file."}), 500
         else:
             return jsonify({"status": "not found"})
+
+
+@admin_bp.route("/database", methods=["GET"])
+@admin_required
+def database_console():
+    from app.services.sql_console import DEFAULT_ROWS, MAX_ROWS, MIN_ROWS, ensure_saved_query_columns, list_saved_queries, list_tables_with_counts
+
+    db_error = None
+    tables = []
+    saved = []
+    try:
+        ensure_saved_query_columns(db)
+        tables = list_tables_with_counts(db)
+        saved = list_saved_queries(db)
+    except Exception as exc:
+        db_error = str(exc)
+    return render_template(
+        "admin_database.html",
+        tables=tables,
+        saved_queries=saved,
+        db_error=db_error,
+        datastore=_datastore_template_context(),
+        default_rows=DEFAULT_ROWS,
+        min_rows=MIN_ROWS,
+        max_rows=MAX_ROWS,
+    )
+
+
+@admin_bp.route("/database/query", methods=["POST"])
+@admin_required
+def database_query():
+    from app.services.sql_console import DEFAULT_ROWS, record_saved_query_run, run_readonly_query
+
+    payload = request.get_json(silent=True) or request.form or {}
+    sql = payload.get("sql", "")
+    limit = payload.get("limit", DEFAULT_ROWS)
+    try:
+        result = run_readonly_query(db, sql, limit=limit)
+        saved_id = payload.get("saved_query_id")
+        if saved_id not in (None, ""):
+            try:
+                stats = record_saved_query_run(
+                    db,
+                    int(saved_id),
+                    result["elapsed_ms"],
+                    result.get("row_count"),
+                )
+                if stats:
+                    result["saved_query"] = stats
+            except (TypeError, ValueError):
+                pass
+        return jsonify({"ok": True, **result})
+    except Exception as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 400
+
+
+@admin_bp.route("/database/saved", methods=["GET", "POST"])
+@admin_required
+def database_saved_queries():
+    from app.services.sql_console import add_saved_query, list_saved_queries
+
+    if request.method == "GET":
+        return jsonify({"ok": True, "queries": list_saved_queries(db)})
+    payload = request.get_json(silent=True) or request.form or {}
+    try:
+        entry = add_saved_query(
+            db,
+            payload.get("name", ""),
+            payload.get("sql", ""),
+            payload.get("row_limit"),
+            elapsed_ms=payload.get("elapsed_ms"),
+            row_count=payload.get("row_count"),
+        )
+        return jsonify({"ok": True, "query": entry}), 201
+    except Exception as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 400
+
+
+@admin_bp.route("/database/saved/<int:query_id>", methods=["DELETE"])
+@admin_required
+def database_delete_saved_query(query_id: int):
+    from app.services.sql_console import delete_saved_query
+
+    removed = delete_saved_query(db, query_id)
+    if not removed:
+        return jsonify({"ok": False, "error": "Saved query not found"}), 404
+    return jsonify({"ok": True})
 

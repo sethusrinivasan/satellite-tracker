@@ -86,6 +86,98 @@ _ALIASES: dict[str, str] = {
     "brasil":        "brazil",
 }
 
+# Reference points (capital / national centre) for proximity search.
+# Only countries that also have a COUNTRY_BBOX entry are returned to the UI.
+COUNTRY_CENTERS: dict[str, tuple[float, float]] = {
+    "afghanistan": (34.5553, 69.2075),
+    "argentina": (-34.6037, -58.3816),
+    "australia": (-35.2809, 149.1300),
+    "bangladesh": (23.8103, 90.4125),
+    "brazil": (-15.7939, -47.8828),
+    "canada": (45.4215, -75.6972),
+    "chile": (-33.4489, -70.6693),
+    "china": (39.9042, 116.4074),
+    "colombia": (4.7110, -74.0721),
+    "egypt": (30.0444, 31.2357),
+    "ethiopia": (9.0250, 38.7469),
+    "france": (48.8566, 2.3522),
+    "germany": (52.5200, 13.4050),
+    "india": (28.6139, 77.2090),
+    "indonesia": (-6.2088, 106.8456),
+    "iran": (35.6892, 51.3890),
+    "iraq": (33.3152, 44.3661),
+    "israel": (31.7683, 35.2137),
+    "italy": (41.9028, 12.4964),
+    "japan": (35.6895, 139.6917),
+    "kenya": (-1.2921, 36.8219),
+    "mexico": (19.4326, -99.1332),
+    "morocco": (33.9716, -6.8498),
+    "netherlands": (52.3676, 4.9041),
+    "new zealand": (-41.2866, 174.7756),
+    "nigeria": (9.0579, 7.4951),
+    "norway": (59.9139, 10.7522),
+    "pakistan": (33.6844, 73.0479),
+    "peru": (-12.0464, -77.0428),
+    "philippines": (14.5995, 120.9842),
+    "poland": (52.2297, 21.0122),
+    "russia": (55.7558, 37.6173),
+    "saudi arabia": (24.7136, 46.6753),
+    "south africa": (-25.7479, 28.2293),
+    "south korea": (37.5665, 126.9780),
+    "spain": (40.4168, -3.7038),
+    "sweden": (59.3293, 18.0686),
+    "switzerland": (46.9480, 7.4474),
+    "thailand": (13.7563, 100.5018),
+    "turkey": (39.9334, 32.8597),
+    "ukraine": (50.4501, 30.5234),
+    "united arab emirates": (24.4539, 54.3773),
+    "united kingdom": (51.5074, -0.1278),
+    "united states": (38.8977, -77.0365),
+    "vietnam": (21.0285, 105.8542),
+}
+
+
+def satellite_name_prefix(name: str) -> str:
+    """First word of a TLE name, dropping hyphenated suffixes and parentheticals.
+
+    CSS (TIANHE) → CSS; GOES 16 → GOES; GPS BIIR-2 (PRN 13) → GPS;
+    ISS (ZARYA) → ISS; NOAA 18 → NOAA; STARLINK-1007 → STARLINK.
+    """
+    text = (name or "").strip()
+    if not text:
+        return ""
+    first = re.split(r"\s+", text, maxsplit=1)[0]
+    first = first.split("(", 1)[0]
+    first = first.split("-", 1)[0]
+    return first.strip().upper()
+
+
+def name_prefixes_from_satellites(names: list[str]) -> list[dict]:
+    counts: dict[str, int] = {}
+    for name in names:
+        prefix = satellite_name_prefix(name)
+        if not prefix:
+            continue
+        counts[prefix] = counts.get(prefix, 0) + 1
+    return [{"prefix": prefix, "count": counts[prefix]} for prefix in sorted(counts)]
+
+
+def list_available_countries() -> list[dict]:
+    """Countries that have both bounding-box and reference-point data."""
+    rows = []
+    for key, bbox in COUNTRY_BBOX.items():
+        center = COUNTRY_CENTERS.get(key)
+        if not center:
+            continue
+        rows.append({
+            "name": key.title(),
+            "lat": center[0],
+            "lon": center[1],
+            "bbox": list(bbox),
+        })
+    rows.sort(key=lambda row: row["name"])
+    return rows
+
 
 def resolve_country(text: str) -> Optional[tuple[str, tuple[float, float, float, float]]]:
     """

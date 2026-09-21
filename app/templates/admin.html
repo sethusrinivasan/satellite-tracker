@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-
+{% from "_datastore_form.html" import datastore_fields %}
 {% block title %}Admin — SatTrack{% endblock %}
 {% block meta_desc %}Database maintenance panel for the SatTrack satellite TLE explorer{% endblock %}
 
@@ -91,7 +91,7 @@
         <div style="background:rgba(245,158,11,0.05);border:1px solid rgba(245,158,11,0.2);border-radius:var(--radius-sm);padding:16px;text-align:center;">
           <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:4px;">App Process Memory</div>
           <div style="font-size:1.8rem;font-weight:800;color:#fbbf24;font-family:var(--mono);">{{ telemetry.process_memory_mb }} MB</div>
-          <div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">DB: {{ telemetry.db_size_mb }} MB · Uptime: {{ telemetry.process_uptime }}</div>
+          <div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">DB: {{ telemetry.db_size_mb }} MB · {{ telemetry.datastore_engine }} · Uptime: {{ telemetry.process_uptime }}</div>
           <div style="background:rgba(255,255,255,0.08);height:6px;border-radius:3px;margin-top:8px;overflow:hidden;">
             <div style="background:#fbbf24;height:100%;width:40%;"></div>
           </div>
@@ -131,6 +131,28 @@
       </div>
     </div>
 
+    {% if db_error %}
+    <div class="flash flash--error" role="alert" style="margin-bottom:20px;">
+      Database is configured but unreachable: {{ db_error }}
+    </div>
+    {% endif %}
+
+    <div class="ds-panel" style="margin-bottom:28px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+        <div>
+          <h2 class="section-title" style="margin-bottom:4px;">Database</h2>
+          <p class="page-subtitle" style="margin:0;">Active engine can be switched at any time. Settings live in <code>instance/datastore.json</code>.</p>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <a href="{{ url_for('admin.database_console') }}" class="btn btn--secondary" id="btn-database-console" style="margin-bottom:0;">Tables &amp; SQL editor →</a>
+          <span class="ds-engine-pill">{{ datastore.engine }}</span>
+        </div>
+      </div>
+      <form method="POST" action="{{ url_for('admin.update_datastore') }}" id="datastore-form" data-test-url="{{ url_for('admin.test_datastore') }}">
+        {{ datastore_fields(datastore, 'admin') }}
+      </form>
+    </div>
+
     <!-- Main two-column grid -->
     <div class="admin-grid">
 
@@ -165,10 +187,12 @@
                   {% endif %}
                 </td>
                 <td>
-                  {% if u.is_seed %}
-                    <span class="session-source--seed">🛰 Seed</span>
+                  {% if u.source == 'demo' %}
+                    <span class="session-source--demo">Demo</span>
+                  {% elif u.is_seed %}
+                    <span class="session-source--seed">Seed</span>
                   {% else %}
-                    <span class="session-source--user">⬆ Upload</span>
+                    <span class="session-source--user">Upload</span>
                   {% endif %}
                 </td>
                 <td class="text-right mono">{{ item.tle_count }}</td>
@@ -196,7 +220,7 @@
         <div class="empty-state" style="padding:48px 24px">
           <div class="empty-state__icon">📭</div>
           <h3 class="empty-state__title">No upload sessions yet</h3>
-          <p class="empty-state__body">Upload a TLE file or restart the server to trigger the Kaggle seed import.</p>
+          <p class="empty-state__body">Upload a TLE file, or restart the server to import the Kaggle seed / bundled demo sample.</p>
         </div>
         {% endif %}
       </div>
@@ -471,4 +495,5 @@
   // Check model status on load
   document.addEventListener('DOMContentLoaded', checkModelStatus);
 </script>
+<script src="{{ url_for('static', filename='js/datastore.js') }}"></script>
 {% endblock %}

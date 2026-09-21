@@ -19,20 +19,26 @@ def index():
     return redirect(url_for("report.report"))
 
 
-@upload_bp.route("/upload", methods=["POST"])
+@upload_bp.route("/upload", methods=["GET", "POST"])
 def upload_file():
+    if request.method in ("GET", "HEAD"):
+        recent_uploads = (
+            Upload.query.order_by(Upload.upload_time.desc()).limit(10).all()
+        )
+        return render_template("upload.html", recent_uploads=recent_uploads)
+
     if "file" not in request.files:
         flash("No file part in the request.", "error")
-        return redirect(url_for("upload.index"))
+        return redirect(url_for("upload.upload_file"))
 
     file = request.files["file"]
     if file.filename == "":
         flash("No file selected.", "error")
-        return redirect(url_for("upload.index"))
+        return redirect(url_for("upload.upload_file"))
 
     if not allowed_file(file.filename):
         flash("Invalid file type. Please upload a .txt, .tle, or .dat file.", "error")
-        return redirect(url_for("upload.index"))
+        return redirect(url_for("upload.upload_file"))
 
     filename = secure_filename(file.filename)
     content = file.read().decode("utf-8", errors="replace")
@@ -40,7 +46,7 @@ def upload_file():
     parsed = parse_tle_file(content)
     if not parsed:
         flash("No valid TLE records found in the uploaded file.", "warning")
-        return redirect(url_for("upload.index"))
+        return redirect(url_for("upload.upload_file"))
 
     summary = upsert_tle_records(parsed, filename)
     return render_template("upload_result.html", summary=summary)

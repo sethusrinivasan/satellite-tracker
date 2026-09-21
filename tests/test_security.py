@@ -1,41 +1,11 @@
 import pytest
 
-from app import create_app, db
 from app.routes.auth import is_admin_email_allowed
 from app.services.query_cache import (
     cache_user_verified_query,
     get_cached_query,
     validate_sql_for_cache,
 )
-
-
-class TestConfig:
-    SECRET_KEY = "test-secret-key"
-    SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
-    SQLALCHEMY_TRACK_MODIFICATIONS = False
-    MAX_CONTENT_LENGTH = 16 * 1024 * 1024
-    UPLOAD_FOLDER = "/tmp/sat_tracker_test_uploads"
-    GOOGLE_CLIENT_ID = "test-client-id.apps.googleusercontent.com"
-    GOOGLE_CLIENT_SECRET = "test-client-secret"
-    ADMIN_ALLOWED_EMAILS = ""
-    ADMIN_ALLOW_ANY = False
-
-
-@pytest.fixture
-def app():
-    app = create_app(config_object=TestConfig)
-    app.config["TESTING"] = True
-    with app.app_context():
-        db.create_all()
-    yield app
-    with app.app_context():
-        db.drop_all()
-
-
-@pytest.fixture
-def client(app):
-    with app.test_client() as client:
-        yield client
 
 
 def test_validate_sql_for_cache_rejects_mutation_sql():

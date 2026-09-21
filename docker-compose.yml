@@ -1,0 +1,89 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: satellite-tracker:local
+    # Match the host user so bind-mounted instance/ files are not root:root mode 600.
+    user: "${SATTRACK_UID:-1000}:${SATTRACK_GID:-1000}"
+    ports:
+      - "5000:5000"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      FLASK_ENV: development
+      FLASK_DEBUG: "false"
+      RUNNING_IN_DOCKER: "true"
+      SECRET_KEY: ${SECRET_KEY:-local-compose-secret}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: sattrack
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sattrack}
+      POSTGRES_DB: sattrack
+    volumes:
+      - ./instance:/app/instance
+      - ./data:/app/data
+    command: ["gunicorn", "run:app", "--bind", "0.0.0.0:5000", "--workers", "1", "--threads", "4", "--timeout", "120"]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:5000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    depends_on:
+      postgres:
+        condition: service_healthy
+        required: false
+
+  postgres:
+    image: postgres:18.6-alpine
+    profiles: ["postgres", "test-postgres"]
+    environment:
+      POSTGRES_USER: sattrack
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sattrack}
+      POSTGRES_DB: sattrack
+    ports:
+      - "5432:5432"
+    volumes:
+      # PostgreSQL 18+ stores versioned data under /var/lib/postgresql, not /data
+      - sattrack_pgdata:/var/lib/postgresql
+      - ./docker/postgres-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sattrack -d sattrack"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  test:
+    image: satellite-tracker:local
+    build:
+      context: .
+      dockerfile: Dockerfile
+    profiles: ["test"]
+    user: "${SATTRACK_UID:-1000}:${SATTRACK_GID:-1000}"
+    environment:
+      FLASK_ENV: development
+      RUNNING_IN_DOCKER: "true"
+    volumes:
+      - ./instance:/app/instance
+    command: ["python", "-m", "pytest", "-q"]
+
+  test-postgres:
+    image: satellite-tracker:local
+    build:
+      context: .
+      dockerfile: Dockerfile
+    profiles: ["test-postgres"]
+    user: "${SATTRACK_UID:-1000}:${SATTRACK_GID:-1000}"
+    environment:
+      FLASK_ENV: development
+      RUNNING_IN_DOCKER: "true"
+      TEST_DATABASE_URL: postgresql+psycopg://sattrack:${POSTGRES_PASSWORD:-sattrack}@postgres:5432/sattrack_test
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["python", "-m", "pytest", "-q"]
+
+volumes:
+  sattrack_pgdata:

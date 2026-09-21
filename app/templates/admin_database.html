@@ -1,0 +1,418 @@
+{% extends "base.html" %}
+{% block title %}Database explorer — SatTrack{% endblock %}
+{% block meta_desc %}Browse table counts and run saved SQL queries against the SatTrack datastore{% endblock %}
+
+{% block content %}
+<div class="section">
+  <div class="container">
+    <nav class="breadcrumb" aria-label="breadcrumb">
+      <a href="{{ url_for('admin.index') }}" class="breadcrumb__link">Admin</a>
+      <span class="breadcrumb__sep">›</span>
+      <span class="breadcrumb__current">Database</span>
+    </nav>
+
+    <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:16px;">
+      <div>
+        <h1 class="page-title">Database explorer</h1>
+        <p class="page-subtitle">Table row counts and a read-only SQL editor for the active <code>{{ datastore.engine }}</code> datastore.</p>
+      </div>
+      <a href="{{ url_for('admin.index') }}" class="btn btn--secondary" style="margin-bottom:0;">← Admin panel</a>
+    </div>
+
+    {% if db_error %}
+    <div class="flash flash--error" role="alert" style="margin-bottom:20px;">
+      Could not inspect tables: {{ db_error }}
+    </div>
+    {% endif %}
+
+    <h2 class="section-title" style="margin-bottom:12px;">Tables</h2>
+    {% if tables %}
+    <div class="table-wrapper" style="margin-bottom:28px;">
+      <table class="data-table" id="schema-tables">
+        <thead>
+          <tr>
+            <th>Table</th>
+            <th class="text-right">Rows</th>
+            <th>Columns</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for table in tables %}
+          <tr>
+            <td class="mono" style="font-weight:600;">{{ table.name }}</td>
+            <td class="text-right mono">{{ table.count }}</td>
+            <td class="small text--muted">{{ table.columns | join(', ') }}</td>
+            <td>
+              <button type="button" class="btn btn--sm btn--ghost" style="margin-bottom:0;"
+                      onclick="loadTableQuery({{ table.name | tojson }})"
+                      id="preview-{{ table.name }}">SELECT</button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="page-subtitle" style="margin-bottom:28px;">No tables found.</p>
+    {% endif %}
+
+    <div class="admin-grid">
+      <div>
+        <h2 class="section-title" style="margin-bottom:12px;">SQL editor</h2>
+        <p class="page-subtitle" style="margin-bottom:12px;">Read-only <code>SELECT</code> / <code>WITH</code> statements. Set a row cap, then export the grid as CSV or Excel.</p>
+        <textarea id="sql-editor" class="sql-editor" rows="10" spellcheck="false"
+                  placeholder="SELECT name, norad_cat_id FROM satellites ORDER BY name">SELECT name, norad_cat_id FROM satellites ORDER BY name</textarea>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:12px 0 16px;">
+          <label for="sql-row-limit" class="small" style="display:flex;align-items:center;gap:8px;margin:0;">
+            Max rows
+            <input type="number" id="sql-row-limit" min="{{ min_rows }}" max="{{ max_rows }}" value="{{ default_rows }}"
+                   style="width:90px;padding:8px 10px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:var(--mono);">
+          </label>
+          <button type="button" class="btn btn--primary" id="sql-run-btn" style="margin-bottom:0;" onclick="runSql()">Run query</button>
+          <button type="button" class="btn btn--secondary" id="sql-save-btn" style="margin-bottom:0;" onclick="saveSql()">Save query</button>
+        </div>
+        <div id="sql-status" class="small text--muted" style="margin-bottom:12px;"></div>
+        <div id="sql-results"></div>
+      </div>
+
+      <div>
+        <h2 class="section-title" style="margin-bottom:12px;">Saved queries</h2>
+        <p class="page-subtitle" style="margin-bottom:12px;">Load a saved statement into the editor. Latency percentiles update each time you run it.</p>
+        <ul id="saved-query-list" class="saved-query-list">
+          {% for item in saved_queries %}
+          <li class="saved-query-item" data-id="{{ item.id }}">
+            <div>
+              <div class="saved-query-name" style="font-weight:600;">{{ item.name }}</div>
+              <pre class="saved-query-sql">{{ item.sql }}</pre>
+              <div class="saved-query-stats">
+                {% if item.run_count %}
+                  Last {{ item.last_run_row_count if item.last_run_row_count is not none else '—' }} rows ·
+                  {{ item.last_run_ms }} ms ·
+                  p50 {{ item.latency_p50_ms }} / p95 {{ item.latency_p95_ms }} / p99 {{ item.latency_p99_ms }} / p100 {{ item.latency_p100_ms }} ms
+                  ({{ item.run_count }} run{{ 's' if item.run_count != 1 }})
+                {% else %}
+                  Not run yet
+                {% endif %}
+              </div>
+            </div>
+            <div class="saved-query-actions">
+              <button type="button" class="btn btn--sm btn--primary" style="margin-bottom:0;" onclick='loadSavedQuery({{ item | tojson }})'>Load</button>
+              <button type="button" class="btn btn--sm btn--danger" style="margin-bottom:0;" onclick="deleteSavedQuery({{ item.id | tojson }})">Delete</button>
+            </div>
+          </li>
+          {% else %}
+          <li id="saved-empty" class="text--muted small">No saved queries yet.</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<style>
+.sql-editor {
+  width: 100%;
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  resize: vertical;
+  min-height: 180px;
+}
+.saved-query-list { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+.saved-query-item {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.saved-query-sql {
+  margin: 6px 0 0;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.saved-query-stats { margin-top: 6px; font-size: 0.72rem; color: var(--text-muted); font-family: var(--mono); }
+.sql-run-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  background: rgba(56,189,248,0.06);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 0.78rem;
+  font-family: var(--mono);
+}
+#sql-results .table-wrapper { max-height: 420px; overflow: auto; }
+</style>
+<script>
+const QUERY_URL = {{ url_for('admin.database_query') | tojson }};
+const SAVED_URL = {{ url_for('admin.database_saved_queries') | tojson }};
+const MIN_ROWS = {{ min_rows | int }};
+const MAX_ROWS = {{ max_rows | int }};
+const DEFAULT_ROWS = {{ default_rows | int }};
+let lastResult = null;
+let activeSavedId = null;
+
+function editor() { return document.getElementById('sql-editor'); }
+function rowLimitInput() { return document.getElementById('sql-row-limit'); }
+function currentRowLimit() {
+  const n = parseInt(rowLimitInput().value, 10);
+  if (Number.isNaN(n)) return DEFAULT_ROWS;
+  return Math.max(MIN_ROWS, Math.min(MAX_ROWS, n));
+}
+function setStatus(msg, isError) {
+  const el = document.getElementById('sql-status');
+  el.textContent = msg || '';
+  el.style.color = isError ? 'var(--error)' : 'var(--text-muted)';
+}
+
+function loadTableQuery(name) {
+  editor().value = 'SELECT * FROM ' + name;
+  editor().focus();
+}
+
+function loadSavedQuery(item, rowLimit) {
+  const query = (item && typeof item === 'object') ? item : {sql: item, row_limit: rowLimit};
+  editor().value = query.sql || '';
+  if (query.row_limit) rowLimitInput().value = query.row_limit;
+  activeSavedId = query.id || null;
+  editor().focus();
+  setStatus(query.id ? 'Loaded saved query #' + query.id + '.' : 'Loaded saved query into the editor.');
+}
+
+async function runSql() {
+  const sql = editor().value;
+  const limit = currentRowLimit();
+  rowLimitInput().value = limit;
+  const btn = document.getElementById('sql-run-btn');
+  btn.disabled = true;
+  setStatus('Running…');
+  try {
+    const res = await fetch(QUERY_URL, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({sql, limit, saved_query_id: activeSavedId}),
+    });
+    const data = await res.json();
+    if (!data.ok) {
+      lastResult = null;
+      setStatus(data.error || 'Query failed', true);
+      document.getElementById('sql-results').innerHTML = '';
+      return;
+    }
+    lastResult = data;
+    renderGrid(data);
+    if (data.saved_query) updateSavedCard(data.saved_query);
+    const extra = data.truncated ? ' (truncated at ' + data.limit + ')' : '';
+    setStatus((data.row_count || 0) + ' row' + (data.row_count === 1 ? '' : 's') + ' in ' + formatMs(data.elapsed_ms) + extra);
+  } catch (err) {
+    lastResult = null;
+    setStatus(String(err), true);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function formatMs(ms) {
+  if (ms == null || Number.isNaN(Number(ms))) return '—';
+  return Number(ms).toFixed(3) + ' ms';
+}
+
+function statsHtml(item) {
+  if (!item || !item.run_count) return 'Not run yet';
+  return 'Last ' + (item.last_run_row_count == null ? '—' : item.last_run_row_count) + ' rows · ' +
+    formatMs(item.last_run_ms) + ' · p50 ' + formatMs(item.latency_p50_ms) +
+    ' / p95 ' + formatMs(item.latency_p95_ms) +
+    ' / p99 ' + formatMs(item.latency_p99_ms) +
+    ' / p100 ' + formatMs(item.latency_p100_ms) +
+    ' (' + item.run_count + ' run' + (item.run_count === 1 ? '' : 's') + ')';
+}
+
+function renderGrid(data) {
+  const area = document.getElementById('sql-results');
+  const rps = data.rows_per_sec != null ? data.rows_per_sec : '—';
+  const stats =
+    '<div class="sql-run-stats" id="sql-run-stats">' +
+      '<span>Time <strong>' + formatMs(data.elapsed_ms) + '</strong></span>' +
+      '<span>Rows <strong>' + (data.row_count || 0) + '</strong></span>' +
+      '<span>Columns <strong>' + (data.column_count || (data.columns || []).length) + '</strong></span>' +
+      '<span>Cap <strong>' + (data.limit || '—') + '</strong></span>' +
+      '<span>Rows/s <strong>' + rps + '</strong></span>' +
+      (data.truncated ? '<span>Truncated</span>' : '') +
+      (data.saved_query ? '<span>p50 <strong>' + formatMs(data.saved_query.latency_p50_ms) + '</strong></span>' +
+        '<span>p95 <strong>' + formatMs(data.saved_query.latency_p95_ms) + '</strong></span>' +
+        '<span>p99 <strong>' + formatMs(data.saved_query.latency_p99_ms) + '</strong></span>' +
+        '<span>p100 <strong>' + formatMs(data.saved_query.latency_p100_ms) + '</strong></span>' : '') +
+    '</div>';
+  if (!data.columns || !data.columns.length) {
+    area.innerHTML = stats + '<p class="text--muted">Query returned no columns.</p>';
+    return;
+  }
+  const head = data.columns.map(c => '<th>' + escapeHtml(c) + '</th>').join('');
+  const body = (data.rows || []).map(row => {
+    const cells = row.map(v => '<td class="mono">' + escapeHtml(v == null ? 'NULL' : String(v)) + '</td>').join('');
+    return '<tr>' + cells + '</tr>';
+  }).join('');
+  area.innerHTML = stats +
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">' +
+      '<button type="button" class="btn btn--sm btn--secondary" style="margin-bottom:0;" onclick="exportCsv()">Export CSV</button>' +
+      '<button type="button" class="btn btn--sm btn--secondary" style="margin-bottom:0;" onclick="exportExcel()">Export Excel</button>' +
+    '</div>' +
+    '<div class="table-wrapper"><table class="data-table" id="sql-result-grid"><thead><tr>' +
+    head + '</tr></thead><tbody>' + (body || '<tr><td colspan="' + data.columns.length + '" class="text--muted">No rows</td></tr>') +
+    '</tbody></table></div>';
+}
+
+function csvEscape(value) {
+  if (value == null) return '';
+  const s = String(value);
+  if (/[",\n\r]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+  return s;
+}
+
+function downloadBlob(content, filename, mime) {
+  const blob = new Blob([content], {type: mime});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function exportCsv() {
+  if (!lastResult || !lastResult.columns) return setStatus('Run a query before exporting.', true);
+  const lines = [lastResult.columns.map(csvEscape).join(',')];
+  (lastResult.rows || []).forEach(row => lines.push(row.map(csvEscape).join(',')));
+  downloadBlob('\uFEFF' + lines.join('\r\n'), 'query-results.csv', 'text/csv;charset=utf-8');
+}
+
+function xmlEscape(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function exportExcel() {
+  if (!lastResult || !lastResult.columns) return setStatus('Run a query before exporting.', true);
+  const header = lastResult.columns.map(c => '<Cell><Data ss:Type="String">' + xmlEscape(c) + '</Data></Cell>').join('');
+  const body = (lastResult.rows || []).map(row => {
+    const cells = row.map(v => {
+      if (typeof v === 'number' && Number.isFinite(v)) {
+        return '<Cell><Data ss:Type="Number">' + v + '</Data></Cell>';
+      }
+      return '<Cell><Data ss:Type="String">' + xmlEscape(v) + '</Data></Cell>';
+    }).join('');
+    return '<Row>' + cells + '</Row>';
+  }).join('');
+  const xml = '<?xml version="1.0"?>\n<?mso-application progid="Excel.Sheet"?>\n' +
+    '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" ' +
+    'xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">' +
+    '<Worksheet ss:Name="Results"><Table>' +
+    '<Row>' + header + '</Row>' + body +
+    '</Table></Worksheet></Workbook>';
+  downloadBlob(xml, 'query-results.xls', 'application/vnd.ms-excel');
+}
+
+async function saveSql() {
+  const sql = editor().value.trim();
+  if (!sql) return setStatus('Enter a query to save.', true);
+  const name = prompt('Name this query');
+  if (name === null) return;
+  try {
+    const res = await fetch(SAVED_URL, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        name,
+        sql,
+        row_limit: currentRowLimit(),
+        elapsed_ms: lastResult ? lastResult.elapsed_ms : null,
+        row_count: lastResult ? lastResult.row_count : null,
+      }),
+    });
+    const data = await res.json();
+    if (!data.ok) {
+      setStatus(data.error || 'Could not save query', true);
+      return;
+    }
+    prependSaved(data.query);
+    activeSavedId = data.query.id;
+    setStatus('Saved “' + data.query.name + '” in the database with latency stats.');
+  } catch (err) {
+    setStatus(String(err), true);
+  }
+}
+
+function prependSaved(item) {
+  const list = document.getElementById('saved-query-list');
+  const empty = document.getElementById('saved-empty');
+  if (empty) empty.remove();
+  const li = document.createElement('li');
+  li.className = 'saved-query-item';
+  li.dataset.id = item.id;
+  li.innerHTML = '<div><div class="saved-query-name" style="font-weight:600;"></div><pre class="saved-query-sql"></pre><div class="saved-query-stats"></div></div>' +
+    '<div class="saved-query-actions">' +
+    '<button type="button" class="btn btn--sm btn--primary" style="margin-bottom:0;">Load</button>' +
+    '<button type="button" class="btn btn--sm btn--danger" style="margin-bottom:0;">Delete</button>' +
+    '</div>';
+  li.querySelector('.saved-query-name').textContent = item.name;
+  li.querySelector('.saved-query-sql').textContent = item.sql;
+  li.querySelector('.saved-query-stats').textContent = statsHtml(item);
+  li.querySelector('.btn--primary').addEventListener('click', () => loadSavedQuery(item));
+  li.querySelector('.btn--danger').addEventListener('click', () => deleteSavedQuery(item.id));
+  list.prepend(li);
+}
+
+function updateSavedCard(item) {
+  const card = document.querySelector('.saved-query-item[data-id="' + CSS.escape(String(item.id)) + '"]');
+  if (!card) return;
+  const stats = card.querySelector('.saved-query-stats');
+  if (stats) stats.textContent = statsHtml(item);
+}
+
+async function deleteSavedQuery(id) {
+  if (!confirm('Delete this saved query?')) return;
+  const res = await fetch(SAVED_URL + '/' + encodeURIComponent(id), {method: 'DELETE'});
+  const data = await res.json();
+  if (!data.ok) {
+    setStatus(data.error || 'Could not delete', true);
+    return;
+  }
+  const item = document.querySelector('.saved-query-item[data-id="' + CSS.escape(id) + '"]');
+  if (item) item.remove();
+  const list = document.getElementById('saved-query-list');
+  if (!list.querySelector('.saved-query-item')) {
+    list.innerHTML = '<li id="saved-empty" class="text--muted small">No saved queries yet.</li>';
+  }
+  setStatus('Saved query deleted.');
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+
+document.getElementById('sql-editor').addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    e.preventDefault();
+    runSql();
+  }
+});
+</script>
+{% endblock %}

@@ -12,24 +12,25 @@
   <div class="container">
     <div class="page-header">
       <h1 class="page-title">Satellite Search</h1>
-      <p class="page-subtitle">Search by satellite name or NORAD catalog number</p>
+      <p class="page-subtitle">Search any satellite text field, or leave blank to list all records</p>
+      {% include "_hobby_disclaimer.html" %}
     </div>
 
-    <!-- Search Tabs -->
+    <!-- Search Tabs: Keyword is the default Search view -->
     <div class="search-tabs" style="display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 8px;">
-      <button type="button" class="tab-btn active" id="tab-country-btn" onclick="switchSearchTab('country')" style="background: rgba(255,255,255,0.05); color: var(--text); border: 1px solid var(--border); padding: 8px 16px; border-radius: var(--radius-sm); font-size: 0.85rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s;">
-        🌍 Country Proximity Search
+      <button type="button" class="tab-btn active" id="tab-keyword-btn" onclick="switchSearchTab('keyword')" style="background: rgba(255,255,255,0.05); color: var(--text); border: 1px solid var(--border); padding: 8px 16px; border-radius: var(--radius-sm); font-size: 0.85rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s;">
+        Keyword Search
       </button>
-      <button type="button" class="tab-btn" id="tab-keyword-btn" onclick="switchSearchTab('keyword')" style="background: transparent; color: var(--text-muted); border: 1px solid transparent; padding: 8px 16px; border-radius: var(--radius-sm); font-size: 0.85rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s;">
-        🔍 Keyword Search
+      <button type="button" class="tab-btn" id="tab-country-btn" onclick="switchSearchTab('country')" style="background: transparent; color: var(--text-muted); border: 1px solid transparent; padding: 8px 16px; border-radius: var(--radius-sm); font-size: 0.85rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s;">
+        Country Proximity Search
       </button>
       <button type="button" class="tab-btn" id="tab-ai-btn" onclick="switchSearchTab('ai')" style="background: transparent; color: var(--text-muted); border: 1px solid transparent; padding: 8px 16px; border-radius: var(--radius-sm); font-size: 0.85rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s;">
-        💬 AI Search
+        AI Search
       </button>
     </div>
 
-    <!-- Keyword search container -->
-    <div id="keyword-search-container" style="display: none;">
+    <!-- Keyword search container (default) -->
+    <div id="keyword-search-container" style="display: block;">
       <form method="GET" action="{{ url_for('report.report') }}" class="search-form" id="search-form" role="search" style="margin-bottom: 24px;">
         <div class="search-bar">
           <svg class="search-bar__icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -39,7 +40,7 @@
             id="search-input"
             class="search-bar__input"
             value="{{ query }}"
-            placeholder="Search by name (e.g. ISS, STARLINK) or NORAD ID (e.g. 25544)…"
+            placeholder="Search any text (name, NORAD ID, designator) — leave blank to list all"
             autocomplete="off"
             aria-label="Search satellites"
           />
@@ -48,18 +49,49 @@
       </form>
     </div>
 
-    <!-- Country proximity search container (Default View) -->
-    <div id="country-search-container" style="display: block; background: var(--bg-card); border: 1px solid var(--border); padding: 20px; border-radius: var(--radius); margin-bottom: 24px; box-shadow: var(--shadow);">
+    <!-- Country proximity search container -->
+    <div id="country-search-container" style="display: none; background: var(--bg-card); border: 1px solid var(--border); padding: 20px; border-radius: var(--radius); margin-bottom: 24px; box-shadow: var(--shadow);">
       <h3 style="font-size: 1rem; font-weight: 700; margin-bottom: 8px; color: var(--text);">Track satellites closest to a country</h3>
       <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 16px; line-height: 1.5;">
-        Choose a country to run real-time orbit propagation for all satellites in the database. The system will find satellites closest to the country's location and automatically select them for tracking.
+        Choose a country that has geo data, optionally filter by satellite name prefix from the catalogue, then find the closest satellites.
       </p>
       
-      <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+      <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 16px;">
         <select id="country-select" style="flex: 1; min-width: 200px; max-width: 300px; padding: 10px 14px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-size: 0.9rem; cursor: pointer;">
-          <option value="">-- Select a Country --</option>
+          <option value="">Loading countries…</option>
         </select>
         <button type="button" class="btn btn--primary" id="country-search-btn" onclick="runCountrySearch()" style="margin-bottom:0;">Find Closest Satellites</button>
+      </div>
+
+      <div id="prefix-search-panel">
+        <label for="prefix-search-input" style="display:block; font-size:0.82rem; font-weight:600; margin-bottom:6px; color:var(--text);">Search by satellite name prefix</label>
+        <p style="font-size:0.78rem; color:var(--text-muted); margin-bottom:8px; line-height:1.4;">
+          Prefixes come from the first word of each satellite name in the catalogue (for example CSS (TIANHE) → CSS, STARLINK-1007 → STARLINK). Click a row to filter the proximity search.
+        </p>
+        <input
+          type="search"
+          id="prefix-search-input"
+          class="search-bar__input"
+          placeholder="Filter prefixes (ISS, STARLINK, NOAA…)"
+          autocomplete="off"
+          aria-label="Filter satellite name prefixes"
+          oninput="filterPrefixTable()"
+          style="width:100%; max-width:360px; margin-bottom:10px; padding:8px 12px; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius-sm); color:var(--text);"
+        />
+        <div class="table-wrapper" style="max-height:220px; overflow:auto; border:1px solid var(--border); border-radius:var(--radius-sm);">
+          <table class="data-table" id="prefix-table">
+            <thead>
+              <tr>
+                <th>Prefix</th>
+                <th class="text-right">Satellites</th>
+              </tr>
+            </thead>
+            <tbody id="prefix-table-body">
+              <tr><td colspan="2" style="color:var(--text-muted);">Loading prefixes…</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p id="prefix-selected-label" style="font-size:0.78rem; color:var(--text-muted); margin-top:8px;">No prefix selected — all satellites will be searched.</p>
       </div>
       
       <div id="country-search-loading" style="display: none; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--accent); margin-top: 14px;">
@@ -167,10 +199,13 @@
 
     <!-- Results Area -->
     <div id="results-area">
-      {% if query %}
       {% if satellites %}
         <div class="results-meta">
-          <span>Found <strong>{{ total }}</strong> satellite{{ 's' if total != 1 }} matching <em>"{{ query }}"</em></span>
+          {% if query %}
+            <span>Found <strong>{{ total }}</strong> satellite{{ 's' if total != 1 }} matching <em>"{{ query }}"</em></span>
+          {% else %}
+            <span>Showing <strong>{{ total }}</strong> satellite{{ 's' if total != 1 }}</span>
+          {% endif %}
           {% if total > per_page %}
             <span>— page {{ page }} of {{ total_pages }}</span>
           {% endif %}
@@ -273,27 +308,18 @@
 
       {% else %}
         <div class="empty-state">
-          <div class="empty-state__icon">🔭</div>
-          <h2 class="empty-state__title">No satellites found</h2>
-          <p class="empty-state__body">No results for <em>"{{ query }}"</em>. Try a different name or NORAD ID.</p>
-          <a href="{{ url_for('upload.index') }}" class="btn btn--primary" id="btn-go-upload">Upload a TLE File</a>
+          {% if query %}
+            <div class="empty-state__icon">🔭</div>
+            <h2 class="empty-state__title">No satellites found</h2>
+            <p class="empty-state__body">No results for <em>"{{ query }}"</em>. Try a different name, NORAD ID, or designator.</p>
+          {% else %}
+            <div class="empty-state__icon">🔍</div>
+            <h2 class="empty-state__title">No satellites in the catalogue yet</h2>
+            <p class="empty-state__body">Upload a TLE file or restart the server to load demo sample data.</p>
+          {% endif %}
+          <a href="{{ url_for('upload.upload_file') }}" class="btn btn--primary" id="btn-go-upload">Upload a TLE File</a>
         </div>
       {% endif %}
-    {% else %}
-      <!-- No query yet -->
-      <div class="empty-state empty-state--prompt">
-        <div class="empty-state__icon">🔍</div>
-        <h2 class="empty-state__title">Enter a search term above</h2>
-        <p class="empty-state__body">Search by full or partial satellite name, or by a numeric NORAD catalog ID.</p>
-        {% if not query %}
-        <div class="search-tips">
-          <div class="search-tip"><code>ISS</code> — finds ISS and ISS-related objects</div>
-          <div class="search-tip"><code>STARLINK</code> — finds all Starlink satellites</div>
-          <div class="search-tip"><code>25544</code> — finds by exact NORAD ID</div>
-        </div>
-        {% endif %}
-      </div>
-    {% endif %}
     </div>
 
     <!-- Sticky floating action bar for multi-tracking -->
@@ -323,42 +349,78 @@ function haversineKm(lat1, lon1, lat2, lon2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-// ========== Countries (capital coords) ==========
-const COUNTRIES = [
-  {name:"Afghanistan",lat:34.5553,lon:69.2075},{name:"Argentina",lat:-34.6037,lon:-58.3816},
-  {name:"Australia",lat:-35.2809,lon:149.1300},{name:"Bangladesh",lat:23.8103,lon:90.4125},
-  {name:"Brazil",lat:-15.7939,lon:-47.8828},{name:"Canada",lat:45.4215,lon:-75.6972},
-  {name:"Chile",lat:-33.4489,lon:-70.6693},{name:"China",lat:39.9042,lon:116.4074},
-  {name:"Colombia",lat:4.7110,lon:-74.0721},{name:"Egypt",lat:30.0444,lon:31.2357},
-  {name:"Ethiopia",lat:9.0250,lon:38.7469},{name:"France",lat:48.8566,lon:2.3522},
-  {name:"Germany",lat:52.5200,lon:13.4050},{name:"India",lat:28.6139,lon:77.2090},
-  {name:"Indonesia",lat:-6.2088,lon:106.8456},{name:"Iran",lat:35.6892,lon:51.3890},
-  {name:"Iraq",lat:33.3152,lon:44.3661},{name:"Israel",lat:31.7683,lon:35.2137},
-  {name:"Italy",lat:41.9028,lon:12.4964},{name:"Japan",lat:35.6895,lon:139.6917},
-  {name:"Kenya",lat:-1.2921,lon:36.8219},{name:"Mexico",lat:19.4326,lon:-99.1332},
-  {name:"Morocco",lat:33.9716,lon:-6.8498},{name:"Netherlands",lat:52.3676,lon:4.9041},
-  {name:"New Zealand",lat:-41.2866,lon:174.7756},{name:"Nigeria",lat:9.0579,lon:7.4951},
-  {name:"Norway",lat:59.9139,lon:10.7522},{name:"Pakistan",lat:33.6844,lon:73.0479},
-  {name:"Peru",lat:-12.0464,lon:-77.0428},{name:"Philippines",lat:14.5995,lon:120.9842},
-  {name:"Poland",lat:52.2297,lon:21.0122},{name:"Russia",lat:55.7558,lon:37.6173},
-  {name:"Saudi Arabia",lat:24.7136,lon:46.6753},{name:"South Africa",lat:-25.7479,lon:28.2293},
-  {name:"South Korea",lat:37.5665,lon:126.9780},{name:"Spain",lat:40.4168,lon:-3.7038},
-  {name:"Sweden",lat:59.3293,lon:18.0686},{name:"Switzerland",lat:46.9480,lon:7.4474},
-  {name:"Thailand",lat:13.7563,lon:100.5018},{name:"Turkey",lat:39.9334,lon:32.8597},
-  {name:"Ukraine",lat:50.4501,lon:30.5234},{name:"United Arab Emirates",lat:24.4539,lon:54.3773},
-  {name:"United Kingdom",lat:51.5074,lon:-0.1278},{name:"United States",lat:38.8977,lon:-77.0365},
-  {name:"Vietnam",lat:21.0285,lon:105.8542}
-].sort((a,b) => a.name.localeCompare(b.name));
+// Countries and prefixes come from GET /api/proximity/options (geo data + catalogue).
+let proximityCountries = [];
+let proximityPrefixes = [];
+let selectedPrefix = "";
 
-// ========== Populate dropdown ==========
-function populateCountrySelect() {
-  const sel = document.getElementById('country-select');
-  if (!sel) return;
-  COUNTRIES.forEach(c => {
-    const o = document.createElement('option');
-    o.value = c.name; o.textContent = c.name;
-    sel.appendChild(o);
-  });
+function satelliteNamePrefix(name) {
+  const text = (name || "").trim();
+  if (!text) return "";
+  let first = text.split(/\s+/)[0];
+  first = first.split("(")[0];
+  first = first.split("-")[0];
+  return first.trim().toUpperCase();
+}
+
+function renderPrefixTable(rows) {
+  const tbody = document.getElementById("prefix-table-body");
+  if (!tbody) return;
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="2" style="color:var(--text-muted);">No prefixes match.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map((r) => {
+    const active = r.prefix === selectedPrefix;
+    const bg = active ? "background:rgba(59,130,246,0.15);" : "";
+    return `<tr data-prefix="${r.prefix}" onclick="selectPrefix(${JSON.stringify(r.prefix)})" style="cursor:pointer;${bg}">
+      <td class="mono">${r.prefix}</td>
+      <td class="text-right">${r.count}</td>
+    </tr>`;
+  }).join("");
+}
+
+function filterPrefixTable() {
+  const q = (document.getElementById("prefix-search-input")?.value || "").trim().toUpperCase();
+  const rows = q ? proximityPrefixes.filter((r) => r.prefix.includes(q)) : proximityPrefixes;
+  renderPrefixTable(rows);
+}
+
+function selectPrefix(prefix) {
+  selectedPrefix = selectedPrefix === prefix ? "" : prefix;
+  const label = document.getElementById("prefix-selected-label");
+  if (label) {
+    label.textContent = selectedPrefix
+      ? `Filtering proximity search to prefix ${selectedPrefix}`
+      : "No prefix selected — all satellites will be searched.";
+  }
+  filterPrefixTable();
+}
+
+async function loadProximityOptions() {
+  const sel = document.getElementById("country-select");
+  const tbody = document.getElementById("prefix-table-body");
+  try {
+    const res = await fetch('{{ url_for("report.proximity_options_api") }}');
+    if (!res.ok) throw new Error("API error " + res.status);
+    const data = await res.json();
+    proximityCountries = data.countries || [];
+    proximityPrefixes = data.prefixes || [];
+    if (sel) {
+      sel.innerHTML = '<option value="">Select a country…</option>';
+      proximityCountries.forEach((c) => {
+        const o = document.createElement("option");
+        o.value = c.name;
+        o.textContent = c.name;
+        sel.appendChild(o);
+      });
+    }
+    renderPrefixTable(proximityPrefixes);
+  } catch (err) {
+    console.error(err);
+    if (sel) sel.innerHTML = '<option value="">Could not load countries</option>';
+    if (tbody) tbody.innerHTML = '<tr><td colspan="2" style="color:var(--text-muted);">Could not load prefixes.</td></tr>';
+  }
 }
 
 // ========== Tab switching ==========
@@ -825,7 +887,7 @@ function renderAiResults(prompt, sats) {
 async function runCountrySearch() {
   const sel = document.getElementById('country-select');
   if (!sel.value) return alert('Please select a country first.');
-  const country = COUNTRIES.find(c => c.name === sel.value);
+  const country = proximityCountries.find(c => c.name === sel.value);
   if (!country) return;
 
   const loading = document.getElementById('country-search-loading');
@@ -845,6 +907,7 @@ async function runCountrySearch() {
 
     for (const sat of sats) {
       try {
+        if (selectedPrefix && satelliteNamePrefix(sat.name) !== selectedPrefix) continue;
         const satrec = satellite.twoline2satrec(sat.l1, sat.l2);
         const pv = satellite.propagate(satrec, now);
         if (!pv.position) continue;
@@ -1033,7 +1096,7 @@ function sortTableByColumn(table, colIdx, th) {
 
 // ========== Init ==========
 document.addEventListener('DOMContentLoaded', function() {
-  populateCountrySelect();
+  loadProximityOptions();
   wireCheckboxListeners();
   document.querySelectorAll('.data-table').forEach(makeTableSortable);
 });

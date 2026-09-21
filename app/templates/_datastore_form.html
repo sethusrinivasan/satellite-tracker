@@ -1,0 +1,59 @@
+{% macro datastore_fields(datastore, mode) %}
+<div class="ds-engine-grid" role="radiogroup" aria-label="Database engine">
+  <label class="ds-engine-card" id="ds-card-sqlite">
+    <input type="radio" name="engine" value="sqlite" {% if datastore.engine != 'postgresql' %}checked{% endif %} onchange="SatDatastore.toggleEngine()">
+    <span class="ds-engine-card__title">SQLite</span>
+    <span class="ds-engine-card__desc">Local file in <code>instance/</code>. Best for a single-node demo.</span>
+  </label>
+  <label class="ds-engine-card" id="ds-card-postgres">
+    <input type="radio" name="engine" value="postgresql" {% if datastore.engine == 'postgresql' %}checked{% endif %} onchange="SatDatastore.toggleEngine()">
+    <span class="ds-engine-card__title">PostgreSQL</span>
+    <span class="ds-engine-card__desc">External server (Compose service <code>postgres</code> or a remote host).</span>
+  </label>
+</div>
+
+<div id="ds-sqlite-fields" class="ds-fields">
+  <label class="ds-label" for="sqlite_path">SQLite file path</label>
+  <input class="ds-input" type="text" id="sqlite_path" name="sqlite_path" value="{{ datastore.sqlite.path }}" autocomplete="off">
+  <p class="ds-hint">Created automatically if it does not exist. Mount this path as a volume in Docker.</p>
+</div>
+
+<div id="ds-postgres-fields" class="ds-fields">
+  <div class="ds-grid-2">
+    <div>
+      <label class="ds-label" for="pg_host">Host</label>
+      <input class="ds-input" type="text" id="pg_host" name="pg_host" value="{{ datastore.postgresql.host }}" autocomplete="off">
+    </div>
+    <div>
+      <label class="ds-label" for="pg_port">Port</label>
+      <input class="ds-input" type="number" id="pg_port" name="pg_port" value="{{ datastore.postgresql.port }}" min="1" max="65535">
+    </div>
+    <div>
+      <label class="ds-label" for="pg_user">User</label>
+      <input class="ds-input" type="text" id="pg_user" name="pg_user" value="{{ datastore.postgresql.user }}" autocomplete="off">
+    </div>
+    <div>
+      <label class="ds-label" for="pg_database">Database</label>
+      <input class="ds-input" type="text" id="pg_database" name="pg_database" value="{{ datastore.postgresql.database }}" autocomplete="off">
+    </div>
+  </div>
+  <label class="ds-label" for="pg_password">Password{% if datastore.postgresql.password_set %} <span class="ds-hint-inline">(leave blank to keep current)</span>{% endif %}</label>
+  <input class="ds-input" type="password" id="pg_password" name="pg_password" value="" autocomplete="new-password" placeholder="{{ 'Stored password unchanged' if datastore.postgresql.password_set else 'PostgreSQL password' }}">
+</div>
+
+{% if mode == 'admin' %}
+<label class="ds-check">
+  <input type="checkbox" name="migrate_data" value="1" checked>
+  Copy existing satellites, TLE rows, uploads, and settings into the new database
+</label>
+<p class="ds-hint">Uncheck to initialize an empty schema on the new engine. The previous database files/server are not deleted.</p>
+{% endif %}
+
+<div class="ds-actions">
+  <button type="button" class="btn btn--secondary" id="ds-test-btn" onclick="SatDatastore.testConnection()">Test connection</button>
+  <button type="submit" class="btn btn--primary" id="ds-save-btn">
+    {% if mode == 'setup' %}Initialize datastore{% else %}Save database settings{% endif %}
+  </button>
+</div>
+<p class="ds-status" id="ds-status" role="status"></p>
+{% endmacro %}

@@ -49,16 +49,48 @@
     <div id="tracker-grid-container">
       <div class="tracker-layout-full">
         
-        <div class="tracker-map-wrapper-full">
+        <div class="tracker-map-wrapper-full" id="tracker-map-shell">
           <!-- Map Controls -->
           <div class="map-controls">
             <button class="map-control-btn" id="toggle-paths-btn" onclick="toggleAllPaths()" title="Toggle satellite orbit paths on/off" style="min-width: 90px; display: none;">
               🛤️ Paths On
             </button>
-            <button class="map-control-btn" onclick="resetMapView()" title="Center & reset zoom">
+            <button class="map-control-btn" onclick="resetMapView()" title="Fit all selected satellites with a 1000 km radius around each">
               🎯 Center
             </button>
+            <button class="map-control-btn" id="tracker-fullscreen-btn" onclick="toggleTrackerMapFullscreen()" title="Open map full screen" aria-pressed="false">
+              Full screen
+            </button>
+            <label class="map-control-btn" id="world-events-toggle" title="Weather and climate events (NASA EONET), earthquakes (USGS), and temperature trends for cities over 1 million (Open-Meteo)." style="display:flex;align-items:center;gap:6px;margin:0;cursor:pointer;">
+              <input type="checkbox" id="world-events-overlay" onchange="toggleWorldEventsOverlay(this.checked)">
+              Weather &amp; quakes
+            </label>
+            <label class="map-control-btn" id="markets-toggle" title="Major world market indexes. Level and 1-day % from CNBC public quotes." style="display:flex;align-items:center;gap:6px;margin:0;cursor:pointer;">
+              <input type="checkbox" id="markets-overlay" onchange="toggleMarketsOverlay(this.checked)">
+              Markets
+            </label>
+            <label class="map-control-btn" id="currencies-toggle" title="Local units needed to buy 1 USD, 1 EUR, 1 yen, 1 oz gold, 1 barrel of oil, and 1 Big Mac." style="display:flex;align-items:center;gap:6px;margin:0;cursor:pointer;">
+              <input type="checkbox" id="currencies-overlay" onchange="toggleCurrenciesOverlay(this.checked)">
+              Currencies
+            </label>
+            <label class="map-control-btn" id="flights-toggle" title="Live aircraft from The OpenSky Network" style="display:flex;align-items:center;gap:6px;margin:0;cursor:pointer;">
+              <input type="checkbox" id="flights-overlay" onchange="toggleFlightsOverlay(this.checked)">
+              Flights
+            </label>
+            <label class="map-control-btn" id="news-toggle" title="Geo-tagged alerts from GDACS and Wikipedia featured news." style="display:flex;align-items:center;gap:6px;margin:0;cursor:pointer;">
+              <input type="checkbox" id="news-overlay" onchange="toggleNewsOverlay(this.checked)">
+              News
+            </label>
+            <label class="map-control-btn" id="ships-toggle" title="Current AIS positions from Fintraffic Digitraffic (CC BY 4.0). Hover a vessel for its latest location." style="display:flex;align-items:center;gap:6px;margin:0;cursor:pointer;">
+              <input type="checkbox" id="ships-overlay" onchange="toggleShipsOverlay(this.checked)">
+              Ships
+            </label>
+            <label class="map-control-btn" id="webcams-toggle" title="Public webcam pages worldwide. Official indexes plus OpenStreetMap. Click a pin to open the feed." style="display:flex;align-items:center;gap:6px;margin:0;cursor:pointer;">
+              <input type="checkbox" id="webcams-overlay" onchange="toggleWebcamsOverlay(this.checked)">
+              Webcams
+            </label>
           </div>
+          <div id="map-data-credits" class="map-data-credits">Basemap: Esri, HERE, Garmin, FAO, NOAA, USGS</div>
           <div id="multi-map"></div>
         </div>
 
