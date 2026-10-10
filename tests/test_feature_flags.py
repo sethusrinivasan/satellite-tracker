@@ -93,5 +93,38 @@ class FeatureFlagTestCase(unittest.TestCase):
         self.assertEqual(model_response.status_code, 200)
 
 
+    def test_vercel_config_structure(self):
+        import json
+
+        repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        vercel_json_path = os.path.join(repo_root, "vercel.json")
+        self.assertTrue(os.path.exists(vercel_json_path))
+        with open(vercel_json_path, "r", encoding="utf-8") as fh:
+            cfg = json.load(fh)
+        self.assertEqual(cfg.get("version"), 2)
+        self.assertIn("api/index.py", cfg.get("functions", {}))
+        rewrites = cfg.get("rewrites", [])
+        self.assertTrue(any(r.get("destination") == "/api/index" for r in rewrites))
+
+    def test_api_index_entrypoint(self):
+        from api.index import app as vercel_app
+
+        client = vercel_app.test_client()
+        health = client.get("/health")
+        self.assertEqual(health.status_code, 200)
+
+    def test_runtime_dir_resolutions(self):
+        from app.services.datastore import default_sqlite_path
+        from app.services import overlay_cache
+
+        self.assertTrue(default_sqlite_path().startswith(self.runtime_dir))
+        prev_overlay = os.environ.pop("OVERLAY_CACHE_DIR", None)
+        try:
+            self.assertTrue(str(overlay_cache.cache_dir()).startswith(self.runtime_dir))
+        finally:
+            if prev_overlay:
+                os.environ["OVERLAY_CACHE_DIR"] = prev_overlay
+
+
 if __name__ == "__main__":
     unittest.main()

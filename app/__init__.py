@@ -34,14 +34,20 @@ def create_app(config_object="config.Config"):
     app = Flask(__name__, instance_relative_config=False)
     app.config.from_object(config_object)
 
-    os.makedirs(app.config.get("UPLOAD_FOLDER", "instance/uploads"), exist_ok=True)
-    os.makedirs(os.path.dirname(app.config.get("DATASTORE_CONFIG_PATH") or "instance/datastore.json") or "instance", exist_ok=True)
+    try:
+        os.makedirs(app.config.get("UPLOAD_FOLDER", "instance/uploads"), exist_ok=True)
+        os.makedirs(os.path.dirname(app.config.get("DATASTORE_CONFIG_PATH") or "instance/datastore.json") or "instance", exist_ok=True)
+    except OSError as exc:
+        log.warning("[app] Could not create storage directory: %s", exc)
 
     from app.services.datastore import repair_host_volume_ownership
 
-    repair_host_volume_ownership(
-        os.path.dirname(app.config.get("DATASTORE_CONFIG_PATH") or "instance/datastore.json") or "instance"
-    )
+    try:
+        repair_host_volume_ownership(
+            os.path.dirname(app.config.get("DATASTORE_CONFIG_PATH") or "instance/datastore.json") or "instance"
+        )
+    except OSError:
+        pass
 
     _resolve_datastore(app)
 

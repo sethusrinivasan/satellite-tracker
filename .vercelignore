@@ -1,0 +1,42 @@
+# Git & CI
+.git
+.github
+
+# Virtual environments & bytecode
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Local databases & uploads
+instance/
+*.db
+*.sqlite
+*.sqlite3
+
+# Large AI model files & weights (exceeds serverless function size limits)
+app/models/*.gguf
+app/models/*.bin
+models/
+*.gguf
+*.bin
+*.tmp
+
+# Tests & Docker
+tests/
+docker/
+docker-compose.yml
+Dockerfile
+.dockerignore
+
+# Sample raw data (ai_query_cache.json is preserved)
+data/*.txt
+data/*.tle
+
+# Local environment & editors
+.env
+.env.*
+.vscode/
+.idea/
+.DS_Store

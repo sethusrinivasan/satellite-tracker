@@ -73,14 +73,21 @@ def repair_host_volume_ownership(root: str) -> None:
 
 def default_sqlite_path() -> str:
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-    return os.path.join(base_dir, "instance", "satellites.db")
+    runtime_dir = os.environ.get(
+        "SATELLITE_RUNTIME_DIR",
+        "/tmp/satellite-tracker" if os.environ.get("VERCEL") else os.path.join(base_dir, "instance"),
+    )
+    return os.path.join(runtime_dir, "satellites.db")
 
 
 def resolve_sqlite_path(path: str | None) -> str:
     """Return a writable SQLite file path, remapping host paths that do not exist here."""
     default = default_sqlite_path()
     instance_dir = os.path.dirname(default)
-    os.makedirs(instance_dir, exist_ok=True)
+    try:
+        os.makedirs(instance_dir, exist_ok=True)
+    except OSError:
+        pass
     if not path or path == ":memory:":
         return path or default
     if not os.path.isabs(path):
@@ -114,9 +121,14 @@ def empty_config() -> dict[str, Any]:
 
 
 def config_path_for_app(app) -> str:
+    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+    default_runtime = os.environ.get(
+        "SATELLITE_RUNTIME_DIR",
+        "/tmp/satellite-tracker" if os.environ.get("VERCEL") else os.path.join(base_dir, "instance"),
+    )
     return app.config.get(
         "DATASTORE_CONFIG_PATH",
-        os.path.join(os.path.dirname(app.root_path), "instance", "datastore.json"),
+        os.path.join(default_runtime, "datastore.json"),
     )
 
 

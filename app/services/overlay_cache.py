@@ -43,6 +43,10 @@ def cache_dir() -> Path:
     configured = os.environ.get("OVERLAY_CACHE_DIR")
     if configured:
         root = Path(configured)
+    elif os.environ.get("SATELLITE_RUNTIME_DIR"):
+        root = Path(os.environ["SATELLITE_RUNTIME_DIR"]) / "overlay_cache"
+    elif os.environ.get("VERCEL"):
+        root = Path("/tmp/satellite-tracker") / "overlay_cache"
     else:
         root = Path(__file__).resolve().parents[2] / "instance" / "overlay_cache"
     try:

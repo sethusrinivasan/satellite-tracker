@@ -1,3 +1,9 @@
-"""Vercel entrypoint for the Flask application."""
+import os
+import sys
 
-from run import app
+# Ensure repository root is on sys.path
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if ROOT_DIR not in sys.path:
+    sys.path.insert(0, ROOT_DIR)
+
+from run import app  # noqa: E402
