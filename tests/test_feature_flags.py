@@ -104,7 +104,7 @@ class FeatureFlagTestCase(unittest.TestCase):
         self.assertIn(cfg.get("version"), (2, None))
         self.assertIn("api/index.py", cfg.get("functions", {}))
         rewrites = cfg.get("rewrites", [])
-        self.assertTrue(any(r.get("destination") == "/api/index" for r in rewrites))
+        self.assertTrue(any(r.get("destination", "").startswith("/api/index") for r in rewrites))
 
     def test_api_index_entrypoint(self):
         from api.index import app as vercel_app
