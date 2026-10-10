@@ -16,6 +16,13 @@ class VercelPathFixMiddleware:
         self.wsgi_app = wsgi_app
 
     def __call__(self, environ, start_response):
+        if "debug=1" in (environ.get("QUERY_STRING") or ""):
+            import json
+            safe_env = {k: str(v) for k, v in environ.items() if k != "wsgi.input"}
+            body = json.dumps(safe_env, indent=2).encode("utf-8")
+            start_response("200 OK", [("Content-Type", "application/json"), ("Content-Length", str(len(body)))])
+            return [body]
+
         path_info = environ.get("PATH_INFO", "")
         if path_info in ("/api/index", "/api/index.py", "/api"):
             matched = (
