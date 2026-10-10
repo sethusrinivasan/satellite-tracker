@@ -2,6 +2,10 @@ import os
 from datetime import timedelta
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+RUNTIME_DIR = os.environ.get(
+    "SATELLITE_RUNTIME_DIR",
+    "/tmp/satellite-tracker" if os.environ.get("VERCEL") else os.path.join(BASE_DIR, "instance"),
+)
 
 
 class Config:
@@ -9,8 +13,8 @@ class Config:
     SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16 MB upload limit
-    UPLOAD_FOLDER = os.path.join(BASE_DIR, "instance", "uploads")
-    DATASTORE_CONFIG_PATH = os.path.join(BASE_DIR, "instance", "datastore.json")
+    UPLOAD_FOLDER = os.path.join(RUNTIME_DIR, "uploads")
+    DATASTORE_CONFIG_PATH = os.path.join(RUNTIME_DIR, "datastore.json")
     DATASTORE_CONFIGURED = False
 
     # ── Google OAuth2 ─────────────────────────────────────────────────────────

@@ -42,6 +42,7 @@
       {% endif %}
     </div>
 
+    {% if feature_flags.system_telemetry %}
     <!-- System Overview Resource Gauges (Enhanced Telemetry) -->
     <div style="background:var(--bg-card);border:1px solid rgba(6,182,212,0.35);border-radius:var(--radius);padding:20px;margin-bottom:24px;box-shadow:0 0 20px rgba(6,182,212,0.1);">
       <h3 style="font-size:1.05rem;font-weight:700;margin-bottom:16px;color:var(--text);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
@@ -108,6 +109,7 @@
       </div>
       {% endif %}
     </div>
+    {% endif %}
 
     <!-- DB Stats row -->
     <div class="db-stats">
@@ -227,7 +229,24 @@
 
       <!-- ── Right: Danger Zone sidebar ───────────────────────── -->
       <div>
+        <h2 class="section-title">Feature Flags</h2>
+        <div class="danger-zone" style="border-color: var(--border); background: var(--bg-card); margin-bottom: 24px;">
+          <p class="danger-zone__desc" style="color: var(--text-muted)">
+            Vercel disables server-only features by default. Enable them only for controlled testing.
+          </p>
+          <form method="POST" action="{{ url_for('admin.update_feature_flags') }}">
+            {% for name, label in feature_names.items() %}
+            <label style="display:flex;align-items:center;gap:10px;margin:14px 0;font-size:0.85rem;color:var(--text);">
+              <input type="checkbox" name="{{ name }}" {% if feature_flags[name] %}checked{% endif %}>
+              <span>{{ label }}</span>
+            </label>
+            {% endfor %}
+            <button class="btn btn--primary" type="submit" style="margin-top:8px;margin-bottom:0;">Save Feature Flags</button>
+          </form>
+        </div>
+
         <!-- AI Model Management -->
+        {% if feature_flags.ai_model_management %}
         <h2 class="section-title">Offline AI Model</h2>
         <div class="danger-zone" style="border-color: var(--border); background: var(--bg-card); margin-bottom: 24px;">
           <div class="danger-zone__title" style="color: var(--text)">
@@ -265,6 +284,7 @@
             </button>
           </div>
         </div>
+        {% endif %}
 
         <h2 class="section-title">Danger Zone</h2>
         <div class="danger-zone">

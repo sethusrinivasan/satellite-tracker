@@ -110,6 +110,8 @@ def create_app(config_object="config.Config"):
 
     @app.context_processor
     def inject_environment_info():
+        from app.services.feature_flags import get_feature_flags
+
         is_docker = os.path.exists("/.dockerenv") or os.getenv("RUNNING_IN_DOCKER") == "true" or os.getenv("CONTAINER_ENV") == "docker"
         is_dev = app.debug or os.getenv("FLASK_ENV") == "development" or os.getenv("DEBUG") == "true"
         return {
@@ -124,6 +126,7 @@ def create_app(config_object="config.Config"):
             "posthog_key": app.config.get("POSTHOG_PROJECT_API_KEY") or "",
             "posthog_host": _normalize_posthog_host(app.config.get("POSTHOG_HOST")),
             "posthog_session_replay": bool(app.config.get("POSTHOG_SESSION_REPLAY")),
+            "feature_flags": get_feature_flags(),
         }
 
     return app

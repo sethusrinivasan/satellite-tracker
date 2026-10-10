@@ -238,6 +238,16 @@ bash run.sh
 python3 run.py
 ```
 
+### 5. Deploying to Vercel
+
+The Vercel function entrypoint is `api/index.py`. In the Vercel project settings, set the Root Directory to the repository root, Framework Preset to **Other**, and leave Build Command and Output Directory empty. Add these environment variables:
+
+- `SECRET_KEY`: a long random production secret
+- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `ADMIN_ALLOWED_EMAILS` for Google OAuth
+- Update the Google OAuth authorized redirect URI to `https://YOUR_DOMAIN/auth/callback`
+
+Deploy from the repository root with `vercel --prod --force`, or redeploy from the Vercel dashboard with **Use existing Build Cache** disabled. Vercel storage is ephemeral: SQLite databases, uploads, query-cache updates, and downloaded AI models are stored under `/tmp` and can disappear between instances. Use an external database and object storage for persistent production data. The optional local GGUF feature is in `requirements-ai.txt`; it is not installed by Vercel because `llama-cpp-python` is a heavyweight native/serverless dependency.
+
 Open your browser and navigate to **[http://localhost:5000](http://localhost:5000)**.
 
 ---

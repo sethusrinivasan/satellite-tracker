@@ -6,11 +6,12 @@ from datetime import datetime, timezone
 
 log = logging.getLogger(__name__)
 
-CACHE_FILE_PATH = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-    "data",
-    "ai_query_cache.json"
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+RUNTIME_DIR = os.environ.get(
+    "SATELLITE_RUNTIME_DIR",
+    "/tmp/satellite-tracker" if os.environ.get("VERCEL") else os.path.join(PROJECT_ROOT, "data"),
 )
+CACHE_FILE_PATH = os.path.join(RUNTIME_DIR, "ai_query_cache.json")
 
 SQL_MUTATION_KEYWORDS = [
     "DROP", "DELETE", "UPDATE", "INSERT", "ALTER", "CREATE", "REPLACE",

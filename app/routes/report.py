@@ -3,6 +3,7 @@ from sqlalchemy import or_, func, cast, String
 from app.models import Satellite, TLEElement, Upload
 from app import db
 from app.routes.auth import admin_required
+from app.services.feature_flags import feature_enabled
 
 report_bp = Blueprint("report", __name__)
 
@@ -408,7 +409,12 @@ def _get_llm():
     global _llm_instance
     if _llm_instance is None:
         from llama_cpp import Llama
-        models_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "models")
+        models_dir = os.environ.get(
+            "SATELLITE_MODEL_DIR",
+            "/tmp/satellite-tracker/models"
+            if os.environ.get("VERCEL")
+            else os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "models"),
+        )
         model_path = os.path.join(models_dir, "qwen2.5-coder-1.5b-instruct-q4_k_m.gguf")
         if not os.path.exists(model_path):
             log.error("[AI Model] Model file not found at path: %s", model_path)
@@ -443,6 +449,8 @@ def validate_sql_safety(sql: str) -> bool:
 
 @report_bp.route("/api/natural-query", methods=["POST"])
 def natural_query():
+    if not feature_enabled("offline_ai_search"):
+        return jsonify({"error": "Offline AI search is disabled"}), 503
     t_start = time.perf_counter()
     user_prompt = request.json.get("prompt", "").strip() if request.json else ""
     if not user_prompt:
@@ -802,6 +810,8 @@ def natural_query():
 @admin_required
 def cache_feedback():
     """Receive user feedback on an AI query and cache verified SQL to data/ai_query_cache.json."""
+    if not feature_enabled("offline_ai_search"):
+        return jsonify({"error": "Offline AI search is disabled"}), 503
     data = request.json or {}
     prompt = data.get("prompt", "").strip()
     sql = data.get("sql", "").strip()
@@ -831,6 +841,8 @@ def cache_feedback():
 @admin_required
 def cached_queries_api():
     """Return list of cached query examples."""
+    if not feature_enabled("offline_ai_search"):
+        return jsonify({"error": "Offline AI search is disabled"}), 503
     from app.services.query_cache import load_query_cache
     queries = load_query_cache()
     return jsonify({"queries": queries})

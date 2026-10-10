@@ -24,9 +24,11 @@
       <button type="button" class="tab-btn" id="tab-country-btn" onclick="switchSearchTab('country')" style="background: transparent; color: var(--text-muted); border: 1px solid transparent; padding: 8px 16px; border-radius: var(--radius-sm); font-size: 0.85rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s;">
         Country Proximity Search
       </button>
+      {% if feature_flags.offline_ai_search %}
       <button type="button" class="tab-btn" id="tab-ai-btn" onclick="switchSearchTab('ai')" style="background: transparent; color: var(--text-muted); border: 1px solid transparent; padding: 8px 16px; border-radius: var(--radius-sm); font-size: 0.85rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s;">
         AI Search
       </button>
+      {% endif %}
     </div>
 
     <!-- Keyword search container (default) -->
@@ -100,6 +102,7 @@
       </div>
     </div>
 
+    {% if feature_flags.offline_ai_search %}
     <!-- AI Search container — chat-style UI, always visible -->
     <div id="ai-search-container" style="display: none;">
 
@@ -196,6 +199,7 @@
         Geo queries (e.g. "over United States") use live orbit propagation · Other queries use offline AI model
       </p>
     </div>
+    {% endif %}
 
     <!-- Results Area -->
     <div id="results-area">

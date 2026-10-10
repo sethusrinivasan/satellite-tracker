@@ -27,10 +27,16 @@ from app.services.datastore import (
     public_config,
     test_connection,
 )
+from app.services.feature_flags import FEATURES, feature_enabled, get_feature_flags, set_feature_flags
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 
-MODELS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "models")
+MODELS_DIR = os.environ.get(
+    "SATELLITE_MODEL_DIR",
+    "/tmp/satellite-tracker/models"
+    if os.environ.get("VERCEL")
+    else os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "models"),
+)
 MODEL_FILENAME = "qwen2.5-coder-1.5b-instruct-q4_k_m.gguf"
 MODEL_PATH = os.path.join(MODELS_DIR, MODEL_FILENAME)
 MODEL_URL = "https://huggingface.co/bartowski/Qwen2.5-Coder-1.5B-Instruct-GGUF/resolve/main/Qwen2.5-Coder-1.5B-Instruct-Q4_K_M.gguf"
@@ -249,11 +255,11 @@ def index():
     except Exception as exc:
         db_error = str(exc)
 
-    telemetry = get_system_telemetry()
+    telemetry = get_system_telemetry() if feature_enabled("system_telemetry") else None
     system_metrics = {
-        "cpu": telemetry["cpu_percent"],
-        "memory": telemetry["memory_percent"],
-        "disk": telemetry["disk_percent"]
+        "cpu": telemetry["cpu_percent"] if telemetry else 0,
+        "memory": telemetry["memory_percent"] if telemetry else 0,
+        "disk": telemetry["disk_percent"] if telemetry else 0,
     }
 
     return render_template(
@@ -262,6 +268,8 @@ def index():
         total_satellites=total_satellites,
         total_elements=total_elements,
         seed_imported=seed_imported,
+        feature_flags=get_feature_flags(),
+        feature_names=FEATURES,
         system_metrics=system_metrics,
         telemetry=telemetry,
         datastore=_datastore_template_context(),
@@ -311,6 +319,16 @@ def test_datastore():
         return jsonify({"ok": False, "message": str(exc)}), 400
 
 
+@admin_bp.route("/feature-flags", methods=["POST"])
+@admin_required
+def update_feature_flags():
+    values = {
+        name: request.form.get(name) == "on"
+        for name in FEATURES
+    }
+    set_feature_flags(values)
+    flash("Feature flags updated.", "success")
+    return redirect(url_for("admin.index"))
 @admin_bp.route("/delete/<int:upload_id>", methods=["POST"])
 @admin_required
 def delete_session(upload_id: int):
@@ -366,6 +384,8 @@ def reseed():
 @admin_bp.route("/model-status", methods=["GET"])
 @admin_required
 def model_status():
+    if not feature_enabled("ai_model_management"):
+        return jsonify({"error": "AI model management is disabled"}), 503
     global download_state
     # Check physical file state to sync status if completed outside thread
     exists = os.path.exists(MODEL_PATH)
@@ -390,6 +410,8 @@ def model_status():
 @admin_bp.route("/download-model", methods=["POST"])
 @admin_required
 def download_model():
+    if not feature_enabled("ai_model_management"):
+        return jsonify({"error": "AI model management is disabled"}), 503
     global download_state
     with download_lock:
         if download_state["status"] == "downloading":
@@ -406,6 +428,8 @@ def download_model():
 @admin_bp.route("/delete-model", methods=["POST"])
 @admin_required
 def delete_model():
+    if not feature_enabled("ai_model_management"):
+        return jsonify({"error": "AI model management is disabled"}), 503
     global download_state
     with download_lock:
         if download_state["status"] == "downloading":
