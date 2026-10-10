@@ -15,6 +15,20 @@ def test_validate_sql_for_cache_rejects_mutation_sql():
     assert not validate_sql_for_cache("DELETE FROM satellites")
 
 
+def test_validate_sql_safety_blocks_stacked_and_mutation_queries():
+    from app.routes.report import validate_sql_safety
+
+    assert validate_sql_safety("SELECT norad_cat_id FROM satellites LIMIT 10")
+    assert validate_sql_safety("SELECT s.norad_cat_id FROM satellites s JOIN tle_elements t ON s.id = t.satellite_id;")
+    assert validate_sql_safety("WITH recent AS (SELECT id, norad_cat_id FROM satellites) SELECT norad_cat_id FROM recent")
+    assert not validate_sql_safety("SELECT 1; DROP TABLE satellites;")
+    assert not validate_sql_safety("SELECT norad_cat_id FROM satellites; SELECT 1")
+    assert not validate_sql_safety("UPDATE satellites SET name = 'hacked'")
+    assert not validate_sql_safety("DROP TABLE tle_elements")
+    assert not validate_sql_safety("INSERT INTO satellites (name) VALUES ('bad')")
+    assert not validate_sql_safety("ATTACH DATABASE 'x.db' AS x")
+
+
 def test_cache_user_verified_query_allows_safe_sql(app):
     with app.app_context():
         entry = cache_user_verified_query(

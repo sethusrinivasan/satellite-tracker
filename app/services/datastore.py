@@ -443,4 +443,11 @@ def bootstrap_from_env() -> dict[str, Any] | None:
         cfg["engine"] = engine
         cfg["configured"] = True
         return cfg
+    if os.environ.get("VERCEL"):
+        cfg = empty_config()
+        cfg["engine"] = "sqlite"
+        cfg["configured"] = True
+        cfg["sqlite"]["path"] = default_sqlite_path()
+        return cfg
     return None
+

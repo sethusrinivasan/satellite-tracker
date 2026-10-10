@@ -434,17 +434,18 @@ def _get_llm():
 
 
 def validate_sql_safety(sql: str) -> bool:
-    sql_upper = sql.upper().strip()
-    if not sql_upper.startswith("SELECT"):
-        log.warning("[SQL Guard] Rejected non-SELECT query: %s", sql)
-        return False
-    # Strict blocklist for any mutation commands
-    blocklist = ["DROP", "DELETE", "UPDATE", "INSERT", "ALTER", "CREATE", "REPLACE", "PRAGMA", "GRANT", "SHUTDOWN", "ATTACH", "DETACH"]
-    for keyword in blocklist:
-        if re.search(r'\b' + keyword + r'\b', sql_upper):
-            log.warning("[SQL Guard] Rejected query containing blocked keyword '%s': %s", keyword, sql)
+    try:
+        from app.services.sql_console import validate_readonly_sql
+
+        statement = validate_readonly_sql(sql)
+        upper = statement.upper()
+        if not (upper.startswith("SELECT") or upper.startswith("WITH")):
+            log.warning("[SQL Guard] Rejected non-SELECT query: %s", sql)
             return False
-    return True
+        return True
+    except ValueError as exc:
+        log.warning("[SQL Guard] Rejected query (%s): %s", exc, sql)
+        return False
 
 
 @report_bp.route("/api/natural-query", methods=["POST"])
@@ -643,34 +644,9 @@ def natural_query():
         return jsonify({"error": "Failed to load the AI model."}), 500
 
     # 2. Formulate system prompt for Qwen2.5-Coder
-    system_prompt = (
-        "You are a Text-to-SQL translator for a SQLite database.\n"
-        "Tables:\n"
-        "1. satellites:\n"
-        "   - id (INTEGER, PK)\n"
-        "   - norad_cat_id (INTEGER, Unique)\n"
-        "   - name (VARCHAR)\n"
-        "   - classification (VARCHAR)\n"
-        "   - int_designator (VARCHAR)\n"
-        "2. tle_elements:\n"
-        "   - id (INTEGER, PK)\n"
-        "   - satellite_id (INTEGER, FK to satellites.id)\n"
-        "   - epoch_datetime (DATETIME)\n"
-        "   - inclination_deg (FLOAT)\n"
-        "   - eccentricity (FLOAT)\n"
-        "   - mean_motion_rev_day (FLOAT)\n\n"
-        "Rules:\n"
-        "- Translate user's query into a valid SQLite SELECT query.\n"
-        "- Return ONLY the SQLite SELECT query. Do NOT include markdown code blocks (```sql) or explanations.\n"
-        "- Your query MUST select the 'norad_cat_id' column from the satellites table (e.g. SELECT s.norad_cat_id FROM satellites s ...).\n"
-        "- If querying epoch parameters like inclination_deg, eccentricity, or mean_motion_rev_day, you MUST JOIN tle_elements (e.g. JOIN tle_elements t ON s.id = t.satellite_id).\n"
-        "- Limit the query to 50 results if not specified.\n\n"
-        "Examples:\n"
-        "Request: Show me Starlink satellites with inclination greater than 53\n"
-        "Query: SELECT s.norad_cat_id FROM satellites s JOIN tle_elements t ON s.id = t.satellite_id WHERE s.name LIKE '%STARLINK%' AND t.inclination_deg > 53 LIMIT 50;\n\n"
-        "Request: Find satellites with mean motion greater than 15\n"
-        "Query: SELECT s.norad_cat_id FROM satellites s JOIN tle_elements t ON s.id = t.satellite_id WHERE t.mean_motion_rev_day > 15 LIMIT 50;"
-    )
+    from app.services.ai_prompt_service import get_ai_system_prompt
+
+    system_prompt = get_ai_system_prompt()
 
     prompt = f"<|im_start|>system\n{system_prompt}<|im_end|>\n<|im_start|>user\n{user_prompt}<|im_end|>\n<|im_start|>assistant\n"
 

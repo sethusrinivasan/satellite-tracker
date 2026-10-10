@@ -262,6 +262,12 @@ def index():
         "disk": telemetry["disk_percent"] if telemetry else 0,
     }
 
+    from app.services.ai_prompt_service import (
+        get_ai_system_prompt,
+        is_custom_prompt_active,
+        DEFAULT_AI_SYSTEM_PROMPT,
+    )
+
     return render_template(
         "admin.html",
         sessions=sessions,
@@ -274,6 +280,9 @@ def index():
         telemetry=telemetry,
         datastore=_datastore_template_context(),
         db_error=db_error,
+        ai_system_prompt=get_ai_system_prompt(),
+        is_custom_prompt=is_custom_prompt_active(),
+        default_ai_system_prompt=DEFAULT_AI_SYSTEM_PROMPT.strip(),
     )
 
 
@@ -329,6 +338,38 @@ def update_feature_flags():
     set_feature_flags(values)
     flash("Feature flags updated.", "success")
     return redirect(url_for("admin.index"))
+
+
+@admin_bp.route("/system-prompt", methods=["POST"])
+@admin_required
+def update_system_prompt():
+    from app.services.ai_prompt_service import set_ai_system_prompt
+
+    prompt_text = request.form.get("system_prompt", "").strip()
+    if not prompt_text:
+        flash("System prompt cannot be empty.", "error")
+        return redirect(url_for("admin.index"))
+    try:
+        set_ai_system_prompt(prompt_text)
+        flash("AI system prompt & few-shot examples updated.", "success")
+    except Exception as exc:
+        flash(f"Failed to update system prompt: {exc}", "error")
+    return redirect(url_for("admin.index"))
+
+
+@admin_bp.route("/system-prompt/reset", methods=["POST"])
+@admin_required
+def reset_system_prompt():
+    from app.services.ai_prompt_service import reset_ai_system_prompt
+
+    try:
+        reset_ai_system_prompt()
+        flash("AI system prompt restored to default.", "success")
+    except Exception as exc:
+        flash(f"Failed to reset system prompt: {exc}", "error")
+    return redirect(url_for("admin.index"))
+
+
 @admin_bp.route("/delete/<int:upload_id>", methods=["POST"])
 @admin_required
 def delete_session(upload_id: int):

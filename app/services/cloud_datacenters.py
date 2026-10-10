@@ -457,11 +457,17 @@ def _run_pings() -> None:
                 payload = _payload(latencies, gcp_urls, pending=done < total)
                 store(CACHE_NS, payload)
                 last_store = now
-                log.info("[cloud-dc] %s", payload["status"])
+                try:
+                    log.info("[cloud-dc] %s", payload["status"])
+                except Exception:
+                    pass
     final = _payload(latencies, gcp_urls, pending=False)
     final["status"] = f"Pinged {final['pinged']}/{final['total']} regions"
     store(CACHE_NS, final)
-    log.info("[cloud-dc] Finished %s", final["status"])
+    try:
+        log.info("[cloud-dc] Finished %s", final["status"])
+    except Exception:
+        pass
 
 
 def _ensure_worker() -> None:

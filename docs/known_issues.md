@@ -42,9 +42,9 @@ All issue items generated during system audits are tagged with `Antigravity_gene
 - **Labels / Tags**: `Antigravity_generated`, `performance`, `p1`
 - **Tracking**: [Issue #3: Local GGUF Model Inference Latency & System Load Reporting](https://github.com/sethusrinivasan/satellite-tracker/issues/3)
 
-### 5. 🟠 [P1] Live AI SQL validator vs cache validator
-- **Summary**: Cached AI SQL rejects `;` entirely. The live Text-to-SQL path is historically more permissive about statement separators. Prefer the admin SQL console rules (`validate_readonly_sql`) if tightening the live path.
-- **Status**: Open hardening item. Admin `/admin/database` already blocks stacked statements.
+### 5. 🟠 [P1] Live AI SQL validator vs cache validator — **fixed**
+- **Summary**: Live Text-to-SQL path now strictly validates queries via `validate_readonly_sql()`, rejecting stacked statements, stripping trailing semicolons, and ensuring queries are single read-only `SELECT` (or `WITH`) statements matching `SQL_MUTATION_KEYWORDS` guardrails.
+- **Status**: Fixed and verified by `tests/test_security.py`.
 - **Labels / Tags**: `security`, `p1`
 
 ### 6. 🟡 [P2] High-Density SGP4 Propagation CPU Optimization

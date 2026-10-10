@@ -81,7 +81,11 @@ def create_app(config_object="config.Config"):
 
     @app.before_request
     def _reload_or_require_datastore():
-        if request.endpoint in _SETUP_ENDPOINTS or (request.path or "").startswith("/static"):
+        if (
+            request.endpoint in _SETUP_ENDPOINTS
+            or (request.path or "").startswith("/setup")
+            or (request.path or "").startswith("/static")
+        ):
             return None
         if request.path in ("/health", "/favicon.ico"):
             return None
