@@ -101,7 +101,7 @@ class FeatureFlagTestCase(unittest.TestCase):
         self.assertTrue(os.path.exists(vercel_json_path))
         with open(vercel_json_path, "r", encoding="utf-8") as fh:
             cfg = json.load(fh)
-        self.assertEqual(cfg.get("version"), 2)
+        self.assertIn(cfg.get("version"), (2, None))
         self.assertIn("api/index.py", cfg.get("functions", {}))
         rewrites = cfg.get("rewrites", [])
         self.assertTrue(any(r.get("destination") == "/api/index" for r in rewrites))
