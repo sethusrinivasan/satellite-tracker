@@ -44,22 +44,17 @@ Welcome to the official documentation for **Satellite TLE Tracker & AI Orbital D
 
 ---
 
-## 🚀 Cloud & 1-Click Deployment Options
+## 🚀 Deployment Options
 
-> ⚠️ **Cost & Billing Notice**: Please review the respective cloud provider's pricing schedule and free tier terms before deploying to commercial platforms (GCP, AWS, Azure, DigitalOcean, Render).
+### 1. ⚡ Production Serverless Deployment (Vercel)
+- **Live Production App**: [![Live Demo on Vercel](https://img.shields.io/badge/Live_Demo-Vercel-000000?style=flat-square&logo=vercel&logoColor=white)](https://sethusrinivasan-satellite-tracker.vercel.app) — [https://sethusrinivasan-satellite-tracker.vercel.app](https://sethusrinivasan-satellite-tracker.vercel.app) (actively deployed and running).
+- **1-Click Deploy**: [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fsethusrinivasan%2Fsatellite-tracker)
+- Preconfigured for Vercel Serverless Functions via [`vercel.json`](https://github.com/sethusrinivasan/satellite-tracker/blob/main/vercel.json) using Python WSGI entrypoint `api/index.py`.
 
-### 🆓 Free-Tier Hosting (No Credit Card Required)
-- **Vercel (Live Serverless Web Application)**: [![Live Demo on Vercel](https://img.shields.io/badge/Live_Demo-Vercel-000000?style=flat-square&logo=vercel&logoColor=white)](https://sethusrinivasan-satellite-tracker.vercel.app) — [https://sethusrinivasan-satellite-tracker.vercel.app](https://sethusrinivasan-satellite-tracker.vercel.app) (actively deployed and running).
-- **Hugging Face Spaces (Free 16 GB RAM)**: [![Hugging Face Spaces](https://img.shields.io/badge/🤗%20Hugging%20Face-Create_Docker_Space-FFD21E?style=flat-square&logo=huggingface&logoColor=black)](https://huggingface.co/new-space) — create your own Docker Space; this repo has no hosted Space yet.
-- **PythonAnywhere (Free Flask Host)**: [![PythonAnywhere](https://img.shields.io/badge/PythonAnywhere-Free_Tier_Flask-3572A5?style=flat-square&logo=python&logoColor=white)](https://www.pythonanywhere.com/) — signup / dashboard only; no published demo.
-
-Local Compose (`docker compose up --build`) opens `/setup` to pick SQLite or PostgreSQL 18.6. `./run.sh` exports `SATTRACK_UID` / `SATTRACK_GID` so `instance/datastore.json` is writable by the host user.
-
-### ☁️ Major Cloud Providers (1-Click Deployments)
-- **Google Cloud Platform (GCP Cloud Run)**: [![Deploy to Cloud Run](https://deploy.cloud.run/button.svg)](https://deploy.cloud.run/?git_repo=https://github.com/sethusrinivasan/satellite-tracker.git)
-- **DigitalOcean App Platform**: [![Deploy to DO](https://www.deploytodo.com/do-btn-blue.svg)](https://cloud.digitalocean.com/apps/new?repo=https://github.com/sethusrinivasan/satellite-tracker/tree/main)
-- **AWS App Runner / ECS**: [![Deploy to AWS](https://img.shields.io/badge/AWS-App_Runner_/_ECS-FF9900?style=flat-square&logo=amazon-aws&logoColor=white)](https://console.aws.amazon.com/apprunner)
-- **Azure App Service**: [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template)
+### 2. 🐳 Self-Hosted Container Deployment (Docker & Compose)
+- **Local Container**: Run `./run.sh --docker` or `docker build -t satellite-tracker . && docker run -p 5000:5000 --env-file .env satellite-tracker`.
+- **Docker Compose**: `docker compose up --build` opens `/setup` on first run to pick SQLite or PostgreSQL 18.6. Launch dedicated PostgreSQL with `docker compose --profile postgres up --build`.
+- `run.sh` exports `SATTRACK_UID` / `SATTRACK_GID` so `instance/datastore.json` is writable by the host user.
 
 ---
 

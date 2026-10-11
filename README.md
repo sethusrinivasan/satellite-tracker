@@ -168,97 +168,44 @@ bash run.sh
 python3 run.py
 ```
 
-### 5. Deploying to Vercel
+## 🚀 Deployment Options
 
-🔗 **Live Production Deployment**: **[https://sethusrinivasan-satellite-tracker.vercel.app](https://sethusrinivasan-satellite-tracker.vercel.app)**
-
-The project is preconfigured for Vercel Serverless Functions via [`vercel.json`](vercel.json) using the Python WSGI entrypoint [`api/index.py`](api/index.py).
-
-In the Vercel project settings:
-- **Framework Preset**: `Flask` (or `Other`)
-- **Root Directory**: `.` (repository root)
-- **Build Command** & **Output Directory**: Leave empty / default
-
-Add the following environment variables in Vercel:
-- `SECRET_KEY`: a long random production secret
-- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `ADMIN_ALLOWED_EMAILS` for Google OAuth
-- Authorized redirect URI in Google Cloud Console: `https://sethusrinivasan-satellite-tracker.vercel.app/auth/callback`
-
-Deploy from the repository root using the Vercel CLI:
-```bash
-vercel --prod --force
-```
-
-> ℹ️ **Serverless Storage & Features**: Vercel storage is ephemeral. SQLite databases, uploads, and cached query lookups are stored under `/tmp/satellite-tracker`. Heavyweight native AI libraries (`llama-cpp-python`) are omitted from serverless builds to adhere to size constraints; cached queries, TLE uploads, and live SGP4 orbital tracking run in serverless mode. Open your browser and navigate to **[https://sethusrinivasan-satellite-tracker.vercel.app](https://sethusrinivasan-satellite-tracker.vercel.app)**.
+The application supports two primary deployment pathways: **Vercel** for instant zero-configuration serverless hosting, and **Docker / Compose** for full-featured self-hosting (including offline AI execution and SQLite/PostgreSQL datastores).
 
 ---
 
-## 🚀 Cloud & 1-Click Deployment Options
-
-> ⚠️ **Important Billing & Cost Disclaimer**: Prior to deploying to commercial cloud providers (AWS, GCP, Azure, DigitalOcean, Render), please carefully review the respective provider's pricing structures, billing policies, and free tier quotas. Running continuous container instances or GGUF AI model workloads may incur cloud compute costs depending on instance sizing and runtime duration.
-
-### 🆓 Free-Tier Hosting Options (No Credit Card Required)
-
-#### 1. Vercel (Live Serverless Web Application — Active)
-The application is live and actively running on Vercel's free serverless tier:
+### 1. ⚡ Production Serverless Deployment (Vercel)
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fsethusrinivasan%2Fsatellite-tracker)
 [![Live Demo on Vercel](https://img.shields.io/badge/Live_App-sethusrinivasan--satellite--tracker.vercel.app-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://sethusrinivasan-satellite-tracker.vercel.app)
 
-- 🚀 **Live Production URL**: [https://sethusrinivasan-satellite-tracker.vercel.app](https://sethusrinivasan-satellite-tracker.vercel.app)
+- 🔗 **Live Production URL**: **[https://sethusrinivasan-satellite-tracker.vercel.app](https://sethusrinivasan-satellite-tracker.vercel.app)**
 - **Status**: Live & operational (verified `/health` status)
-- Preconfigured with [`vercel.json`](vercel.json) URL rewrites to the WSGI entrypoint `api/index.py`.
 
-#### 2. Hugging Face Spaces (Recommended for AI Models — Free CPU Tier)
-Hugging Face Spaces offers a **free 16 GB RAM CPU tier** with zero credit card requirements, ideal for hosting GGUF local model inference:
+The repository is preconfigured for Vercel Serverless Functions via [`vercel.json`](vercel.json) using the Python WSGI entrypoint [`api/index.py`](api/index.py).
 
-[![Deploy to Hugging Face Spaces](https://img.shields.io/badge/🤗%20Hugging%20Face-Create_Docker_Space-FFD21E?style=for-the-badge&logo=huggingface&logoColor=black)](https://huggingface.co/new-space)
+#### Vercel Project Settings:
+- **Framework Preset**: `Flask` (or `Other`)
+- **Root Directory**: `.` (repository root)
+- **Build Command** & **Output Directory**: Leave empty / default
 
-There is no hosted Space for this repo yet. The button opens Hugging Face’s **create Space** page (not a live demo).
+#### Environment Variables in Vercel:
+- `SECRET_KEY`: A long random production secret
+- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `ADMIN_ALLOWED_EMAILS` (optional, for Google OAuth)
+- Authorized redirect URI in Google Cloud Console: `https://sethusrinivasan-satellite-tracker.vercel.app/auth/callback`
 
-1. Create a free Space and select **Docker** as the SDK.
-2. Connect GitHub repository `sethusrinivasan/satellite-tracker`.
+#### Deploy via Vercel CLI:
+```bash
+vercel --prod --force
+```
 
-#### 3. PythonAnywhere (Free Tier Web Host — No Credit Card Required)
-PythonAnywhere offers a **free beginner tier** for Python/Flask web applications:
-
-[![PythonAnywhere](https://img.shields.io/badge/PythonAnywhere-Free_Tier_Flask_Hosting-3572A5?style=for-the-badge&logo=python&logoColor=white)](https://www.pythonanywhere.com/)
-
-No PythonAnywhere demo is published. That badge is only a link to their signup / dashboard so you can host your own copy.
-
----
-
-### ☁️ Major Commercial Cloud Providers (1-Click Deployments)
-
-#### 1. Google Cloud Platform (GCP Cloud Run)
-Deploy directly to serverless Google Cloud Run using the container [`Dockerfile`](Dockerfile):
-
-[![Deploy to Cloud Run](https://deploy.cloud.run/button.svg)](https://deploy.cloud.run/?git_repo=https://github.com/sethusrinivasan/satellite-tracker.git)
-
-#### 2. DigitalOcean App Platform
-Launch a managed app container on DigitalOcean App Platform:
-
-[![Deploy to DigitalOcean](https://www.deploytodo.com/do-btn-blue.svg)](https://cloud.digitalocean.com/apps/new?repo=https://github.com/sethusrinivasan/satellite-tracker/tree/main)
-
-#### 3. Amazon Web Services (AWS App Runner / ECS)
-Deploy containerized workloads to AWS App Runner or Amazon ECS:
-
-[![Deploy to AWS](https://img.shields.io/badge/AWS-App_Runner_/_ECS-FF9900?style=for-the-badge&logo=amazon-aws&logoColor=white)](https://console.aws.amazon.com/apprunner)
-
-#### 4. Microsoft Azure App Service
-Deploy Linux web app containers to Azure App Service:
-
-[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template)
-
-#### 5. Render Web Services
-Deploy to Render using GitHub repository integration:
-
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/sethusrinivasan/satellite-tracker)
+> ℹ️ **Serverless Storage & Features**: Vercel storage is ephemeral. SQLite databases, uploads, and cached query lookups are stored under `/tmp/satellite-tracker`. Heavyweight native AI libraries (`llama-cpp-python`) are omitted from serverless builds to adhere to bundle size constraints; cached queries, TLE uploads, keyword search, and live SGP4 orbital tracking run in serverless mode.
 
 ---
 
-### 🐳 Self-Hosted Container Deployment (Docker — Free / Open Source)
-Build and run on any local machine or self-hosted server with zero external dependencies or costs:
+### 2. 🐳 Self-Hosted Container Deployment (Docker & Compose)
+
+Build and run on any local machine or self-hosted server with zero external dependencies:
 
 ```bash
 # Option A: One-step build and run via helper script
