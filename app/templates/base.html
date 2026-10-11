@@ -120,6 +120,35 @@
     {% endif %}
   {% endwith %}
 
+  <!-- ── Global Long-Running Operation Loading Splash & Progress Modal ── -->
+  <div id="sat-global-splash" class="sat-splash-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="sat-splash-title">
+    <div class="sat-splash-card">
+      <div class="sat-splash-icon-box">
+        <div class="sat-splash-pulse-ring"></div>
+        <div class="sat-splash-icon" id="sat-splash-icon">🛰️</div>
+      </div>
+      <h3 class="sat-splash-title" id="sat-splash-title">Processing Operation</h3>
+      <p class="sat-splash-subtitle" id="sat-splash-subtitle">Please wait while satellite telemetry is processed…</p>
+      
+      <div class="sat-splash-progress-track">
+        <div class="sat-splash-progress-bar" id="sat-splash-bar"></div>
+      </div>
+
+      <div class="sat-splash-status-line">
+        <div class="sat-splash-spinner"></div>
+        <span class="sat-splash-status-text" id="sat-splash-msg">Initializing operation…</span>
+      </div>
+
+      <!-- Subtle fallback notice displayed smoothly if operation takes time -->
+      <div class="sat-splash-fallback-box" id="sat-splash-fallback" hidden>
+        <span class="sat-splash-fallback-icon">🛡️</span>
+        <span class="sat-splash-fallback-text" id="sat-splash-fallback-text">
+          Resilient Fallback Active: Local cached snapshots and SQLite datastore are engaged if remote operations encounter delays.
+        </span>
+      </div>
+    </div>
+  </div>
+
   <!-- ── Main Content ── -->
   <main class="main-content" role="main">
     {% block content %}{% endblock %}
@@ -128,7 +157,7 @@
   <!-- ── Footer ── -->
   <footer class="footer">
     <div class="footer-inner">
-      <span>🛰️ SatTrack — Two-Line Element Explorer</span>
+      <span>🛰️ SatTrack v{{ app_version }} — Two-Line Element Explorer</span>
       <span>Built with Flask &amp; SQLAlchemy</span>
     </div>
   </footer>

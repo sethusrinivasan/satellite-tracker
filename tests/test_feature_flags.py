@@ -54,6 +54,7 @@ class FeatureFlagTestCase(unittest.TestCase):
                     "offline_ai_search": False,
                     "ai_model_management": False,
                     "system_telemetry": False,
+                    "valkey_cache": False,
                 },
             )
 
@@ -80,6 +81,7 @@ class FeatureFlagTestCase(unittest.TestCase):
                 "offline_ai_search": "on",
                 "ai_model_management": "on",
                 "system_telemetry": "on",
+                "valkey_cache": "on",
             },
         )
         self.assertEqual(response.status_code, 302)
@@ -91,6 +93,33 @@ class FeatureFlagTestCase(unittest.TestCase):
         self.assertIn(b'id="tab-ai-btn"', report.data)
         model_response = self.client.get("/admin/model-status")
         self.assertEqual(model_response.status_code, 200)
+
+    def test_valkey_cache_platform_defaults(self):
+        import sys
+        from app.services.cache_backends import is_valkey_supported_platform
+        from app.services.feature_flags import _defaults
+
+        # Test Windows guard
+        original_platform = sys.platform
+        try:
+            sys.platform = "win32"
+            self.assertFalse(is_valkey_supported_platform())
+            self.assertFalse(_defaults()["valkey_cache"])
+        finally:
+            sys.platform = original_platform
+
+        # Test explicit environment override
+        os.environ["ENABLE_VALKEY_CACHE"] = "0"
+        try:
+            self.assertFalse(_defaults()["valkey_cache"])
+        finally:
+            os.environ.pop("ENABLE_VALKEY_CACHE", None)
+
+        os.environ["ENABLE_VALKEY_CACHE"] = "1"
+        try:
+            self.assertTrue(_defaults()["valkey_cache"])
+        finally:
+            os.environ.pop("ENABLE_VALKEY_CACHE", None)
 
 
     def test_vercel_config_structure(self):

@@ -40,11 +40,14 @@ The application is a modular Flask 3 app. Persistence is **SQLAlchemy 2** agains
 
 ## 2. Component Architecture
 
-### 2.1 Ingestion & Parsing Engine (`app/services/tle_parser.py`)
-- Accepts standard 3-line format TLE files (Line 0: Satellite Name, Line 1: Epoch/Drag/Classification, Line 2: Orbital Inclination, RAAN, Eccentricity, Arg of Perigee, Mean Motion).
+### 2.1 Ingestion & Parsing Engine (`app/services/tle_parser.py`, `app/routes/upload.py`)
+- **Dual-Mode Ingestion**: Accepts standard 3-line format TLE files (Line 0: Satellite Name, Line 1: Epoch/Drag/Classification, Line 2: Orbital Inclination, RAAN, Eccentricity, Arg of Perigee, Mean Motion) via local file upload or remote HTTPS URL import.
+- **CelesTrak Feed Ingestion**: Directly fetches element sets from CelesTrak feeds (`https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle`) with preset chips for Active, Stations, Visual, Starlink, and Weather.
+- **SSRF Hardening**: Validates URLs against internal RFC-1918 addresses, loopbacks, and link-local metadata endpoints (`169.254.169.254`).
+- **Rate-Limit Resilience**: Handles CelesTrak's 2-hour IP cooldown policy by falling back to local snapshot caches (`instance/celestrak_cache/` and `data/celestrak_active_cache.tle`).
 - Validates line checksums and structure before persisting.
 - Generates precise UTC datetimes from epoch year and day values.
-- `GET /upload` renders the form; `POST /upload` ingests. `HEAD /upload` is treated as GET so probes do not hit the POST branch.
+- `GET /upload` renders the ingestion hub; `POST /upload` handles files; `POST /import-url` ingests remote feeds.
 
 ### 2.2 Datastore & Persistence (`app/services/datastore.py`, `app/services/db_service.py`)
 - First launch without `DATABASE_URL` / `DB_ENGINE` redirects to `/setup`.
@@ -90,6 +93,64 @@ The application is a modular Flask 3 app. Persistence is **SQLAlchemy 2** agains
 - Google sign-in does not send `prompt=select_account`. An existing admin session is reused (`SESSION_PERMANENT`, 14-day `PERMANENT_SESSION_LIFETIME`, refreshed on activity). Sign out still clears it.
 - `is_local_dev()` is **false** when `FLASK_ENV=production`. Docker / `RUNNING_IN_DOCKER` is not treated as local by itself. `/auth/dev-bypass` is only offered on localhost/dev.
 - **Admin → Database → Tables & SQL editor** (`/admin/database`): table counts, read-only `SELECT` / `WITH` / `EXPLAIN`, row cap 1–10 000 (default 200), CSV/Excel export, `saved_queries` rows with last-run count and p50/p95/p99/p100 latency (`app/services/sql_console.py`).
+
+### 2.8 Caching Architecture & Pluggable Cache Engine (`app/services/cache_backends.py`, `app/services/overlay_cache.py`)
+The application implements an enterprise-grade, multi-tiered caching subsystem designed to support high-throughput telemetry feeds (flights, AIS ships, weather, city temperatures, financial markets, news, and cloud datacenters).
+
+#### Core Design Patterns
+1. **Strategy Pattern (`CacheBackend`)**:
+   - `CacheBackend` defines the abstract interface (`get_record`, `set_record`, `delete`, `clear`, `is_available`, `close`).
+   - Concrete strategies:
+     - `MemoryCacheBackend`: Process-local, high-speed thread-safe dictionary cache.
+     - `FileCacheBackend`: Persistent atomic JSON disk cache with OS file locking.
+     - `ValkeyCacheBackend`: Valkey / Redis in-memory cache supporting remote URLs and POSIX embedded daemons.
+2. **Composite Pattern (`TieredCacheBackend`)**:
+   - Treats single and multi-level caches uniformly.
+   - Implements **hierarchical read-through** (reads L1 Memory -> L2 Valkey/Disk; on hit, automatically back-populates earlier tiers) and **write-through** across all operational tiers.
+3. **Resilience / Fallback Decorator (`FallbackCacheBackend`)**:
+   - Wraps a primary backend (e.g. `ValkeyCacheBackend`) and a resilient secondary backend (e.g. `FileCacheBackend`).
+   - Catches primary connection failures, network partitions, and write timeouts at runtime, seamlessly falling back to the secondary backend without throwing 500 errors to the client.
+   - Always mirrors writes to the fallback store for durable persistence.
+4. **Factory Method / Factory Pattern (`CacheBackendFactory`)**:
+   - Centralizes cache hierarchy assembly based on `is_valkey_supported_platform()`, feature flags (`valkey_cache`), and environment variables (`ENABLE_VALKEY_CACHE`, `USE_EMBEDDED_VALKEY`, `VALKEY_URL`, `REDIS_URL`).
+5. **Stale-While-Revalidate (SWR) / Cache-Aside Pattern (`get_or_set`)**:
+   - Serves expired snapshots immediately to achieve sub-millisecond API response latency.
+   - Asynchronously triggers background daemon threads (`schedule_refresh`) to fetch fresh upstream data.
+   - Employs double-checked locking and returns skeleton data on initial cold cache loads.
+6. **Façade Pattern (`overlay_cache.py`)**:
+   - Provides clean high-level functions (`get_or_set`, `get_fresh`, `get_stale`, `store`, `reset_runtime_state`) that isolate the rest of the application from caching complexities.
+
+#### Windows & Serverless Platform Fallback
+- **Why Embedded Valkey Fails on Windows**: The Valkey daemon (`valkey-server`) relies on POSIX system calls (`fork`, `epoll`, `AF_UNIX` domain sockets, POSIX signals) that do not exist natively on Windows Win32. Requiring an embedded Valkey server would crash standalone Windows desktop builds (`.exe` / `.msi`) or require complex WSL/Docker prerequisites.
+- **Platform Detection Guard**: `is_valkey_supported_platform()` detects `sys.platform == "win32"` and `VERCEL` serverless environments, disabling embedded Valkey daemon initialization.
+- **Dual-Tier Zero-Dependency Fallback**: On Windows and Vercel, the factory automatically configures an L1 in-memory cache backed by an L2 atomic JSON disk cache.
+- **Cross-Platform OS File Locking**: On POSIX systems, `_file_lock()` uses `fcntl.flock()`. On Windows, where `fcntl` raises `ModuleNotFoundError`, it gracefully catches `(OSError, ImportError)` and falls back to Windows-native `msvcrt.locking()`.
+- **Remote Valkey TCP Support**: If a Windows host provides an external `VALKEY_URL` or `REDIS_URL` (e.g., Upstash, AWS ElastiCache, or Docker/WSL), `ValkeyCacheBackend` connects over TCP without attempting local process spawning.
+
+```mermaid
+flowchart TD
+    Client["Client Request (Overlay API)"] --> Facade["OverlayCache Façade (overlay_cache.py)"]
+    Facade --> Tiered["TieredCacheBackend (Composite)"]
+    Tiered --> L1["L1: MemoryCacheBackend"]
+    L1 -- Cache Hit --> Return["Return Payload (<1ms)"]
+    L1 -- Cache Miss --> Resilient["FallbackCacheBackend (Resilience Adapter)"]
+    
+    Resilient --> Check{"Platform Guard & Availability"}
+    Check -- "Linux/macOS or Remote URL" --> Primary["Primary: ValkeyCacheBackend"]
+    Check -- "Windows / Vercel / Error" --> Fallback["Fallback: FileCacheBackend (Atomic JSON)"]
+    
+    Primary -- "Success" --> Return
+    Primary -- "Runtime Partition / Timeout" --> Fallback
+    Fallback -- "Hit" --> Backfill["Back-populate L1 Memory"] --> Return
+```
+
+
+### 2.9 Native Desktop Application Architecture (Tauri v2 + Waitress)
+- **Host Wrapper**: Built with Tauri v2 (Rust) providing native windowing, menu bars, OS notifications, and custom app branding.
+- **Python Sidecar**: PyInstaller bundles the Flask backend into an executable sidecar (`sattrack-backend`) running the Waitress production WSGI server on a dynamic local loopback port (`127.0.0.1:{ephemeral_port}`).
+- **OS AppData Redirection**: Database storage (`satellites.db`), user settings, and offline GGUF AI models automatically redirect to standard user-writable OS application data paths (`%APPDATA%`, `~/Library/Application Support`, or `~/.local/share/`).
+- **Release Automation**: Multi-platform GitHub Actions release workflow builds signed release artifacts for Linux (`.AppImage`, `.deb`), macOS (`.dmg`), and Windows (`.msi`, `.exe`).
+
 
 ---
 

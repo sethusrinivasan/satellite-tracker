@@ -69,8 +69,8 @@
       "sql": "SELECT norad_cat_id FROM satellites WHERE name LIKE '%Starlink%' LIMIT 5",
       "category": "user_verified",
       "verified": true,
-      "verified_at": "2026-10-10T19:44:01.685490+00:00",
-      "use_count": 12
+      "verified_at": "2026-10-11T22:57:36.062068+00:00",
+      "use_count": 36
     }
   ]
 }

@@ -4,7 +4,7 @@
 [![GitHub Pages Website](https://img.shields.io/badge/Website-GitHub_Pages-22C55E?style=flat-square&logo=github&logoColor=white)](https://sethusrinivasan.github.io/satellite-tracker/)
 [![GitHub Repository](https://img.shields.io/badge/GitHub-sethusrinivasan%2Fsatellite--tracker-181717?style=flat-square&logo=github&logoColor=white)](https://github.com/sethusrinivasan/satellite-tracker)
 [![CI](https://github.com/sethusrinivasan/satellite-tracker/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/sethusrinivasan/satellite-tracker/actions/workflows/docker-publish.yml)
-[![Version](https://img.shields.io/badge/version-0.1.0-blue.svg?style=flat-square)](VERSION)
+[![Version](https://img.shields.io/badge/version-0.1.1-blue.svg?style=flat-square)](VERSION)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.9+-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
 [![Flask](https://img.shields.io/badge/Flask-3.0+-000000?style=flat-square&logo=flask&logoColor=white)](https://flask.palletsprojects.com/)
@@ -30,7 +30,8 @@ A demonstration and experimental Flask web application for uploading, parsing, e
 
 ## 🌟 Key Features
 
-- 🛰️ **3-Line TLE Ingestion & Parsing**: Parses standard [TLE format](https://celestrak.org/columns/v04n03/) records, extracts key [Keplerian orbital elements](https://en.wikipedia.org/wiki/Orbital_elements) ([Inclination](https://en.wikipedia.org/wiki/Orbital_inclination), [Eccentricity](https://en.wikipedia.org/wiki/Orbital_eccentricity), [RAAN](https://en.wikipedia.org/wiki/Right_ascension_of_the_ascending_node), [Argument of Perigee](https://en.wikipedia.org/wiki/Argument_of_periapsis), [Mean Motion](https://en.wikipedia.org/wiki/Mean_motion), [BSTAR Drag Term](https://en.wikipedia.org/wiki/BSTAR)), and calculates UTC [Epoch](https://en.wikipedia.org/wiki/Epoch_(astronomy)) timestamps.
+- 🛰️ **Dual-Mode TLE Ingestion & Parsing**: Parses standard [TLE format](https://celestrak.org/columns/v04n03/) records from local files (`.txt`, `.tle`, `.dat`) or imports live orbital feeds directly from [CelesTrak](https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle). Extracts key [Keplerian orbital elements](https://en.wikipedia.org/wiki/Orbital_elements) ([Inclination](https://en.wikipedia.org/wiki/Orbital_inclination), [Eccentricity](https://en.wikipedia.org/wiki/Orbital_eccentricity), [RAAN](https://en.wikipedia.org/wiki/Right_ascension_of_the_ascending_node), [Argument of Perigee](https://en.wikipedia.org/wiki/Argument_of_periapsis), [Mean Motion](https://en.wikipedia.org/wiki/Mean_motion), [BSTAR Drag Term](https://en.wikipedia.org/wiki/BSTAR)), and calculates UTC [Epoch](https://en.wikipedia.org/wiki/Epoch_(astronomy)) timestamps.
+- 🌐 **Live CelesTrak Integration & Cooldown Resilience**: Includes pre-configured one-click feeds for **Active Satellites**, **Space Stations**, **100 Brightest**, **Starlink**, and **Weather**. Hardened with SSRF protection and handles CelesTrak's 2-hour IP rate limit with transparent local snapshot fallback.
 - 🔄 **Deduplication Engine**: Database indexing by [NORAD Catalog Number](https://en.wikipedia.org/wiki/Satellite_Catalog_Number) (`norad_cat_id`) and unique `(satellite_id, epoch_datetime)` constraints avoids duplicate record ingestion upon re-uploading.
 - 💬 **Offline AI Natural Language Search ([Text-to-SQL](https://en.wikipedia.org/wiki/Semantic_parsing))**:
   - Runs fully offline using [`llama-cpp-python`](https://github.com/abetlen/llama-cpp-python) and the quantized [`GGUF`](https://github.com/ggerganov/ggml/blob/master/docs/gguf.md) model `Qwen2.5-Coder-1.5B-Instruct-Q4_K_M.gguf`.
@@ -39,7 +40,9 @@ A demonstration and experimental Flask web application for uploading, parsing, e
 - 🔍 **Keyword Search (default Search tab)**: Leave the box empty to list every satellite, or type a term to `ILIKE` match name, NORAD ID, international designator, classification, and raw TLE lines.
 - 🌍 **Geo-Spatial & Country Proximity Search**: Computes real-time satellite orbital positions using [SGP4 orbital propagation](https://en.wikipedia.org/wiki/SGP4). The country dropdown is limited to countries with bounding-box data; a prefix table uses the first word of each catalogue name (`CSS (TIANHE)` → `CSS`, `STARLINK-1007` → `STARLINK`).
 - 🛰️ **Live 2D & 3D Globe Tracker**: Multi-satellite real-time tracking with [satellite.js](https://github.com/shashwatak/satellite-js). Maps default to **Esri World Dark Gray** (no API key). Set `CARTO_API_KEY` to keep CARTO dark tiles. Use **Full screen** / **Exit full screen** (or Escape) on the satellite detail and tracker maps. Optional overlays (off by default) pin **Weather & quakes** (including million-city temperature trends), **Markets**, **Currencies**, **Flights**, **News**, **Ships**, **Webcams**, and **Cloud DCs** from free public APIs only — see [Data sources & attribution](#-data-sources--attribution).
+- ⚡ **Multi-Tier Caching & Valkey Integration**: Low-latency memory caching, atomic disk Stale-While-Revalidate (SWR), and pluggable support for [Valkey](https://valkey.io/) / Redis via `VALKEY_URL` or embedded `valkeylite` (on POSIX), with zero-dependency fallback for cross-platform desktop.
 - 🗄️ **SQLite or PostgreSQL datastore**: First launch opens `/setup` to pick an engine. Settings live in `instance/datastore.json` (outside the database) and can be switched later from **Admin → Database**, with optional row copy. Compose Postgres uses the released `postgres:18.6-alpine` image.
+- 🖥️ **Native Desktop Standalone (Tauri v2)**: Cross-platform native packages for Windows (`.msi`, `.exe`), macOS (`.dmg`), and Linux (`.AppImage`, `.deb`) with custom aerospace branding and OS AppData redirection.
 - 🔐 **Admin Management & Google OAuth2**: Protected dashboard for uploads, datastore switch, a read-only **Tables & SQL editor** (row cap, CSV/Excel export, saved queries with p50/p95/p99/p100 latency), seed flags, and GGUF downloads via [Google OAuth 2.0](https://developers.google.com/identity/protocols/oauth2). Local `/auth/dev-bypass` is disabled when `FLASK_ENV=production`.
 
 ---
@@ -170,7 +173,7 @@ python3 run.py
 
 ## 🚀 Deployment Options
 
-The application supports two primary deployment pathways: **Vercel** for instant zero-configuration serverless hosting, and **Docker / Compose** for full-featured self-hosting (including offline AI execution and SQLite/PostgreSQL datastores).
+The application supports three primary deployment pathways: **Vercel** for instant zero-configuration serverless hosting, **Docker / Compose** for full-featured self-hosting, and **Native Desktop (Tauri v2)** for standalone installation on Windows, macOS, and Linux without Python or Docker requirements.
 
 ---
 
@@ -249,7 +252,104 @@ GitHub Actions (`.github/workflows/docker-publish.yml`) runs pytest and builds t
 
 ---
 
+### 3. 🖥️ Native Standalone Desktop Application (Tauri v2)
+
+Satellite TLE Tracker is packaged as a high-performance native desktop application for **Windows, macOS, and Linux** using **Tauri v2** with a PyInstaller-frozen Python backend sidecar.
+
+- **Zero Prerequisites**: Single-click installation without needing Python, Rust, or Docker installed.
+- **Dedicated OS AppData Storage**: Persists SQLite database (`satellites.db`), user settings, and offline GGUF AI models in platform-standard user-writable paths:
+  - **Windows**: `%APPDATA%\satellite-tracker\`
+  - **macOS**: `~/Library/Application Support/satellite-tracker/`
+  - **Linux**: `~/.local/share/satellite-tracker/`
+- **Embedded Production WSGI**: Uses Waitress to serve requests over a dynamic localhost port (`127.0.0.1:{ephemeral_port}`).
+- **Local Desktop Session**: Automatically authorizes desktop administration without external OAuth dependencies.
+- **Automated Multi-Platform Release Builds**: GitHub Actions workflow ([`.github/workflows/desktop-release.yml`](.github/workflows/desktop-release.yml)) automatically builds release artifacts on native runners:
+  - 🪟 **Windows**: `.msi` (Windows Installer) and `.exe` (NSIS setup installer)
+  - 🍏 **macOS**: `.dmg` (Apple Silicon M-series & Intel x86_64)
+  - 🐧 **Linux**: `.AppImage` (portable universal) and `.deb` (Debian/Ubuntu)
+
+#### Running & Building Locally:
+```bash
+# 1. Install prerequisites
+pip install -r requirements.txt pyinstaller waitress
+npm install
+
+# 2. Build Python backend sidecar binary
+python3 scripts/build_sidecar.py
+
+# 3. Launch desktop app in development mode
+npm run desktop:dev
+
+# 4. Compile standalone desktop bundle
+npm run desktop:build
+```
+
+---
+
+## ⚡ Pluggable Caching Architecture & Valkey Evaluation
+
+### 1. What is used for caching?
+The application implements multi-tiered caching tailored to high-throughput geospatial and telemetry feeds:
+
+| Cache Layer | Purpose & Backing Store | TTL / Strategy |
+| :--- | :--- | :--- |
+| **Shared Overlay Cache** (`overlay_cache.py`, `cache_backends.py`) | Caches external API responses (OpenSky flights, Open-Meteo temps, CNBC/Yahoo markets, GDACS news, Digitraffic AIS, Cloud DC pings) | Per-feed TTL (25s to 3600s). **Stale-While-Revalidate (SWR)**: expired snapshots are returned instantly while background threads asynchronously refresh data. |
+| **Offline AI Query Cache** (`query_cache.py`) | Persists verified Natural Language-to-SQL translations (`data/ai_query_cache.json`) | Permanent / user-verified. Enables instant offline discovery without running local LLM inference. |
+| **CelesTrak Ephemeris Cache** (`upload.py`) | Caches remote TLE downloads in `instance/celestrak_cache/` and `data/celestrak_active_cache.tle` | 2-hour interval handling. If CelesTrak returns HTTP 403 cooldown notices, local snapshots are automatically ingested. |
+| **Internal Memory Lookups** (`flight_overlay.py`, `news_overlay.py`) | In-process dictionaries for route callsign pairings and geographic gazetteer coordinates | Ephemeral in-memory process lifetime. |
+
+---
+
+### 2. Can Valkey be used in embedded format for all caching needs?
+
+[**Valkey**](https://valkey.io/) is the Linux Foundation's high-performance, open-source (BSD-3-Clause) fork of Redis.
+
+#### Feasibility & Platform Evaluation:
+- **Linux & macOS (Web & Dev)**: ✅ **Fully Supported**. The `valkeylite` package embeds a compiled `valkey-server` binary and manages its lifecycle seamlessly via Python.
+- **Windows (Desktop Standalone)**: ⚠️ **Not Natively Supported for Embedded Server**. Valkey server relies on POSIX system calls (`fork`, `epoll`, POSIX signals, UNIX domain sockets). Official Valkey binaries do not compile natively on Windows Win32. Forcing an embedded Valkey requirement would break native Windows desktop builds (`.msi` / `.exe`) and require WSL or Cygwin.
+- **Multi-Worker Web Deployments**: In Gunicorn/uWSGI with multiple workers, each process running an embedded daemon creates an isolated cache. For scaled web production, a shared external Valkey instance is optimal.
+
+---
+
+### 3. Applicable Design Patterns in the Caching Architecture
+
+The caching subsystem ([`app/services/cache_backends.py`](app/services/cache_backends.py), [`app/services/overlay_cache.py`](app/services/overlay_cache.py)) is implemented using 6 software design patterns:
+
+1. **Strategy Pattern (`CacheBackend`)**:
+   - `CacheBackend` defines the abstract interface (`get_record`, `set_record`, `delete`, `clear`, `is_available`, `close`).
+   - Concrete strategies: `MemoryCacheBackend` (fast in-process dict), `FileCacheBackend` (durable atomic JSON files), and `ValkeyCacheBackend` (external Valkey/Redis or embedded POSIX daemon).
+2. **Composite Pattern (`TieredCacheBackend`)**:
+   - Uniformly treats multi-tier hierarchies as a single cache. Implements **hierarchical read-through** (reads L1 Memory -> L2 Valkey/Disk; on hit, back-populates earlier tiers) and **write-through** across all active tiers.
+3. **Resilience / Fallback Decorator (`FallbackCacheBackend`)**:
+   - Wraps a primary backend (Valkey) and secondary backend (FileCache). Catches network partitions, timeouts, and daemon crashes at runtime, transparently routing reads and writes to the fallback backend with zero HTTP errors.
+4. **Factory Method (`CacheBackendFactory`)**:
+   - Dynamically constructs the optimal cache hierarchy based on `is_valkey_supported_platform()`, feature flags, and environment variables (`ENABLE_VALKEY_CACHE`, `USE_EMBEDDED_VALKEY`, `VALKEY_URL`, `REDIS_URL`).
+5. **Stale-While-Revalidate (SWR) / Cache-Aside (`get_or_set`)**:
+   - Serves cached data instantly; if expired, returns the stale record immediately to eliminate latency while asynchronously launching a background thread (`schedule_refresh`) to fetch fresh telemetry.
+6. **Façade Pattern (`overlay_cache.py`)**:
+   - Provides a clean, unified public interface (`get_or_set`, `store`, `get_fresh`, `get_stale`) that hides backend storage, concurrency locks, and serialization details from application route handlers.
+
+---
+
+### 4. Configuration & Windows Fallback Matrix
+
+| Runtime Environment | Valkey Behavior | Primary Cache | Fallback / Secondary |
+| :--- | :--- | :--- | :--- |
+| **Windows Desktop (`win32`)** | Embedded disabled by platform guard (`is_valkey_supported_platform`) | `MemoryCacheBackend` (L1) | `FileCacheBackend` (L2 with `msvcrt` locks) |
+| **Windows with Remote URL** | Connects over TCP to `VALKEY_URL` / `REDIS_URL` | `ValkeyCacheBackend` | `FileCacheBackend` (Atomic JSON) |
+| **Linux / macOS POSIX** | Embedded via `valkeylite` or external URL | `ValkeyCacheBackend` | `FileCacheBackend` (Atomic JSON) |
+| **Vercel Serverless** | Daemon disabled (ephemeral container) | `MemoryCacheBackend` | `FileCacheBackend` (`/tmp`) |
+
+#### Environment Variables:
+- `ENABLE_VALKEY_CACHE=1` (or `USE_EMBEDDED_VALKEY=1`): Force-enable Valkey caching on supported POSIX platforms.
+- `ENABLE_VALKEY_CACHE=0`: Force-disable Valkey, falling back to Memory + File cache.
+- `VALKEY_URL` or `REDIS_URL`: Connect to external Valkey/Redis instance (e.g. `valkey://localhost:6379` or `redis://user:pass@host:6379/0`).
+
+---
+
 ## 🤖 Setting Up Offline AI Search
+
+
 
 1. Navigate to the **Admin Panel** (`/admin`).
 2. Under **Offline AI Model Management**, click **Download Model**.

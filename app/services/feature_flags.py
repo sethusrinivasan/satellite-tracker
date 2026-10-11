@@ -1,20 +1,31 @@
-"""Persisted feature flags with Vercel-safe defaults."""
+"""Persisted feature flags with Vercel and platform-aware defaults."""
 
 import os
+from app.services.cache_backends import is_valkey_supported_platform
 
 FEATURES = {
     "offline_ai_search": "Offline AI natural-language search",
     "ai_model_management": "GGUF model download and management",
     "system_telemetry": "Host and container telemetry",
+    "valkey_cache": "Valkey high-performance memory cache",
 }
 
 
 def _defaults() -> dict[str, bool]:
     disabled_on_vercel = bool(os.environ.get("VERCEL"))
-    return {
+    flags = {
         name: not disabled_on_vercel
-        for name in FEATURES
+        for name in ("offline_ai_search", "ai_model_management", "system_telemetry")
     }
+
+    valkey_env = os.environ.get("ENABLE_VALKEY_CACHE") or os.environ.get("USE_EMBEDDED_VALKEY")
+    if valkey_env is not None:
+        flags["valkey_cache"] = valkey_env.lower() in ("1", "true", "yes", "on")
+    else:
+        flags["valkey_cache"] = is_valkey_supported_platform()
+
+    return flags
+
 
 
 def get_feature_flags() -> dict[str, bool]:
@@ -24,12 +35,18 @@ def get_feature_flags() -> dict[str, bool]:
 
     flags = _defaults()
     try:
-        for name in FEATURES:
-            setting = db.session.get(SystemSetting, f"feature:{name}")
-            if setting is not None:
-                flags[name] = setting.value == "1"
+        from flask import has_app_context
+
+        if has_app_context():
+            for name in FEATURES:
+                setting = db.session.get(SystemSetting, f"feature:{name}")
+                if setting is not None:
+                    flags[name] = setting.value == "1"
     except Exception:
-        db.session.rollback()
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
         return flags
     return flags
 
@@ -54,3 +71,12 @@ def set_feature_flags(values: dict[str, bool]) -> None:
         else:
             setting.value = "1" if values[name] else "0"
     db.session.commit()
+
+    if "valkey_cache" in values:
+        try:
+            from app.services import overlay_cache
+
+            overlay_cache.reset_runtime_state()
+        except Exception:
+            pass
+

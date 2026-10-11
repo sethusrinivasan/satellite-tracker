@@ -1,0 +1,164 @@
+name: Build Desktop App and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  release:
+    types: [published]
+  pull_request:
+    paths:
+      - 'src-tauri/**'
+      - 'desktop_entry.py'
+      - 'desktop.spec'
+      - 'scripts/**'
+      - 'package.json'
+      - '.github/workflows/desktop-release.yml'
+  workflow_dispatch:
+    inputs:
+      upload_to_release:
+        description: 'Publish release artifacts if tag exists'
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+jobs:
+  build-desktop:
+    name: Build (${{ matrix.platform }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: 'linux-x86_64'
+            os: 'ubuntu-22.04'
+            bundle_targets: 'deb,appimage'
+          - platform: 'windows-x64'
+            os: 'windows-latest'
+            bundle_targets: 'nsis,msi'
+          - platform: 'macos-arm64'
+            os: 'macos-14'
+            bundle_targets: 'dmg'
+          - platform: 'macos-x64'
+            os: 'macos-13'
+            bundle_targets: 'dmg'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev \
+            build-essential \
+            curl \
+            wget \
+            file \
+            libxdo-dev \
+            libssl-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pyinstaller waitress
+
+      - name: Install npm dependencies
+        run: npm install
+
+      - name: Build Python backend sidecar
+        run: python scripts/build_sidecar.py
+
+      - name: Build Tauri Desktop application
+        run: npx tauri build --bundles ${{ matrix.bundle_targets }}
+
+      - name: Stage bundle artifacts for upload
+        id: stage_artifacts
+        shell: bash
+        run: |
+          mkdir -p staged-artifacts
+          # Copy bundles from target/release/bundle
+          if [ -d "src-tauri/target/release/bundle" ]; then
+            find src-tauri/target/release/bundle -type f \( \
+              -name "*.deb" -o \
+              -name "*.AppImage" -o \
+              -name "*.dmg" -o \
+              -name "*.msi" -o \
+              -name "*.exe" \
+            \) -exec cp {} staged-artifacts/ \;
+          fi
+          # Also stage raw standalone binary as fallback artifact
+          for b_name in "app" "SatelliteTracker" "satellite-tracker"; do
+            if [ -f "src-tauri/target/release/$b_name" ]; then
+              cp "src-tauri/target/release/$b_name" "staged-artifacts/satellite-tracker-${{ matrix.platform }}"
+              break
+            elif [ -f "src-tauri/target/release/$b_name.exe" ]; then
+              cp "src-tauri/target/release/$b_name.exe" "staged-artifacts/satellite-tracker-${{ matrix.platform }}.exe"
+              break
+            fi
+          done
+          echo "Staged files:"
+          ls -la staged-artifacts
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-artifacts-${{ matrix.platform }}
+          path: staged-artifacts/*
+          retention-days: 14
+
+  publish-release:
+    name: Publish Release Artifacts
+    needs: build-desktop
+    if: >-
+      startsWith(github.ref, 'refs/tags/v') ||
+      github.event_name == 'release' ||
+      (github.event_name == 'workflow_dispatch' && inputs.upload_to_release)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download all desktop artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          pattern: desktop-artifacts-*
+          merge-multiple: true
+
+      - name: Inspect release assets
+        shell: bash
+        run: |
+          echo "Files to attach to GitHub Release:"
+          ls -la release-assets
+
+      - name: Upload Assets to GitHub Release
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          files: release-assets/*
+          generate_release_notes: true
+          draft: false
+          prerelease: false

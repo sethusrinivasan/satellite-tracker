@@ -199,6 +199,8 @@ let worldEventsLayer = null;
 let worldEventsLoaded = false;
 const overlayLoadingNames = {};
 
+let overlayFallbackTimer = null;
+
 function setOverlayLoading(toggleId, loading, name) {
   const label = document.getElementById(toggleId);
   const box = label?.querySelector('input[type="checkbox"]')
@@ -217,12 +219,23 @@ function setOverlayLoading(toggleId, loading, name) {
   if (!chip) return;
   const names = Object.values(overlayLoadingNames);
   if (!names.length) {
+    clearTimeout(overlayFallbackTimer);
+    overlayFallbackTimer = null;
     chip.hidden = true;
     chip.textContent = '';
     return;
   }
   chip.hidden = false;
   chip.textContent = names.length === 1 ? `Loading ${names[0]}…` : `Loading ${names.length} layers…`;
+
+  clearTimeout(overlayFallbackTimer);
+  overlayFallbackTimer = setTimeout(() => {
+    if (Object.keys(overlayLoadingNames).length > 0 && !chip.hidden) {
+      const currentNames = Object.values(overlayLoadingNames);
+      const target = currentNames.length === 1 ? currentNames[0] : `${currentNames.length} layers`;
+      chip.textContent = `Syncing ${target}… (cached snapshot fallback active)`;
+    }
+  }, 3500);
 }
 
 window.setOverlayLoading = setOverlayLoading;

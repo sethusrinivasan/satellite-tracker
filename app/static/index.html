@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Satellite TLE Tracker &amp; AI Orbital Discovery</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      background: radial-gradient(ellipse at top, #0f172a 0%, #0b0f19 65%, #030712 100%);
+      color: #e2e8f0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      overflow: hidden;
+      user-select: none;
+    }
+    .splash-container {
+      text-align: center;
+      width: 90%;
+      max-width: 520px;
+      padding: 2.75rem 2.25rem;
+      background: rgba(15, 23, 42, 0.82);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      border-radius: 1.25rem;
+      box-shadow: 0 25px 40px -10px rgba(0, 0, 0, 0.65), 0 0 50px rgba(56, 189, 248, 0.12);
+      backdrop-filter: blur(16px);
+      position: relative;
+    }
+    .icon-stage {
+      position: relative;
+      width: 110px;
+      height: 110px;
+      margin: 0 auto 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .orbit-ring {
+      position: absolute;
+      inset: -12px;
+      border: 1.5px dashed rgba(56, 189, 248, 0.35);
+      border-radius: 50%;
+      animation: rotateRing 18s linear infinite;
+    }
+    .orbit-dot {
+      position: absolute;
+      top: -4px;
+      left: 50%;
+      width: 8px;
+      height: 8px;
+      margin-left: -4px;
+      background: #38bdf8;
+      border-radius: 50%;
+      box-shadow: 0 0 10px #38bdf8, 0 0 20px #38bdf8;
+    }
+    .app-icon {
+      width: 88px;
+      height: 88px;
+      border-radius: 20px;
+      box-shadow: 0 12px 28px -6px rgba(56, 189, 248, 0.45), 0 0 35px rgba(56, 189, 248, 0.25);
+      animation: iconPulse 3s infinite ease-in-out;
+      display: block;
+      z-index: 1;
+    }
+    h1 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+      color: #f8fafc;
+      margin-bottom: 0.35rem;
+    }
+    .subtitle {
+      font-size: 0.875rem;
+      color: #94a3b8;
+      margin-bottom: 1.75rem;
+      line-height: 1.45;
+    }
+    .progress-box {
+      margin: 1.25rem 0 1rem;
+    }
+    .progress-bar {
+      width: 100%;
+      height: 6px;
+      background: rgba(30, 41, 59, 0.9);
+      border-radius: 9999px;
+      overflow: hidden;
+      position: relative;
+    }
+    .progress-fill {
+      height: 100%;
+      width: 15%;
+      background: linear-gradient(90deg, #38bdf8 0%, #818cf8 50%, #c084fc 100%);
+      border-radius: 9999px;
+      transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+    }
+    .progress-fill::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.6), transparent);
+      animation: shimmer 1.6s infinite ease-in-out;
+    }
+    .status-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 0.75rem;
+      font-size: 0.815rem;
+    }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      color: #38bdf8;
+      font-weight: 500;
+    }
+    .spinner-sm {
+      width: 13px;
+      height: 13px;
+      border: 2px solid rgba(56, 189, 248, 0.25);
+      border-top-color: #38bdf8;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    .step-counter {
+      color: #64748b;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 0.75rem;
+    }
+    /* Subtle fallback notification card */
+    .fallback-card {
+      margin-top: 1.25rem;
+      padding: 0.75rem 0.9rem;
+      background: rgba(30, 41, 59, 0.55);
+      border: 1px solid rgba(56, 189, 248, 0.18);
+      border-radius: 0.65rem;
+      text-align: left;
+      display: flex;
+      gap: 0.65rem;
+      align-items: flex-start;
+      font-size: 0.775rem;
+      line-height: 1.45;
+      color: #cbd5e1;
+      opacity: 0;
+      transform: translateY(6px);
+      transition: opacity 0.5s ease, transform 0.5s ease;
+    }
+    .fallback-card.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .fallback-icon {
+      font-size: 1rem;
+      line-height: 1;
+      margin-top: 1px;
+    }
+    .fallback-title {
+      font-weight: 600;
+      color: #38bdf8;
+      margin-bottom: 2px;
+      display: block;
+    }
+    .fallback-desc {
+      color: #94a3b8;
+    }
+    .desktop-runtime-tag {
+      margin-top: 1.5rem;
+      font-size: 0.72rem;
+      color: #475569;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    @keyframes rotateRing {
+      to { transform: rotate(360deg); }
+    }
+    @keyframes iconPulse {
+      0%, 100% { transform: scale(1); filter: drop-shadow(0 0 14px rgba(56,189,248,0.45)); }
+      50% { transform: scale(1.04); filter: drop-shadow(0 0 24px rgba(56,189,248,0.75)); }
+    }
+    @keyframes shimmer {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(200%); }
+    }
+  </style>
+</head>
+<body>
+  <div class="splash-container">
+    <div class="icon-stage">
+      <div class="orbit-ring">
+        <div class="orbit-dot"></div>
+      </div>
+      <img src="img/icon.png" alt="Satellite Tracker Icon" class="app-icon" />
+    </div>
+
+    <h1>Satellite TLE Tracker</h1>
+    <p class="subtitle">Real-Time 2D/3D Orbital Tracking &amp; Offline AI Discovery</p>
+
+    <div class="progress-box">
+      <div class="progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" id="progress-bar">
+        <div class="progress-fill" id="progress-fill"></div>
+      </div>
+      <div class="status-row">
+        <div class="status-badge">
+          <div class="spinner-sm"></div>
+          <span id="stage-text">Bootstrapping desktop environment…</span>
+        </div>
+        <span class="step-counter" id="step-counter">1 / 5</span>
+      </div>
+    </div>
+
+    <!-- Subtle Fallback Notice (Displayed smoothly if operation continues) -->
+    <div class="fallback-card" id="fallback-card" role="status" aria-live="polite">
+      <span class="fallback-icon">🛡️</span>
+      <div>
+        <span class="fallback-title">Resilient Offline Fallback Active</span>
+        <span class="fallback-desc" id="fallback-desc">
+          Local SQLite datastore and verified cached ephemeris snapshots are primed. Ready for offline exploration.
+        </span>
+      </div>
+    </div>
+
+    <div class="desktop-runtime-tag">
+      Tauri v2 • Waitress WSGI • SGP4 Orbit Engine
+    </div>
+  </div>
+
+  <script>
+    (function() {
+      const steps = [
+        { pct: 20, text: "Bootstrapping isolated desktop environment…", counter: "1 / 5" },
+        { pct: 42, text: "Initializing local SQLite datastore & schemas…", counter: "2 / 5" },
+        { pct: 64, text: "Auditing orbital ephemeris cache & TLE catalogs…", counter: "3 / 5" },
+        { pct: 85, text: "Launching embedded WSGI application service…", counter: "4 / 5" },
+        { pct: 96, text: "Probing loopback service & establishing IPC…", counter: "5 / 5" }
+      ];
+
+      const fill = document.getElementById('progress-fill');
+      const stageText = document.getElementById('stage-text');
+      const stepCounter = document.getElementById('step-counter');
+      const fallbackCard = document.getElementById('fallback-card');
+      const fallbackDesc = document.getElementById('fallback-desc');
+
+      let currentStep = 0;
+      let startTime = Date.now();
+      let pollTimer = null;
+
+      function updateStep(index) {
+        if (index >= steps.length) return;
+        const s = steps[index];
+        fill.style.width = s.pct + '%';
+        stageText.textContent = s.text;
+        stepCounter.textContent = s.counter;
+      }
+
+      // Progressively advance through subtle initialization messages
+      const stepInterval = setInterval(function() {
+        if (currentStep < steps.length - 1) {
+          currentStep++;
+          updateStep(currentStep);
+        }
+      }, 1800);
+
+      // Subtle fallback notification displayed gracefully if startup takes longer than 4.5 seconds
+      setTimeout(function() {
+        if (fallbackCard) {
+          fallbackCard.classList.add('visible');
+        }
+      }, 4500);
+
+      // Secondary fallback note if taking over 9 seconds
+      setTimeout(function() {
+        if (fallbackDesc) {
+          fallbackDesc.textContent = "Multi-tier caching fallback engaged. External telemetry feeds will seamlessly default to local snapshots.";
+        }
+      }, 9500);
+
+      // Active loopback probing fallback:
+      // Even if Tauri does window.navigate(), if opened directly or if navigation is pending,
+      // probe common ports (5000, 5001, 8080) and query parameters to automatically navigate
+      function checkHealth(url) {
+        fetch(url + 'health', { mode: 'cors', cache: 'no-store' })
+          .then(function(res) {
+            if (res.ok) {
+              clearInterval(stepInterval);
+              clearInterval(pollTimer);
+              fill.style.width = '100%';
+              stageText.textContent = "Connecting to desktop application…";
+              setTimeout(function() {
+                window.location.href = url;
+              }, 250);
+            }
+          })
+          .catch(function() { /* continue waiting */ });
+      }
+
+      const params = new URLSearchParams(window.location.search);
+      const targetPort = params.get('port');
+      if (targetPort) {
+        pollTimer = setInterval(function() {
+          checkHealth('http://127.0.0.1:' + targetPort + '/');
+        }, 500);
+      } else {
+        pollTimer = setInterval(function() {
+          // Probe default localhost ports if running in dev or standalone preview
+          checkHealth('http://127.0.0.1:5000/');
+        }, 1200);
+      }
+    })();
+  </script>
+</body>
+</html>

@@ -41,7 +41,15 @@ def init_oauth(app):
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
 def is_local_dev():
-    """Return True for native local/dev, never solely because the process is in Docker."""
+    """Return True for native local/dev or desktop app mode, never solely because the process is in Docker."""
+    if os.environ.get("SATELLITE_DESKTOP") == "1":
+        host = ""
+        try:
+            if request:
+                host = request.host.split(":")[0]
+        except RuntimeError:
+            pass
+        return host in ("localhost", "127.0.0.1", "::1", "")
     env = (os.environ.get("FLASK_ENV") or os.environ.get("ENV") or "").lower()
     if env == "production":
         return False
@@ -72,8 +80,11 @@ def is_valid_google_client_id(client_id):
 
 def _allowed_emails(app=None):
     """Return a set of lowercase allowed emails, or empty set if no allowlist is configured."""
-    cfg = (app or current_app)
-    raw = cfg.config.get("ADMIN_ALLOWED_EMAILS", "")
+    try:
+        cfg = (app or current_app)
+        raw = cfg.config.get("ADMIN_ALLOWED_EMAILS", "")
+    except RuntimeError:
+        raw = os.environ.get("ADMIN_ALLOWED_EMAILS", "")
     return {e.strip().lower() for e in raw.split(",") if e.strip()}
 
 
@@ -89,7 +100,12 @@ def is_admin_email_allowed(email: str | None) -> bool:
     if allowed:
         return email in allowed
 
-    if current_app.config.get("ADMIN_ALLOW_ANY", False):
+    try:
+        allow_any = bool(current_app.config.get("ADMIN_ALLOW_ANY", False))
+    except RuntimeError:
+        allow_any = os.environ.get("ADMIN_ALLOW_ANY", "").lower() in {"1", "true", "yes"}
+
+    if allow_any or (is_local_dev() and os.environ.get("SATELLITE_DESKTOP") == "1"):
         return True
 
     return is_local_dev() and bool(os.environ.get("ALLOW_ANY_ADMIN", "").lower() in {"1", "true", "yes"})
@@ -97,7 +113,10 @@ def is_admin_email_allowed(email: str | None) -> bool:
 
 def current_user():
     """Return the logged-in user dict from the session, or None."""
-    return session.get("admin_user")
+    try:
+        return session.get("admin_user")
+    except RuntimeError:
+        return None
 
 
 def admin_required(f):
@@ -108,6 +127,15 @@ def admin_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         user = current_user()
+        if not user and os.environ.get("SATELLITE_DESKTOP") == "1" and is_local_dev():
+            session["admin_user"] = {
+                "email": "desktop-user@localhost",
+                "name": "Desktop User",
+                "picture": "",
+                "is_dev_bypass": True,
+            }
+            user = session["admin_user"]
+
         if not user:
             flash("Sign in to open Admin.", "warning")
             session["next_url"] = request.url

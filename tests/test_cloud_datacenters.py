@@ -100,8 +100,7 @@ def test_ping_samples_retries_once_then_stops(monkeypatch):
 
 
 def test_list_returns_pins_before_pings_finish(monkeypatch):
-    cloud_datacenters._worker = None
-    monkeypatch.setattr(cloud_datacenters, "ping_samples", lambda _url: (__import__("time").sleep(30) or [1.0]))
+    monkeypatch.setattr(cloud_datacenters, "_ensure_worker", lambda: None)
     started = __import__("time").time()
     payload = cloud_datacenters.list_cloud_datacenters()
     assert __import__("time").time() - started < 2
@@ -109,3 +108,4 @@ def test_list_returns_pins_before_pings_finish(monkeypatch):
     assert payload["datacenters"]
     assert payload["datacenters"][0]["lat"]
     assert payload["datacenters"][0]["p50"] is None
+

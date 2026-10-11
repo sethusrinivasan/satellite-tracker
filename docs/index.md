@@ -4,7 +4,7 @@
 [![GitHub Pages Website](https://img.shields.io/badge/Website-GitHub_Pages-22C55E?style=flat-square&logo=github&logoColor=white)](https://sethusrinivasan.github.io/satellite-tracker/)
 [![GitHub Repository](https://img.shields.io/badge/GitHub-sethusrinivasan%2Fsatellite--tracker-181717?style=flat-square&logo=github&logoColor=white)](https://github.com/sethusrinivasan/satellite-tracker)
 [![CI](https://github.com/sethusrinivasan/satellite-tracker/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/sethusrinivasan/satellite-tracker/actions/workflows/docker-publish.yml)
-[![Version](https://img.shields.io/badge/version-0.1.0-blue.svg?style=flat-square)](https://github.com/sethusrinivasan/satellite-tracker/blob/main/VERSION)
+[![Version](https://img.shields.io/badge/version-0.1.1-blue.svg?style=flat-square)](https://github.com/sethusrinivasan/satellite-tracker/blob/main/VERSION)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://github.com/sethusrinivasan/satellite-tracker/blob/main/LICENSE)
 
 Welcome to the official documentation for **Satellite TLE Tracker & AI Orbital Discovery**.
@@ -39,8 +39,8 @@ Welcome to the official documentation for **Satellite TLE Tracker & AI Orbital D
 - **Orbital Propagation Engine**: Evaluates real-time satellite locations over countries that have geo reference data. Prefix table uses the first word of each catalogue name (`STARLINK-1007` → `STARLINK`).
 - **Live Orbit & Telemetry Tracking**: Renders 2D ground tracks and 3D globe views (Esri World Dark Gray by default; optional `CARTO_API_KEY`). Full screen / Escape on satellite detail and tracker maps. Optional **Weather & quakes**, **Markets**, **Currencies**, **Flights**, **News**, **Ships**, **Webcams**, and **Cloud DCs** overlays (free sources; see README attribution). Earthquake bubbles scale by magnitude. Weather & quakes also pins cities over 1 million with 7d / 30d / 90d / 1y temperature change. Currency popups show local units to buy 1 USD / EUR / yen / oz gold / barrel of oil / Big Mac, plus 1d–5y FX/gold %. Ships show current AIS positions in Finnish waters. News and webcam popups use a short title that opens the publisher page in a new tab. Cloud DC tooltips show HTTPS ping p50 / p95 / p99 from this server.
 - **Selectable datastore**: First-launch `/setup` picks SQLite or PostgreSQL 18.6; switch later from Admin. **Admin → Database** includes a read-only SQL editor, CSV/Excel export, and saved queries with p50/p95/p99/p100 latency.
-- **Dataset Ingestion & Deduplication**: Parses 3-line TLE files, enforces unique catalog indexing (`norad_cat_id`), and skips duplicate epoch records. Missing Kaggle seed file inserts bundled **demo** TLEs.
-- **PostHog web analytics**: Optional. Set `POSTHOG_PROJECT_API_KEY` to load the official snippet; pageviews show in PostHog Web analytics.
+- **Pluggable Multi-Tier Caching Architecture**: High-performance in-memory and atomic disk SWR caching built on 6 design patterns (Strategy, Composite, Resilient Fallback, Factory, Cache-Aside/SWR, Façade). Supports external Valkey/Redis via `VALKEY_URL`, embedded `valkeylite` on POSIX systems, and an automatic zero-dependency fallback (Memory + File with `msvcrt` locking) on Windows desktop runtimes and Vercel serverless.
+
 
 ---
 
@@ -55,6 +55,12 @@ Welcome to the official documentation for **Satellite TLE Tracker & AI Orbital D
 - **Local Container**: Run `./run.sh --docker` or `docker build -t satellite-tracker . && docker run -p 5000:5000 --env-file .env satellite-tracker`.
 - **Docker Compose**: `docker compose up --build` opens `/setup` on first run to pick SQLite or PostgreSQL 18.6. Launch dedicated PostgreSQL with `docker compose --profile postgres up --build`.
 - `run.sh` exports `SATTRACK_UID` / `SATTRACK_GID` so `instance/datastore.json` is writable by the host user.
+
+### 3. 🖥️ Native Standalone Desktop Application (Tauri v2)
+- **Cross-Platform Installers**: Download standalone `.msi`/`.exe` for Windows, `.dmg` for macOS, and `.AppImage`/`.deb` for Linux without needing Python or Docker installed.
+- **Dedicated OS AppData Storage**: Automatically stores user databases and offline AI models in platform-standard application data directories.
+- **Waitress WSGI Sidecar**: Fast in-process communication over dynamic localhost loopback with zero external network exposure.
+
 
 ---
 

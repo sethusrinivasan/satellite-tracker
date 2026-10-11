@@ -21,6 +21,21 @@ _SETUP_ENDPOINTS = {
 }
 
 
+def get_app_version() -> str:
+    """Read canonical application version from VERSION file."""
+    try:
+        root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        version_file = os.path.join(root_dir, "VERSION")
+        if os.path.exists(version_file):
+            with open(version_file, "r", encoding="utf-8") as f:
+                v = f.read().strip()
+                if v:
+                    return v
+    except OSError:
+        pass
+    return "0.1.0"
+
+
 def _normalize_posthog_host(raw: str | None) -> str:
     host = (raw or "https://us.i.posthog.com").strip()
     if not host:
@@ -110,6 +125,7 @@ def create_app(config_object="config.Config"):
     def health():
         payload = {
             "status": "ok",
+            "version": get_app_version(),
             "datastore_configured": bool(app.config.get("DATASTORE_CONFIGURED")),
             "engine": app.config.get("DATASTORE_ENGINE") or "unconfigured",
         }
@@ -125,6 +141,7 @@ def create_app(config_object="config.Config"):
         is_docker = os.path.exists("/.dockerenv") or os.getenv("RUNNING_IN_DOCKER") == "true" or os.getenv("CONTAINER_ENV") == "docker"
         is_dev = app.debug or os.getenv("FLASK_ENV") == "development" or os.getenv("DEBUG") == "true"
         return {
+            "app_version": get_app_version(),
             "is_docker": is_docker,
             "is_dev": is_dev,
             "runtime_env_name": "Docker Container" if is_docker else ("Local Virtualenv" if is_dev else "Production Host"),

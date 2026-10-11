@@ -1,0 +1,18 @@
+{
+  "name": "satellite-tracker",
+  "version": "0.1.1",
+  "description": "Real-time 2D/3D satellite tracking, orbital propagation, and offline AI discovery",
+  "private": true,
+  "scripts": {
+    "tauri": "tauri",
+    "version:current": "python3 scripts/bump_version.py --current",
+    "version:check": "python3 scripts/bump_version.py --check",
+    "version:bump": "python3 scripts/bump_version.py --type patch",
+    "build:sidecar": "python3 scripts/build_sidecar.py",
+    "desktop:dev": "tauri dev",
+    "desktop:build": "python3 scripts/build_sidecar.py && tauri build"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.1.0"
+  }
+}

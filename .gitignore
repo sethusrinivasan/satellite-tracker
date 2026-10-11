@@ -59,3 +59,13 @@ data/*.tle
 *.swo
 .DS_Store
 Thumbs.db
+
+# Desktop & Node Build Artifacts
+node_modules/
+src-tauri/binaries/
+src-tauri/target/
+src-tauri/gen/
+staged-artifacts/
+release-assets/
+
+

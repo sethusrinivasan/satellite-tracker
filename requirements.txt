@@ -8,4 +8,7 @@ flask-login>=0.6.3
 python-dotenv>=1.0.0
 pytest>=8.0.0
 psycopg[binary]>=3.1.0
+waitress>=3.0.0
+valkey>=6.1.0
+valkeylite>=9.1.2; sys_platform != "win32"
 

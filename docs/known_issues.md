@@ -66,7 +66,14 @@ All issue items generated during system audits are tagged with `Antigravity_gene
 - **Summary**: Compose running as root wrote `datastore.json` mode `600` as `root:root`. Host `./run.sh --local` then logged `Permission denied` and treated the app as unconfigured (`/setup` loop).
 - **Status**: Compose `user: ${SATTRACK_UID}:${SATTRACK_GID}`; `run.sh` exports those IDs; root processes repair ownership; `PermissionError` is logged once with a chown hint and marked `DATASTORE_UNREADABLE`.
 
+### 10. 🟡 [P2] Embedded Valkey Daemon Platform Limitations on Windows & Vercel — **mitigated**
+- **Summary**: The embedded Valkey server daemon (`valkeylite`) depends on POSIX system calls (`fork`, `epoll`, `AF_UNIX` sockets) that are unavailable on native Windows Win32 and ephemeral Vercel serverless containers. Forcing embedded Valkey on Windows would crash standalone desktop builds (`.exe` / `.msi`) or require complex WSL/Docker prerequisites.
+- **Status**: Mitigated via platform detection guards (`is_valkey_supported_platform()`) and automatic fallback to an L1 memory + L2 atomic JSON disk cache with Windows `msvcrt` file locking. External Valkey/Redis instances via `VALKEY_URL` / `REDIS_URL` remain supported on Windows over standard TCP sockets.
+- **Labels / Tags**: `cache`, `windows`, `p2`
+
 ---
+
+
 
 ## 🗺️ TODO Roadmap & Feature Backlog
 

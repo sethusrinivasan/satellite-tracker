@@ -1,0 +1,45 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "SatelliteTracker",
+  "version": "0.1.1",
+  "identifier": "com.sethusrinivasan.satellitetracker",
+  "build": {
+    "frontendDist": "../app/static",
+    "devUrl": "http://localhost:5000"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Satellite TLE Tracker & AI Orbital Discovery",
+        "width": 1440,
+        "height": 900,
+        "minWidth": 1024,
+        "minHeight": 700,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "shortDescription": "Real-time 2D/3D satellite tracking, orbital propagation, and offline AI discovery",
+    "longDescription": "Cross-platform desktop application for real-time 2D/3D satellite tracking, SGP4 orbital propagation, TLE ephemeris ingestion, local SQLite datastore, and offline natural language Text-to-SQL discovery.",
+    "category": "Utility",
+    "copyright": "Copyright \u00a9 2026 Sethu Srinivasan",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "externalBin": [
+      "binaries/sattrack-backend"
+    ]
+  }
+}

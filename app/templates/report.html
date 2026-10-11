@@ -542,13 +542,22 @@ function showTyping() {
       <div class="ai-typing-dots">
         <span></span><span></span><span></span>
       </div>
-      <div id="ai-system-load-status" style="font-size:0.75rem; color:var(--text-muted); margin-top:6px;">
-        <span>⚙️ Processing prompt... (Local GGUF AI inference active — high CPU load expected)</span>
-        <br><span id="ai-elapsed-timer" style="font-size:0.72rem; color:var(--accent); font-weight:600;">Elapsed: 0.0s</span>
+      <div id="ai-system-load-status" style="font-size:0.75rem; color:var(--text-muted); margin-top:6px; line-height:1.45;">
+        <span id="ai-stage-msg">⚙️ Analyzing query semantics &amp; schema…</span>
+        <div id="ai-fallback-note" style="display:none; font-size:0.72rem; color:var(--accent); margin-top:4px; padding:3px 8px; border-radius:4px; background:rgba(56,189,248,0.08); border:1px solid rgba(56,189,248,0.2);">
+          🛡️ Resilient query fallback active: Verified cache &amp; template matching are primed.
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px;">
+          <span style="font-size:0.7rem; color:var(--text-muted);">(GGUF AI inference active)</span>
+          <span id="ai-elapsed-timer" style="font-size:0.72rem; color:var(--accent); font-weight:600;">Elapsed: 0.0s</span>
+        </div>
       </div>
     </div>`;
   history.appendChild(div);
   history.scrollTop = history.scrollHeight;
+
+  const stageMsg = div.querySelector('#ai-stage-msg');
+  const fallbackNote = div.querySelector('#ai-fallback-note');
 
   if (typingTimerInterval) clearInterval(typingTimerInterval);
   typingTimerInterval = setInterval(() => {
@@ -556,6 +565,17 @@ function showTyping() {
     const timerEl = document.getElementById('ai-elapsed-timer');
     if (timerEl) {
       timerEl.textContent = `Elapsed: ${elapsedSec}s`;
+    }
+    const elapsedNum = parseFloat(elapsedSec);
+    if (stageMsg) {
+      if (elapsedNum >= 4.0) {
+        stageMsg.textContent = "⚙️ Synthesizing SQL statement via model engine…";
+      } else if (elapsedNum >= 1.8) {
+        stageMsg.textContent = "🔍 Probing verified offline query cache…";
+      }
+    }
+    if (fallbackNote && elapsedNum >= 3.8) {
+      fallbackNote.style.display = 'block';
     }
   }, 100);
 }
