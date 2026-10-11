@@ -1,13 +1,16 @@
 # 🛰️ Satellite TLE Tracker & AI Orbital Discovery
 
+[![Live Demo on Vercel](https://img.shields.io/badge/Live_Demo-Vercel-000000?style=flat-square&logo=vercel&logoColor=white)](https://sethusrinivasan-satellite-tracker.vercel.app)
 [![GitHub Pages Website](https://img.shields.io/badge/Website-GitHub_Pages-22C55E?style=flat-square&logo=github&logoColor=white)](https://sethusrinivasan.github.io/satellite-tracker/)
 [![GitHub Repository](https://img.shields.io/badge/GitHub-sethusrinivasan%2Fsatellite--tracker-181717?style=flat-square&logo=github&logoColor=white)](https://github.com/sethusrinivasan/satellite-tracker)
 [![CI](https://github.com/sethusrinivasan/satellite-tracker/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/sethusrinivasan/satellite-tracker/actions/workflows/docker-publish.yml)
+[![Version](https://img.shields.io/badge/version-0.1.0-blue.svg?style=flat-square)](https://github.com/sethusrinivasan/satellite-tracker/blob/main/VERSION)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://github.com/sethusrinivasan/satellite-tracker/blob/main/LICENSE)
 
 Welcome to the official documentation for **Satellite TLE Tracker & AI Orbital Discovery**.
 
-🌐 **Official Website**: [https://sethusrinivasan.github.io/satellite-tracker/](https://sethusrinivasan.github.io/satellite-tracker/)  
+🚀 **Live Web Application (Vercel)**: [https://sethusrinivasan-satellite-tracker.vercel.app](https://sethusrinivasan-satellite-tracker.vercel.app)  
+🌐 **Official Documentation (GitHub Pages)**: [https://sethusrinivasan.github.io/satellite-tracker/](https://sethusrinivasan.github.io/satellite-tracker/)  
 📁 **GitHub Repository**: [https://github.com/sethusrinivasan/satellite-tracker](https://github.com/sethusrinivasan/satellite-tracker)
 
 > **Elevator Pitch**: An open-source web application built with Flask, SQLite or PostgreSQL, and SGP4 orbit propagation that organizes satellite Two-Line Element (TLE) datasets and enables offline natural language querying without external LLM APIs. Optional tracker overlays use only free public feeds (NASA EONET, USGS, Open-Meteo, CNBC, Yahoo Finance, Frankfurter, The Economist Big Mac Index, OpenSky, GDACS, UN News, Global Voices, The Conversation, Deutsche Welle, Fintraffic Digitraffic AIS, official webcams, OpenStreetMap, AWS / Azure / GCP ping endpoints) and are attributed in the README.
@@ -46,6 +49,7 @@ Welcome to the official documentation for **Satellite TLE Tracker & AI Orbital D
 > ⚠️ **Cost & Billing Notice**: Please review the respective cloud provider's pricing schedule and free tier terms before deploying to commercial platforms (GCP, AWS, Azure, DigitalOcean, Render).
 
 ### 🆓 Free-Tier Hosting (No Credit Card Required)
+- **Vercel (Live Serverless Web Application)**: [![Live Demo on Vercel](https://img.shields.io/badge/Live_Demo-Vercel-000000?style=flat-square&logo=vercel&logoColor=white)](https://sethusrinivasan-satellite-tracker.vercel.app) — [https://sethusrinivasan-satellite-tracker.vercel.app](https://sethusrinivasan-satellite-tracker.vercel.app) (actively deployed and running).
 - **Hugging Face Spaces (Free 16 GB RAM)**: [![Hugging Face Spaces](https://img.shields.io/badge/🤗%20Hugging%20Face-Create_Docker_Space-FFD21E?style=flat-square&logo=huggingface&logoColor=black)](https://huggingface.co/new-space) — create your own Docker Space; this repo has no hosted Space yet.
 - **PythonAnywhere (Free Flask Host)**: [![PythonAnywhere](https://img.shields.io/badge/PythonAnywhere-Free_Tier_Flask-3572A5?style=flat-square&logo=python&logoColor=white)](https://www.pythonanywhere.com/) — signup / dashboard only; no published demo.
 

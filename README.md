@@ -1,18 +1,22 @@
 # 🛰️ Satellite TLE Tracker & AI Orbital Discovery
 
+[![Live Demo on Vercel](https://img.shields.io/badge/Live_Demo-Vercel-000000?style=flat-square&logo=vercel&logoColor=white)](https://sethusrinivasan-satellite-tracker.vercel.app)
 [![GitHub Pages Website](https://img.shields.io/badge/Website-GitHub_Pages-22C55E?style=flat-square&logo=github&logoColor=white)](https://sethusrinivasan.github.io/satellite-tracker/)
 [![GitHub Repository](https://img.shields.io/badge/GitHub-sethusrinivasan%2Fsatellite--tracker-181717?style=flat-square&logo=github&logoColor=white)](https://github.com/sethusrinivasan/satellite-tracker)
 [![CI](https://github.com/sethusrinivasan/satellite-tracker/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/sethusrinivasan/satellite-tracker/actions/workflows/docker-publish.yml)
+[![Version](https://img.shields.io/badge/version-0.1.0-blue.svg?style=flat-square)](VERSION)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
-[![One-Shot Prompt](https://img.shields.io/badge/AI_Prompt-One--Shot_Spec-7C3AED?style=flat-square&logo=openai&logoColor=white)](PROMPT.md)
 [![Python](https://img.shields.io/badge/Python-3.9+-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
 [![Flask](https://img.shields.io/badge/Flask-3.0+-000000?style=flat-square&logo=flask&logoColor=white)](https://flask.palletsprojects.com/)
-[![SQLite](https://img.shields.io/badge/SQLite-SQLAlchemy-003B57?style=flat-square&logo=sqlite&logoColor=white)](https://www.sqlalchemy.org/)
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=flat-square&logo=docker&logoColor=white)](Dockerfile)
+[![SQLite](https://img.shields.io/badge/SQLite-SQLAlchemy-003B57?style=flat-square&logo=sqlite&logoColor=white)](https://www.sqlite.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18.6-4169E1?style=flat-square&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![Offline AI](https://img.shields.io/badge/Offline_AI-llama--cpp--python-FF6F00?style=flat-square&logo=huggingface&logoColor=white)](https://github.com/abetlen/llama-cpp-python)
 [![SBOM](https://img.shields.io/badge/SBOM-CycloneDX_v1.5-blue?style=flat-square&logo=json)](sbom.json)
+[![One-Shot Prompt](https://img.shields.io/badge/AI_Prompt-One--Shot_Spec-7C3AED?style=flat-square&logo=openai&logoColor=white)](PROMPT.md)
 
-🌐 **Official Site & Docs**: [https://sethusrinivasan.github.io/satellite-tracker/](https://sethusrinivasan.github.io/satellite-tracker/)  
+🚀 **Live Web Application (Vercel)**: [https://sethusrinivasan-satellite-tracker.vercel.app](https://sethusrinivasan-satellite-tracker.vercel.app)  
+🌐 **Official Documentation (GitHub Pages)**: [https://sethusrinivasan.github.io/satellite-tracker/](https://sethusrinivasan.github.io/satellite-tracker/)  
 📁 **GitHub Repository**: [https://github.com/sethusrinivasan/satellite-tracker](https://github.com/sethusrinivasan/satellite-tracker)  
 🤖 **One-Shot Project Spec**: [`PROMPT.md`](PROMPT.md)
 
@@ -42,107 +46,33 @@ A demonstration and experimental Flask web application for uploading, parsing, e
 
 ## 🖼️ Visual Application Feature Showcase
 
-> 💡 **UI Alignment & Component Layout Note**: The visual mockups below showcase high-fidelity conceptual design previews for the application features. The accompanying component layout wireframes map 1-to-1 to the live Flask template elements (`app/templates/report.html`, `app/templates/tracker.html`, `app/templates/upload.html`, `app/templates/admin.html`), including exact field names, performance metrics badges (`⚡ System Performance`), TLE parameters, and dark-mode styling.
+> 📸 **Live Production Screenshots**: Captured directly from the live Vercel production deployment at [https://sethusrinivasan-satellite-tracker.vercel.app](https://sethusrinivasan-satellite-tracker.vercel.app).
 
-### 1. 💬 Offline AI Natural Language Search (Text-to-SQL)
-Translates plain English queries into validated read-only SQL queries using local GGUF model inference with real-time CPU system load reporting and execution metrics breakdown.
+### 1. 🔍 Satellite Search & Orbital Catalogue Explorer
+Interactive search and exploration interface supporting keyword filtering across NORAD catalog IDs, satellite names, international designators, classifications, and country proximity orbital propagation.
 
-![AI Natural Language Search Screenshot](docs/images/ai_search.png)
-
-```
-+-----------------------------------------------------------------------------------+
-| 🛰️ SatTrack Header Navigation                                                     |
-| [ 📥 Upload ]  [ 🔍 Search & Report ]  [ 📊 Stats ]  [ 🔐 Admin ]                 |
-+-----------------------------------------------------------------------------------+
-| Search Mode Tabs: [ 🔍 Keyword Search ]  [ 🌍 Country Proximity ]  [ 💬 AI Search ] |
-+-----------------------------------------------------------------------------------+
-| 💬 Natural Language AI Search Composer                                            |
-| Prompt Input: "Show Starlink satellites with inclination > 53 degrees"            |
-| Prompt Chips: [ Starlink over US ] [ Mean motion > 15 ] [ Inclination > 95 ]     |
-| [ 🔍 Ask AI Assistant ]                                                          |
-+-----------------------------------------------------------------------------------+
-| ⚙️ Processing query... (Local GGUF AI inference active — system load expected)    |
-| Elapsed Time: 4.2s                                                                |
-+-----------------------------------------------------------------------------------+
-| ⚡ System Performance: Total 19.74s (LLM Inference: 19.72s · DB: 0.012s)          |
-| 🛠️ Generated SQL Query:                                                           |
-| SELECT s.norad_cat_id, s.name, t.inclination_deg, t.mean_motion_rev_day           |
-| FROM satellites s JOIN tle_elements t ON s.id = t.satellite_id                    |
-| WHERE t.inclination_deg > 53.0 LIMIT 50;                                          |
-+-----------------------------------------------------------------------------------+
-| NORAD ID | Name        | Inclination | Mean Motion (rev/day) | Actions            |
-| 44713    | STARLINK-10 | 53.05°      | 15.06                 | [ Track Orbit 🛰️ ] |
-| 44714    | STARLINK-11 | 53.06°      | 15.06                 | [ Track Orbit 🛰️ ] |
-+-----------------------------------------------------------------------------------+
-```
+![Satellite Search & Catalogue Explorer](docs/images/ai_search.png)
 
 ---
 
-### 2. 🛰️ Live 2D Ground Track & 3D Globe Satellite Tracker
-Interactive 2D Leaflet ground track map and 3D globe visualization rendering real-time orbital path projections, ground station footings, and position vectors.
+### 2. 🛰️ Live 2D Ground Track & Real-Time Orbital Telemetry Tracker
+Interactive 2D Leaflet ground track map and real-time orbital path projection rendering live SGP4 propagation, sub-satellite coordinates, and live telemetry vectors (velocity, altitude, latitude, longitude, and orbital period).
 
-![Live 3D Globe Orbit Tracker Screenshot](docs/images/tracker.png)
-
-```
-+-----------------------------------------------------------------------------------+
-| 🛰️ Live Satellite Orbital Tracker: STARLINK-11 (NORAD #44714)   [ Full screen ]   |
-| Latitude: 34.05° N | Longitude: 118.24° W | Altitude: 550.2 km | Velocity: 7.59 km/s|
-| Basemap: Esri World Dark Gray (optional CARTO_API_KEY for CARTO dark tiles)       |
-| [ Center ] [ Full screen ] [ Weather & quakes ] [ Markets ] [ Currencies ] [ Flights ] [ News ] [ Ships ] [ Webcams ] [ Cloud DCs ] |
-| Credits: Esri · NASA EONET · USGS · Open-Meteo · CNBC · Yahoo Finance · Frankfurter · Big Mac Index · OpenSky · GDACS · UN News · Digitraffic AIS |
-+-----------------------------------------------------------------------------------+
-|  [ 🌍 2D Leaflet Ground Track Map ]       |  [ 🌐 3D Globe Orbit Projection ]     |
-|  . . . . . . . . . . . . . . . . . . . .  |          .---.                        |
-|  . . . . . . . (🛰️ STARLINK) . . . . . .  |        /       \                      |
-|  . . . . . ./~/~~\~\. . . . . . . . . . . |       |    🌍   |  (🛰️ Orbit Vector)  |
-|  . . . . . /~/    \~\ . . . . . . . . . . |        \       /                      |
-|  . . . . . . . . . . . . . . . . . . . .  |          '---'                        |
-+-----------------------------------------------------------------------------------+
-```
+![Live Orbit Tracker & Real-Time Telemetry](docs/images/tracker.png)
 
 ---
 
 ### 3. 📥 3-Line TLE Ingestion & Deduplication Upload Interface
-Parses 3-line and 2-line TLE dataset files, verifies modulo-10 checksums, extracts Keplerian elements, and prevents duplicate epoch ingestion.
+Parses standard 3-line and 2-line TLE dataset files, verifies modulo-10 checksums, extracts Keplerian elements, and prevents duplicate epoch ingestion with drag-and-drop dropzone support.
 
-![TLE Data Upload Interface Screenshot](docs/images/tle_upload.png)
-
-```
-+-----------------------------------------------------------------------------------+
-| 📥 Upload & Ingest TLE Data File                                                  |
-| Select File: [ starlink_constellation_tle.txt ]                                   |
-| Session Label: [ April 2025 Constellation Batch ]                                 |
-| [ 🚀 Parse & Import TLE Dataset ]                                                |
-+-----------------------------------------------------------------------------------+
-| 📊 Ingestion Audit Summary Report:                                                |
-| Total Records Processed : 1,540                                                   |
-| New Satellites Created  : 85                                                      |
-| Satellites Updated      : 1,455                                                    |
-| Duplicate Epochs Skipped: 0                                                       |
-+-----------------------------------------------------------------------------------+
-```
+![TLE Data Upload Interface](docs/images/tle_upload.png)
 
 ---
 
-### 4. 🔐 Protected Admin Dashboard & OAuth Access Control
-Administrative interface for managing upload sessions, triggering local GGUF model downloads, clearing seed flags, and monitoring system resource allocations.
+### 4. 📊 Database Statistics & Ingestion Audit History
+Comprehensive catalogue statistics dashboard providing real-time telemetry on stored satellites, TLE epoch records, and a full audit log of file upload batches and duplicate filtration counts.
 
-![Admin Control Dashboard Screenshot](docs/images/admin_panel.png)
-
-```
-+-----------------------------------------------------------------------------------+
-| 🔐 Admin Management Center                              Logged in via Google OAuth|
-+-----------------------------------------------------------------------------------+
-| 🤖 Offline AI Model Management: qwen2.5-coder-1.5b-instruct-q4_k_m.gguf           |
-| Status: [ Model Ready / Active ]                                                  |
-| Actions: [ 🔄 Download GGUF Model ]  [ 🗑️ Wipe Database ]  [ ⚡ Clear Seed Flag ] |
-| Datastore: sqlite | postgres          [ Tables & SQL editor → ]                   |
-+-----------------------------------------------------------------------------------+
-| Upload History Audit Log:                                                         |
-| ID | Filename         | Upload UTC           | Records | Source      | Actions   |
-| 1  | kaggle_tle.txt   | 2026-09-02 10:00 UTC | 1,540   | user_upload | [Delete]  |
-+-----------------------------------------------------------------------------------+
-```
+![Database Statistics & Upload History](docs/images/admin_panel.png)
 
 ---
 
@@ -240,15 +170,26 @@ python3 run.py
 
 ### 5. Deploying to Vercel
 
-The Vercel function entrypoint is `api/index.py`. In the Vercel project settings, set the Root Directory to the repository root, Framework Preset to **Other**, and leave Build Command and Output Directory empty. Add these environment variables:
+🔗 **Live Production Deployment**: **[https://sethusrinivasan-satellite-tracker.vercel.app](https://sethusrinivasan-satellite-tracker.vercel.app)**
 
+The project is preconfigured for Vercel Serverless Functions via [`vercel.json`](vercel.json) using the Python WSGI entrypoint [`api/index.py`](api/index.py).
+
+In the Vercel project settings:
+- **Framework Preset**: `Flask` (or `Other`)
+- **Root Directory**: `.` (repository root)
+- **Build Command** & **Output Directory**: Leave empty / default
+
+Add the following environment variables in Vercel:
 - `SECRET_KEY`: a long random production secret
 - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `ADMIN_ALLOWED_EMAILS` for Google OAuth
-- Update the Google OAuth authorized redirect URI to `https://YOUR_DOMAIN/auth/callback`
+- Authorized redirect URI in Google Cloud Console: `https://sethusrinivasan-satellite-tracker.vercel.app/auth/callback`
 
-Deploy from the repository root with `vercel --prod --force`, or redeploy from the Vercel dashboard with **Use existing Build Cache** disabled. Vercel storage is ephemeral: SQLite databases, uploads, query-cache updates, and downloaded AI models are stored under `/tmp` and can disappear between instances. Use an external database and object storage for persistent production data. The optional local GGUF feature is in `requirements-ai.txt`; it is not installed by Vercel because `llama-cpp-python` is a heavyweight native/serverless dependency.
+Deploy from the repository root using the Vercel CLI:
+```bash
+vercel --prod --force
+```
 
-Open your browser and navigate to **[http://localhost:5000](http://localhost:5000)**.
+> ℹ️ **Serverless Storage & Features**: Vercel storage is ephemeral. SQLite databases, uploads, and cached query lookups are stored under `/tmp/satellite-tracker`. Heavyweight native AI libraries (`llama-cpp-python`) are omitted from serverless builds to adhere to size constraints; cached queries, TLE uploads, and live SGP4 orbital tracking run in serverless mode. Open your browser and navigate to **[https://sethusrinivasan-satellite-tracker.vercel.app](https://sethusrinivasan-satellite-tracker.vercel.app)**.
 
 ---
 
@@ -258,7 +199,17 @@ Open your browser and navigate to **[http://localhost:5000](http://localhost:500
 
 ### 🆓 Free-Tier Hosting Options (No Credit Card Required)
 
-#### 1. Hugging Face Spaces (Recommended for AI Models — Free CPU Tier)
+#### 1. Vercel (Live Serverless Web Application — Active)
+The application is live and actively running on Vercel's free serverless tier:
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fsethusrinivasan%2Fsatellite-tracker)
+[![Live Demo on Vercel](https://img.shields.io/badge/Live_App-sethusrinivasan--satellite--tracker.vercel.app-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://sethusrinivasan-satellite-tracker.vercel.app)
+
+- 🚀 **Live Production URL**: [https://sethusrinivasan-satellite-tracker.vercel.app](https://sethusrinivasan-satellite-tracker.vercel.app)
+- **Status**: Live & operational (verified `/health` status)
+- Preconfigured with [`vercel.json`](vercel.json) URL rewrites to the WSGI entrypoint `api/index.py`.
+
+#### 2. Hugging Face Spaces (Recommended for AI Models — Free CPU Tier)
 Hugging Face Spaces offers a **free 16 GB RAM CPU tier** with zero credit card requirements, ideal for hosting GGUF local model inference:
 
 [![Deploy to Hugging Face Spaces](https://img.shields.io/badge/🤗%20Hugging%20Face-Create_Docker_Space-FFD21E?style=for-the-badge&logo=huggingface&logoColor=black)](https://huggingface.co/new-space)
@@ -268,7 +219,7 @@ There is no hosted Space for this repo yet. The button opens Hugging Face’s **
 1. Create a free Space and select **Docker** as the SDK.
 2. Connect GitHub repository `sethusrinivasan/satellite-tracker`.
 
-#### 2. PythonAnywhere (Free Tier Web Host — No Credit Card Required)
+#### 3. PythonAnywhere (Free Tier Web Host — No Credit Card Required)
 PythonAnywhere offers a **free beginner tier** for Python/Flask web applications:
 
 [![PythonAnywhere](https://img.shields.io/badge/PythonAnywhere-Free_Tier_Flask_Hosting-3572A5?style=for-the-badge&logo=python&logoColor=white)](https://www.pythonanywhere.com/)
