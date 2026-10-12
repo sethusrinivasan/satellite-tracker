@@ -12,19 +12,19 @@
 [![SQLite](https://img.shields.io/badge/SQLite-SQLAlchemy-003B57?style=flat-square&logo=sqlite&logoColor=white)](https://www.sqlite.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18.6-4169E1?style=flat-square&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![Offline AI](https://img.shields.io/badge/Offline_AI-llama--cpp--python-FF6F00?style=flat-square&logo=huggingface&logoColor=white)](https://github.com/abetlen/llama-cpp-python)
-[![SBOM](https://img.shields.io/badge/SBOM-CycloneDX_v1.5-blue?style=flat-square&logo=json)](sbom.json)
-[![One-Shot Prompt](https://img.shields.io/badge/AI_Prompt-One--Shot_Spec-7C3AED?style=flat-square&logo=openai&logoColor=white)](PROMPT.md)
+[![SBOM](https://img.shields.io/badge/SBOM-CycloneDX_v1.5-blue?style=flat-square&logo=json)](docs/sbom.json)
+[![One-Shot Prompt](https://img.shields.io/badge/AI_Prompt-One--Shot_Spec-7C3AED?style=flat-square&logo=openai&logoColor=white)](docs/PROMPT.md)
 
 🚀 **Live Web Application (Vercel)**: [https://sethusrinivasan-satellite-tracker.vercel.app](https://sethusrinivasan-satellite-tracker.vercel.app)  
 🌐 **Official Documentation (GitHub Pages)**: [https://sethusrinivasan.github.io/satellite-tracker/](https://sethusrinivasan.github.io/satellite-tracker/)  
 📁 **GitHub Repository**: [https://github.com/sethusrinivasan/satellite-tracker](https://github.com/sethusrinivasan/satellite-tracker)  
-🤖 **One-Shot Project Spec**: [`PROMPT.md`](PROMPT.md)
+🤖 **One-Shot Project Spec**: [`docs/PROMPT.md`](docs/PROMPT.md)
 
 A demonstration and experimental Flask web application for uploading, parsing, exploring, and tracking satellite [Two-Line Element (TLE)](https://en.wikipedia.org/wiki/Two-line_element_set) data. Features real-time [SGP4 (Simplified General Perturbations 4)](https://en.wikipedia.org/wiki/SGP4) orbit propagation, country proximity filtering, interactive 2D/3D map tracking, and an **in-process offline Text-to-SQL AI natural language search** powered by [Qwen2.5-Coder](https://huggingface.co/Qwen/Qwen2.5-Coder-1.5B-Instruct).
 
 > ℹ️ **Project Status & Disclaimer**: This is a **demo / hobby project for learning only**. Do not use it for real operational work, navigation, or production. No SLAs or accuracy guarantees. Feel free to review, copy, fork, and adapt the code.
 
-> 🤖 **One-Shot Generation Prompt**: You can recreate or generate this complete application using our self-contained prompt document [`PROMPT.md`](PROMPT.md).
+> 🤖 **One-Shot Generation Prompt**: You can recreate or generate this complete application using our self-contained prompt document [`docs/PROMPT.md`](docs/PROMPT.md).
 
 ---
 
@@ -109,7 +109,7 @@ Detailed project architecture and design documentation are available in the repo
 - 🔒 **[Security Policy](SECURITY.md)** — Vulnerability reporting and production auth/SQL rules.
 - 🎨 **[Design System & UI/UX](docs/design.md)** — Dark mode palette, visual tokens, and responsive layout guidelines.
 - 📌 **[Known Issues & TODO Roadmap](docs/known_issues.md)** — Tracked technical limitations, workarounds, and enhancement items on [GitHub Issues](https://github.com/sethusrinivasan/satellite-tracker/issues).
-- 📋 **[Software Bill of Materials (SBOM)](sbom.json)** — Machine-readable CycloneDX 1.5 JSON dependency inventory.
+- 📋 **[Software Bill of Materials (SBOM)](docs/sbom.json)** — Machine-readable CycloneDX 1.5 JSON dependency inventory.
 - 📑 **[GitHub Pages Documentation Site](docs/index.md)** — Hosted project documentation.
 
 

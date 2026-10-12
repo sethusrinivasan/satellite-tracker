@@ -26,7 +26,8 @@ Welcome to the official documentation for **Satellite TLE Tracker & AI Orbital D
 | 🔒 **[Security Policy](https://github.com/sethusrinivasan/satellite-tracker/blob/main/SECURITY.md)** | Vulnerability reporting, production auth bypass rules, admin SQL constraints | Operators & Researchers |
 | 🎨 **[Design System & UX](design.md)** | Dark-mode color palette, responsive layout rules, and component patterns | UI/UX Designers & Frontend |
 | 📌 **[Known Issues & Roadmap](known_issues.md)** | Tracked technical limitations, workarounds, and enhancement items | All Users & Contributors |
-| 📋 **[Software Bill of Materials](https://github.com/sethusrinivasan/satellite-tracker/blob/main/sbom.json)** | CycloneDX 1.5 JSON dependency inventory covering Python and JS packages | Security & Supply Chain |
+| 🤖 **[AI Generation Spec](PROMPT.md)** | Complete self-contained specification prompt to reproduce the application | AI Engineers & Developers |
+| 📋 **[Software Bill of Materials](sbom.json)** | CycloneDX 1.5 JSON dependency inventory covering Python and JS packages | Security & Supply Chain |
 | 📜 **[MIT License](https://github.com/sethusrinivasan/satellite-tracker/blob/main/LICENSE)** | License text (GitHub Pages only serves `/docs`, so this opens the repo file) | All Users & Contributors |
 | 💻 **[GitHub Repository](https://github.com/sethusrinivasan/satellite-tracker)** | Source code, open-source issue tracker, and contribution guide | Open Source Contributors |
 

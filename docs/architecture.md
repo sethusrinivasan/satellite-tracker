@@ -238,3 +238,18 @@ erDiagram
    - Secrets in `.env`. `instance/datastore.json` is host-owned (`0o600`). Unreadable files are `DATASTORE_UNREADABLE`, not treated as first-launch.
 4. **Uploads**:
    - `MAX_CONTENT_LENGTH` 16 MB; TLE checksum and line-length checks.
+
+---
+
+## 5. Repository Organization & Multi-Target Co-Location
+
+The codebase co-locates 4 separate execution targets within a single monorepo:
+
+| Target | Core Files & Directories | Purpose & Constraints |
+| :--- | :--- | :--- |
+| **Local Web App** | `run.py`, `run.sh`, `config.py`, `app/`, `requirements.txt` | Standard development server and package distribution. |
+| **Docker Stack** | `Dockerfile`, `.dockerignore`, `docker-compose.yml`, `docker/` | Container deployment with multi-arch builds and PostgreSQL support. |
+| **Vercel Serverless** | `vercel.json`, `.vercelignore`, `api/`, `public/` | Serverless deployment via WSGI proxy (`api/index.py`) and edge CDN assets (`public/`). |
+| **Tauri Desktop** | `src-tauri/`, `package.json`, `desktop_entry.py`, `desktop.spec` | Native cross-platform desktop application powered by Tauri v2 and PyInstaller sidecar. |
+| **Documentation & Data** | `docs/`, `data/`, `scripts/`, `tests/`, `VERSION`, `LICENSE` | Architecture specs, verified query caches, automation utilities, and test suites. |
+
