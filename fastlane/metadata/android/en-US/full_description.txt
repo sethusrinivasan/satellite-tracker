@@ -1,0 +1,48 @@
+🛰️ Satellite TLE Tracker & AI Orbital Discovery
+Track spacecraft in real time with a complete on-device SGP4 orbital mechanics engine, interactive 2D maps, a stunning 3D WebGL globe, and optional AI-powered natural language orbital discovery.
+
+Designed from the ground up for amateur astronomers, space enthusiasts, satellite observers, ham radio operators, and aerospace professionals, Satellite TLE Tracker delivers precision orbital telemetry directly on your Android device — 100% locally with zero server dependency.
+
+Key Features:
+
+📡 REAL-TIME 2D MULTI-SATELLITE TRACKING
+• Color-coded simultaneous tracking of dozens of spacecraft across a responsive world map.
+• Real-time ground track projection showing past and upcoming orbit paths.
+• Geometric visibility footprint circles illustrating line-of-sight coverage on Earth.
+• Live Day/Night solar terminator line calculating current solar illumination in real time.
+• Full telemetry HUD: Latitude, Longitude, Altitude (km/mi), Velocity (km/s, mph), Orbit Period, Inclination, and Footprint radius.
+
+🌐 INTERACTIVE 3D WEBGL EARTH GLOBE
+• True 3D spatial orbit visualization rendered directly on your device.
+• Rotate 360°, pinch to zoom, and tilt to inspect orbital inclinations (LEO, MEO, GEO, SSO, Molniya).
+• Real-time 3D satellite markers traveling along their mathematically true orbital trajectories.
+
+⏱️ NEXT VISIBLE OVERPASS PREDICTOR
+• Pinpoints when satellites will fly overhead based on your device GPS location or custom observer coordinates.
+• Calculates Acquisition of Signal (AOS), Time of Closest Approach / Maximum Elevation, and Loss of Signal (LOS).
+• Visual sky elevation compass displaying the satellite's journey across your local horizon (e.g., Rise SW → Max 78° Overhead → Set NE).
+• Quality ratings (Great, Good, Low) so you know exactly when to look up with binoculars or naked eye.
+
+🔍 GLOBAL SATELLITE CATALOG & CELESTRAK SYNC
+• 60+ preloaded spacecraft ready to track instantly offline:
+  - Space Stations: International Space Station (ISS ZARYA), Chinese Space Station (Tiangong CSS)
+  - Space Telescopes: Hubble Space Telescope, Chandra, Fermi, Swift
+  - Constellations: Starlink, OneWeb, Iridium NEXT, Inmarsat
+  - Earth Observation: Landsat 8/9, Sentinel-1/2, Terra, Aqua, Suomi NPP
+  - Weather Satellites: NOAA 15/18/19/20, GOES 16/18, MetOp, Meteosat
+  - Navigation (GNSS): GPS Block II/III, Galileo, GLONASS, BeiDou
+  - Brightest visible satellites
+• 1-Tap CelesTrak ephemeris updates directly over HTTPS with local cache persistence.
+• Custom TLE import: Paste any Two-Line Element (TLE) set to track any launch or custom satellite immediately.
+
+✨ OPTIONAL REMOTE AI ORBITAL DISCOVERY
+• Natural Language Search: Ask questions like "Which Earth observation satellites fly over North America tonight?" or "Show satellites higher than 20,000 km".
+• Pluggable AI Provider Architecture: Securely connect your choice of Google Gemini, OpenAI (GPT-4o), Anthropic (Claude), or local Ollama endpoints.
+• Privacy-Centric Key Vault: Your personal API key is stored strictly on your local device and never transmitted to any third-party server.
+• 100% Optional: If no AI key is entered, the app functions entirely offline using built-in local catalog filtering and orbital mathematics!
+
+🔒 PRIVACY & PERFORMANCE FIRST
+• No account or login required.
+• No analytics tracking, advertising networks, or telemetry harvesting.
+• Battery-efficient calculations utilizing optimized JavaScript / WebAssembly SGP4 propagation.
+• Works completely offline in airplane mode or remote observation sites.

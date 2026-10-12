@@ -2,32 +2,37 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Satellite TLE Tracker &amp; AI Orbital Discovery</title>
+  
+  <!-- Bundled Local Vendor Stylesheets -->
+  <link rel="stylesheet" href="css/leaflet.css">
+  <link rel="stylesheet" href="css/mobile-tracker.css">
   <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-    body {
+    /* Splash Screen Styles */
+    #desktop-splash {
+      position: fixed;
+      inset: 0;
       background: radial-gradient(ellipse at top, #0f172a 0%, #0b0f19 65%, #030712 100%);
       color: #e2e8f0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      min-height: 100vh;
-      overflow: hidden;
-      user-select: none;
+      z-index: 9999;
+      transition: opacity 0.4s ease, visibility 0.4s ease;
+    }
+    #desktop-splash.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
     }
     .splash-container {
       text-align: center;
       width: 90%;
-      max-width: 520px;
-      padding: 2.75rem 2.25rem;
-      background: rgba(15, 23, 42, 0.82);
+      max-width: 480px;
+      padding: 2.25rem 2rem;
+      background: rgba(15, 23, 42, 0.85);
       border: 1px solid rgba(56, 189, 248, 0.25);
       border-radius: 1.25rem;
       box-shadow: 0 25px 40px -10px rgba(0, 0, 0, 0.65), 0 0 50px rgba(56, 189, 248, 0.12);
@@ -36,16 +41,16 @@
     }
     .icon-stage {
       position: relative;
-      width: 110px;
-      height: 110px;
-      margin: 0 auto 1.5rem;
+      width: 96px;
+      height: 96px;
+      margin: 0 auto 1.25rem;
       display: flex;
       align-items: center;
       justify-content: center;
     }
     .orbit-ring {
       position: absolute;
-      inset: -12px;
+      inset: -10px;
       border: 1.5px dashed rgba(56, 189, 248, 0.35);
       border-radius: 50%;
       animation: rotateRing 18s linear infinite;
@@ -59,32 +64,28 @@
       margin-left: -4px;
       background: #38bdf8;
       border-radius: 50%;
-      box-shadow: 0 0 10px #38bdf8, 0 0 20px #38bdf8;
+      box-shadow: 0 0 10px #38bdf8;
     }
     .app-icon {
-      width: 88px;
-      height: 88px;
-      border-radius: 20px;
-      box-shadow: 0 12px 28px -6px rgba(56, 189, 248, 0.45), 0 0 35px rgba(56, 189, 248, 0.25);
-      animation: iconPulse 3s infinite ease-in-out;
+      width: 76px;
+      height: 76px;
+      border-radius: 18px;
       display: block;
       z-index: 1;
     }
-    h1 {
-      font-size: 1.6rem;
+    .splash-container h1 {
+      font-size: 1.4rem;
       font-weight: 700;
-      letter-spacing: -0.025em;
       color: #f8fafc;
       margin-bottom: 0.35rem;
     }
-    .subtitle {
-      font-size: 0.875rem;
+    .splash-container .subtitle {
+      font-size: 0.825rem;
       color: #94a3b8;
-      margin-bottom: 1.75rem;
-      line-height: 1.45;
+      margin-bottom: 1.5rem;
     }
     .progress-box {
-      margin: 1.25rem 0 1rem;
+      margin: 1rem 0;
     }
     .progress-bar {
       width: 100%;
@@ -96,25 +97,17 @@
     }
     .progress-fill {
       height: 100%;
-      width: 15%;
+      width: 20%;
       background: linear-gradient(90deg, #38bdf8 0%, #818cf8 50%, #c084fc 100%);
       border-radius: 9999px;
-      transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-      position: relative;
-    }
-    .progress-fill::after {
-      content: "";
-      position: absolute;
-      inset: 0;
-      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.6), transparent);
-      animation: shimmer 1.6s infinite ease-in-out;
+      transition: width 0.4s ease;
     }
     .status-row {
       display: flex;
       align-items: center;
       justify-content: space-between;
       margin-top: 0.75rem;
-      font-size: 0.815rem;
+      font-size: 0.78rem;
     }
     .status-badge {
       display: inline-flex;
@@ -124,8 +117,8 @@
       font-weight: 500;
     }
     .spinner-sm {
-      width: 13px;
-      height: 13px;
+      width: 12px;
+      height: 12px;
       border: 2px solid rgba(56, 189, 248, 0.25);
       border-top-color: #38bdf8;
       border-radius: 50%;
@@ -133,13 +126,12 @@
     }
     .step-counter {
       color: #64748b;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-      font-size: 0.75rem;
+      font-family: ui-monospace, monospace;
+      font-size: 0.72rem;
     }
-    /* Subtle fallback notification card */
     .fallback-card {
-      margin-top: 1.25rem;
-      padding: 0.75rem 0.9rem;
+      margin-top: 1rem;
+      padding: 0.7rem 0.85rem;
       background: rgba(30, 41, 59, 0.55);
       border: 1px solid rgba(56, 189, 248, 0.18);
       border-radius: 0.65rem;
@@ -147,180 +139,413 @@
       display: flex;
       gap: 0.65rem;
       align-items: flex-start;
-      font-size: 0.775rem;
+      font-size: 0.74rem;
       line-height: 1.45;
       color: #cbd5e1;
-      opacity: 0;
-      transform: translateY(6px);
-      transition: opacity 0.5s ease, transform 0.5s ease;
-    }
-    .fallback-card.visible {
-      opacity: 1;
-      transform: translateY(0);
-    }
-    .fallback-icon {
-      font-size: 1rem;
-      line-height: 1;
-      margin-top: 1px;
     }
     .fallback-title {
       font-weight: 600;
       color: #38bdf8;
-      margin-bottom: 2px;
       display: block;
+      margin-bottom: 2px;
     }
-    .fallback-desc {
-      color: #94a3b8;
-    }
-    .desktop-runtime-tag {
-      margin-top: 1.5rem;
-      font-size: 0.72rem;
-      color: #475569;
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-    }
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-    @keyframes rotateRing {
-      to { transform: rotate(360deg); }
-    }
-    @keyframes iconPulse {
-      0%, 100% { transform: scale(1); filter: drop-shadow(0 0 14px rgba(56,189,248,0.45)); }
-      50% { transform: scale(1.04); filter: drop-shadow(0 0 24px rgba(56,189,248,0.75)); }
-    }
-    @keyframes shimmer {
-      0% { transform: translateX(-100%); }
-      100% { transform: translateX(200%); }
-    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes rotateRing { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
-  <div class="splash-container">
-    <div class="icon-stage">
-      <div class="orbit-ring">
-        <div class="orbit-dot"></div>
-      </div>
-      <img src="img/icon.png" alt="Satellite Tracker Icon" class="app-icon" />
-    </div>
 
-    <h1>Satellite TLE Tracker</h1>
-    <p class="subtitle">Real-Time 2D/3D Orbital Tracking &amp; Offline AI Discovery</p>
-
-    <div class="progress-box">
-      <div class="progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" id="progress-bar">
-        <div class="progress-fill" id="progress-fill"></div>
+  <!-- Progressive Initialization & Splash Container -->
+  <div id="desktop-splash">
+    <div class="splash-container">
+      <div class="icon-stage">
+        <div class="orbit-ring"><div class="orbit-dot"></div></div>
+        <img src="img/icon.png" alt="Satellite Tracker Icon" class="app-icon" />
       </div>
-      <div class="status-row">
-        <div class="status-badge">
-          <div class="spinner-sm"></div>
-          <span id="stage-text">Bootstrapping desktop environment…</span>
+
+      <h1>Satellite TLE Tracker</h1>
+      <p class="subtitle">Real-Time 2D/3D Orbital Tracking &amp; Offline AI Discovery</p>
+
+      <div class="progress-box">
+        <div class="progress-bar" id="progress-bar">
+          <div class="progress-fill" id="progress-fill"></div>
         </div>
-        <span class="step-counter" id="step-counter">1 / 5</span>
+        <div class="status-row">
+          <div class="status-badge">
+            <div class="spinner-sm"></div>
+            <span id="stage-text">Bootstrapping isolated desktop environment…</span>
+          </div>
+          <span class="step-counter" id="step-counter">1 / 5</span>
+        </div>
       </div>
-    </div>
 
-    <!-- Subtle Fallback Notice (Displayed smoothly if operation continues) -->
-    <div class="fallback-card" id="fallback-card" role="status" aria-live="polite">
-      <span class="fallback-icon">🛡️</span>
-      <div>
-        <span class="fallback-title">Resilient Offline Fallback Active</span>
-        <span class="fallback-desc" id="fallback-desc">
-          Local SQLite datastore and verified cached ephemeris snapshots are primed. Ready for offline exploration.
-        </span>
+      <div class="fallback-card" id="fallback-card">
+        <span class="fallback-icon">🛡️</span>
+        <div>
+          <span class="fallback-title">Resilient Offline Fallback Active</span>
+          <span class="fallback-desc" id="fallback-desc">
+            Local SQLite datastore and verified cached ephemeris snapshots are primed. Ready for offline exploration.
+          </span>
+        </div>
       </div>
-    </div>
-
-    <div class="desktop-runtime-tag">
-      Tauri v2 • Waitress WSGI • SGP4 Orbit Engine
     </div>
   </div>
 
+  <!-- Top App Bar -->
+  <header class="mobile-appbar">
+    <div class="brand-row">
+      <div class="brand-icon">🛰️</div>
+      <div class="brand-text">
+        <h1>SatTrack</h1>
+        <div class="brand-sub">Real-Time SGP4 Engine</div>
+      </div>
+    </div>
+    <div class="appbar-actions">
+      <div class="status-pill" title="100% on-device orbital propagation">
+        <div class="status-dot"></div>
+        <span>Offline Ready</span>
+      </div>
+      <button class="icon-btn" id="btn-open-settings" title="Settings &amp; AI Provider Vault" aria-label="Settings">⚙️</button>
+    </div>
+  </header>
+
+  <!-- Viewport Area -->
+  <main class="mobile-viewport">
+
+    <!-- 1. 2D Map Tab -->
+    <section class="tab-view active" id="tab-track" aria-label="2D Orbit Tracking">
+      <div class="map-floating-bar">
+        <button class="floating-pill-btn" id="btn-center-map">🎯 Center Sat</button>
+        <button class="floating-pill-btn" id="btn-open-tle-import">📥 Add TLE</button>
+      </div>
+
+      <div id="mobile-map"></div>
+
+      <!-- Telemetry Bottom Sheet -->
+      <aside class="telemetry-sheet expanded" id="telemetry-sheet" aria-label="Satellite Telemetry">
+        <div class="sheet-handle-row" id="sheet-handle-row">
+          <div class="sheet-handle"></div>
+        </div>
+        <div class="sheet-header">
+          <div class="sat-title-group">
+            <div class="sat-color-indicator" id="hud-sat-color"></div>
+            <div>
+              <div class="sat-name" id="hud-sat-name">ISS (ZARYA)</div>
+              <div class="sat-norad" id="hud-sat-norad">NORAD 25544 • LEO</div>
+            </div>
+          </div>
+        </div>
+        <div class="telemetry-grid">
+          <div class="telemetry-metric">
+            <div class="metric-label">Latitude</div>
+            <div class="metric-value" id="hud-lat">--</div>
+          </div>
+          <div class="telemetry-metric">
+            <div class="metric-label">Longitude</div>
+            <div class="metric-value" id="hud-lng">--</div>
+          </div>
+          <div class="telemetry-metric">
+            <div class="metric-label">Altitude</div>
+            <div class="metric-value" id="hud-alt">--</div>
+          </div>
+          <div class="telemetry-metric">
+            <div class="metric-label">Velocity</div>
+            <div class="metric-value" id="hud-vel">--</div>
+          </div>
+          <div class="telemetry-metric">
+            <div class="metric-label">Footprint Radius</div>
+            <div class="metric-value" id="hud-footprint">--</div>
+          </div>
+          <div class="telemetry-metric">
+            <div class="metric-label">Inclination</div>
+            <div class="metric-value" id="hud-inc">--</div>
+          </div>
+        </div>
+      </aside>
+    </section>
+
+    <!-- 2. 3D WebGL Globe Tab -->
+    <section class="tab-view" id="tab-globe" aria-label="3D Globe View">
+      <div id="globe-canvas-container">
+        <div class="globe-hud-overlay">
+          <div class="globe-hud-badge">🌐 3D Spatial Orbit Mode</div>
+          <div class="globe-actions">
+            <button class="floating-pill-btn" id="btn-globe-rotate">🔄 Rotate</button>
+            <button class="floating-pill-btn" id="btn-globe-reset">🎯 Reset</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. Catalog & Ingestion Tab -->
+    <section class="tab-view" id="tab-catalog" aria-label="Satellite Catalog">
+      <div class="tab-view-scrollable">
+        <div class="search-container">
+          <svg class="search-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input type="text" class="search-input" id="catalog-search-input" placeholder="Search 60+ satellites by name, NORAD ID…">
+        </div>
+
+        <div class="category-chip-row">
+          <button class="category-chip active" data-cat="all">All</button>
+          <button class="category-chip" data-cat="stations">🛰️ Stations</button>
+          <button class="category-chip" data-cat="starlink">📡 Starlink</button>
+          <button class="category-chip" data-cat="weather">⛅ Weather</button>
+          <button class="category-chip" data-cat="gps">🧭 GPS/Nav</button>
+          <button class="category-chip" data-cat="science">🔭 Science</button>
+          <button class="category-chip" data-cat="earth">🌍 Earth Obs</button>
+          <button class="category-chip" data-cat="brightest">✨ Brightest</button>
+        </div>
+
+        <div class="sync-bar">
+          <div class="sync-info" id="sync-info-text">Ephemeris cache primed.</div>
+          <button class="floating-pill-btn" id="btn-sync-celestrak" style="padding:4px 10px; font-size:0.74rem;">🔄 Sync CelesTrak</button>
+        </div>
+
+        <div id="catalog-list"></div>
+      </div>
+    </section>
+
+    <!-- 4. Passes Predictor Tab -->
+    <section class="tab-view" id="tab-passes" aria-label="Pass Predictor">
+      <div class="tab-view-scrollable">
+        <div class="location-card">
+          <div>
+            <div style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.04em; color:var(--text-muted); margin-bottom:2px;">Observer Location</div>
+            <div id="observer-coords-label" style="font-size:0.9rem; font-weight:700; color:var(--text-main);">Observer (Default Coords)</div>
+          </div>
+          <button class="floating-pill-btn" id="btn-get-gps" style="padding:6px 12px;">📍 GPS</button>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <label for="pass-sat-select" style="font-size:0.8rem; font-weight:600; color:var(--text-muted);">Predict for:</label>
+          <select id="pass-sat-select" class="form-select" style="width:auto; padding:6px 12px; font-size:0.82rem;">
+            <option value="25544">ISS (ZARYA)</option>
+            <option value="48274">TIANGONG (CSS)</option>
+            <option value="20580">HUBBLE SPACE TELESCOPE</option>
+            <option value="49260">LANDSAT 9</option>
+            <option value="25338">NOAA 15</option>
+            <option value="48859">GPS III-05</option>
+          </select>
+        </div>
+
+        <div id="passes-list"></div>
+      </div>
+    </section>
+
+    <!-- 5. AI Orbital Discovery Tab -->
+    <section class="tab-view" id="tab-ai" aria-label="AI Orbital Assistant">
+      <div class="tab-view-scrollable">
+        <div class="ai-intro-card">
+          <div class="ai-intro-title">
+            <span>✨</span>
+            <span>Orbital Discovery Assistant</span>
+          </div>
+          <div style="font-size:0.8rem; color:#cbd5e1; line-height:1.45;">
+            Ask questions about orbital mechanics, filter satellites in natural language, or explore telemetry.
+            Runs offline with built-in query parser or connects optionally to your remote AI provider.
+          </div>
+          <div class="ai-provider-badge-row">
+            <span class="ai-badge">Offline Local Engine</span>
+            <span class="ai-badge">Google Gemini</span>
+            <span class="ai-badge">OpenAI GPT-4o</span>
+            <span class="ai-badge">Anthropic Claude</span>
+            <span class="ai-badge">Ollama</span>
+          </div>
+        </div>
+
+        <div class="chat-history" id="chat-history">
+          <div class="chat-bubble chat-bubble-ai">
+            👋 Hello! I am your Orbital Discovery Assistant. You can ask queries like:
+            <ul style="margin: 6px 0 0 16px; font-size:0.82rem;">
+              <li>"Which space stations are currently tracked?"</li>
+              <li>"Find weather satellites with high inclination"</li>
+              <li>"Show me GPS satellites in medium Earth orbit"</li>
+              <li>"Why does the ISS orbit at 51.6°?"</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="ai-input-bar">
+          <input type="text" class="ai-input" id="ai-prompt-input" placeholder="Ask any orbital query or filter…">
+          <button class="ai-send-btn" id="btn-ai-send" aria-label="Send query">🚀</button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Android Bottom Navigation Bar -->
+  <nav class="mobile-bottom-nav" aria-label="Main Navigation">
+    <button class="nav-item active" data-tab="track" aria-label="2D Track">
+      <span class="nav-icon">📡</span>
+      <span class="nav-label">Track</span>
+    </button>
+    <button class="nav-item" data-tab="globe" aria-label="3D Globe">
+      <span class="nav-icon">🌐</span>
+      <span class="nav-label">Globe</span>
+    </button>
+    <button class="nav-item" data-tab="catalog" aria-label="Catalog">
+      <span class="nav-icon">🔍</span>
+      <span class="nav-label">Catalog</span>
+    </button>
+    <button class="nav-item" data-tab="passes" aria-label="Passes">
+      <span class="nav-icon">⏱️</span>
+      <span class="nav-label">Passes</span>
+    </button>
+    <button class="nav-item" data-tab="ai" aria-label="AI Assist">
+      <span class="nav-icon">✨</span>
+      <span class="nav-label">AI Assist</span>
+    </button>
+  </nav>
+
+  <!-- Settings & Key Vault Modal -->
+  <div class="modal-overlay" id="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-modal-title">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title" id="settings-modal-title">⚙️ App Settings</h2>
+        <button class="icon-btn" id="btn-close-settings" aria-label="Close">✕</button>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="setting-ai-provider">AI Provider (Optional Remote Access)</label>
+        <select class="form-select" id="setting-ai-provider">
+          <option value="local">Local SGP4 Parser (100% Offline, No Key Needed)</option>
+          <option value="gemini">Google Gemini (Gemini 1.5 Flash / Pro)</option>
+          <option value="openai">OpenAI (GPT-4o / GPT-4o-mini)</option>
+          <option value="anthropic">Anthropic (Claude 3.5 Sonnet / Haiku)</option>
+        </select>
+        <div style="font-size:0.74rem; color:var(--text-muted); margin-top:4px;">
+          Remote access is optional. If selected, calls are sent directly from your device over HTTPS.
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="setting-ai-key">API Key Vault</label>
+        <input type="password" class="form-input" id="setting-ai-key" placeholder="Enter API key (stored securely on device only)">
+        <div style="font-size:0.72rem; color:var(--emerald-accent); margin-top:4px;">
+          🔒 Stored strictly in local device storage. Never sent to intermediate servers.
+        </div>
+      </div>
+
+      <div class="form-group" style="padding-top:10px; border-top:1px solid var(--border-color);">
+        <div style="font-size:0.75rem; color:var(--text-muted); line-height:1.5;">
+          <strong>Satellite TLE Tracker v0.1.1</strong><br>
+          SGP4 Orbital Engine • CycloneDX SBOM Certified<br>
+          <a href="https://github.com/sethusrinivasan/satellite-tracker" target="_blank" style="color:var(--cyan-accent); text-decoration:none;">GitHub Repository</a> • 
+          <a href="https://github.com/sethusrinivasan/satellite-tracker/blob/main/docs/PRIVACY_POLICY.md" target="_blank" style="color:var(--cyan-accent); text-decoration:none;">Privacy Policy</a>
+        </div>
+      </div>
+
+      <button class="btn-primary" id="btn-save-settings">Save Settings</button>
+    </div>
+  </div>
+
+  <!-- Custom TLE Import Modal -->
+  <div class="modal-overlay" id="tle-import-modal" role="dialog" aria-modal="true" aria-labelledby="tle-modal-title">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title" id="tle-modal-title">📥 Import Custom TLE</h2>
+        <button class="icon-btn" id="btn-close-tle" aria-label="Close">✕</button>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="custom-tle-name">Satellite Name</label>
+        <input type="text" class="form-input" id="custom-tle-name" placeholder="e.g. STARLINK-9999">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="custom-tle-line1">TLE Line 1</label>
+        <textarea class="form-textarea" id="custom-tle-line1" rows="2" placeholder="1 25544U 98067A   ..."></textarea>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="custom-tle-line2">TLE Line 2</label>
+        <textarea class="form-textarea" id="custom-tle-line2" rows="2" placeholder="2 25544  51.6416 ..."></textarea>
+      </div>
+
+      <button class="btn-primary" id="btn-save-tle">Import &amp; Track</button>
+    </div>
+  </div>
+
+  <!-- Bundled Local Scripts -->
+  <script src="js/satellite.min.js"></script>
+  <script src="js/leaflet.js"></script>
+  <script src="js/three.min.js"></script>
+  <script src="js/mobile-catalog.js"></script>
+  <script src="js/mobile-tracker.js"></script>
+
+  <!-- Progressive Startup & Probing Logic -->
   <script>
     (function() {
-      const steps = [
-        { pct: 20, text: "Bootstrapping isolated desktop environment…", counter: "1 / 5" },
-        { pct: 42, text: "Initializing local SQLite datastore & schemas…", counter: "2 / 5" },
-        { pct: 64, text: "Auditing orbital ephemeris cache & TLE catalogs…", counter: "3 / 5" },
-        { pct: 85, text: "Launching embedded WSGI application service…", counter: "4 / 5" },
-        { pct: 96, text: "Probing loopback service & establishing IPC…", counter: "5 / 5" }
-      ];
-
+      const splash = document.getElementById('desktop-splash');
       const fill = document.getElementById('progress-fill');
       const stageText = document.getElementById('stage-text');
       const stepCounter = document.getElementById('step-counter');
-      const fallbackCard = document.getElementById('fallback-card');
-      const fallbackDesc = document.getElementById('fallback-desc');
 
-      let currentStep = 0;
-      let startTime = Date.now();
-      let pollTimer = null;
+      const stages = [
+        { pct: 20, text: "Bootstrapping isolated desktop environment…", counter: "1 / 5" },
+        { pct: 45, text: "Initializing local SQLite datastore & schemas…", counter: "2 / 5" },
+        { pct: 70, text: "Auditing orbital ephemeris cache & TLE catalogs…", counter: "3 / 5" },
+        { pct: 88, text: "Launching embedded WSGI application service…", counter: "4 / 5" },
+        { pct: 100, text: "Priming local SGP4 orbit propagation engine…", counter: "5 / 5" }
+      ];
 
-      function updateStep(index) {
-        if (index >= steps.length) return;
-        const s = steps[index];
-        fill.style.width = s.pct + '%';
-        stageText.textContent = s.text;
-        stepCounter.textContent = s.counter;
+      let cur = 0;
+      function advance() {
+        if (cur < stages.length) {
+          fill.style.width = stages[cur].pct + '%';
+          stageText.textContent = stages[cur].text;
+          stepCounter.textContent = stages[cur].counter;
+          cur++;
+        }
       }
 
-      // Progressively advance through subtle initialization messages
-      const stepInterval = setInterval(function() {
-        if (currentStep < steps.length - 1) {
-          currentStep++;
-          updateStep(currentStep);
-        }
-      }, 1800);
+      // If on Android or mobile, boot directly into mobile tracker
+      const isMobile = /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
+      if (isMobile) {
+        advance();
+        setTimeout(function() {
+          if (splash) splash.classList.add('hidden');
+        }, 400);
+        return;
+      }
 
-      // Subtle fallback notification displayed gracefully if startup takes longer than 4.5 seconds
-      setTimeout(function() {
-        if (fallbackCard) {
-          fallbackCard.classList.add('visible');
-        }
-      }, 4500);
+      // On desktop, check for running local Python backend
+      const interval = setInterval(advance, 250);
+      const params = new URLSearchParams(window.location.search);
+      const p = params.get('port') || '5000';
 
-      // Secondary fallback note if taking over 9 seconds
-      setTimeout(function() {
-        if (fallbackDesc) {
-          fallbackDesc.textContent = "Multi-tier caching fallback engaged. External telemetry feeds will seamlessly default to local snapshots.";
+      function probe() {
+        if (!/^\d{1,5}$/.test(p)) {
+          dismissSplash();
+          return;
         }
-      }, 9500);
-
-      // Active loopback probing fallback:
-      // Even if Tauri does window.navigate(), if opened directly or if navigation is pending,
-      // probe common ports (5000, 5001, 8080) and query parameters to automatically navigate
-      function checkHealth(url) {
-        if (!/^http:\/\/127\.0\.0\.1:\d{1,5}\/$/.test(url)) return;
-        fetch(url + 'health', { mode: 'cors', cache: 'no-store' })
-          .then(function(res) {
-            if (res.ok) {
-              clearInterval(stepInterval);
-              clearInterval(pollTimer);
-              fill.style.width = '100%';
-              stageText.textContent = "Connecting to desktop application…";
-              setTimeout(function() {
-                window.location.href = url;
-              }, 250);
+        fetch('http://127.0.0.1:' + p + '/health', { mode: 'cors', cache: 'no-store' })
+          .then(function(r) {
+            if (r.ok) {
+              clearInterval(interval);
+              window.location.href = 'http://127.0.0.1:' + p + '/';
+            } else {
+              dismissSplash();
             }
           })
-          .catch(function() { /* continue waiting */ });
+          .catch(function() {
+            // If backend is not running, transition smoothly into standalone mobile app
+            dismissSplash();
+          });
       }
 
-      const params = new URLSearchParams(window.location.search);
-      const targetPort = params.get('port');
-      const portNum = targetPort ? parseInt(targetPort, 10) : NaN;
-      if (/^\d{1,5}$/.test(targetPort || '') && portNum >= 1 && portNum <= 65535) {
-        const safeLoopbackUrl = 'http://127.0.0.1:' + portNum + '/';
-        pollTimer = setInterval(function() {
-          checkHealth(safeLoopbackUrl);
-        }, 500);
-      } else {
-        pollTimer = setInterval(function() {
-          // Probe default localhost ports if running in dev or standalone preview
-          checkHealth('http://127.0.0.1:5000/');
-        }, 1200);
+      function dismissSplash() {
+        setTimeout(function() {
+          clearInterval(interval);
+          if (splash) splash.classList.add('hidden');
+        }, 600);
       }
+
+      setTimeout(probe, 300);
     })();
   </script>
 </body>

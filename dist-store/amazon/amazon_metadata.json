@@ -1,0 +1,30 @@
+{
+  "title": "Satellite TLE Tracker - Real-Time Orbit & Pass Predictor",
+  "short_description": "Track the ISS, Starlink, and 60+ satellites in real-time 2D/3D with an offline SGP4 engine.",
+  "promotional_text": "Live 2D/3D satellite tracking, overpass predictions, offline SGP4 engine, and AI orbit queries.",
+  "bullet_points": [
+    "100% On-Device SGP4 Orbit Propagation Engine (zero server latency or dependency)",
+    "Interactive 2D World Map and 3D WebGL Globe with live multi-satellite orbit trails",
+    "60+ preloaded spacecraft with instant CelesTrak ephemeris sync and custom TLE import",
+    "Precise local overpass calculations with sky elevation compass and countdown timers",
+    "Optional Natural Language AI assistant supporting Google Gemini, OpenAI, and Ollama"
+  ],
+  "keywords": [
+    "satellite",
+    "tracker",
+    "iss",
+    "orbit",
+    "sgp4",
+    "tle",
+    "starlink",
+    "nasa",
+    "space",
+    "passes",
+    "astronomy",
+    "globe",
+    "hubble",
+    "gps"
+  ],
+  "content_rating": "All Ages",
+  "category": "Education & Utilities"
+}

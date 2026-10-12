@@ -142,59 +142,67 @@ pub fn run() {
                 );
             }
 
-            let app_handle = app.handle().clone();
-            let child_storage = child_clone_for_setup.clone();
+            #[cfg(not(mobile))]
+            {
+                let app_handle = app.handle().clone();
+                let child_storage = child_clone_for_setup.clone();
 
-            thread::spawn(move || {
-                let mut cmd = match resolve_backend_command(&app_handle) {
-                    Some(c) => c,
-                    None => {
-                        log::error!("[Tauri] Could not locate backend executable or desktop_entry.py!");
-                        return;
-                    }
-                };
-
-                cmd.stdout(Stdio::piped());
-                cmd.stderr(Stdio::inherit());
-
-                match cmd.spawn() {
-                    Ok(mut child) => {
-                        let stdout = child.stdout.take();
-                        if let Ok(mut lock) = child_storage.lock() {
-                            *lock = Some(child);
+                thread::spawn(move || {
+                    let mut cmd = match resolve_backend_command(&app_handle) {
+                        Some(c) => c,
+                        None => {
+                            log::error!("[Tauri] Could not locate backend executable or desktop_entry.py!");
+                            return;
                         }
+                    };
 
-                        if let Some(out) = stdout {
-                            let reader = BufReader::new(out);
-                            for line in reader.lines().flatten() {
-                                log::info!("[Backend Out] {}", line);
-                                if line.starts_with("READY:") {
-                                    if let Some(port_str) = line.strip_prefix("READY:") {
-                                        if let Ok(port) = port_str.trim().parse::<u16>() {
-                                            log::info!("[Tauri] Backend ready on port {}. Navigating main window...", port);
-                                            let url_str = format!("http://127.0.0.1:{}/", port);
-                                            if let Ok(url) = url_str.parse::<tauri::Url>() {
-                                                // Try navigating the window, with retry loop if window is initializing
-                                                for _ in 0..20 {
-                                                    if let Some(window) = app_handle.get_webview_window("main") {
-                                                        let _ = window.navigate(url);
-                                                        break;
+                    cmd.stdout(Stdio::piped());
+                    cmd.stderr(Stdio::inherit());
+
+                    match cmd.spawn() {
+                        Ok(mut child) => {
+                            let stdout = child.stdout.take();
+                            if let Ok(mut lock) = child_storage.lock() {
+                                *lock = Some(child);
+                            }
+
+                            if let Some(out) = stdout {
+                                let reader = BufReader::new(out);
+                                for line in reader.lines().flatten() {
+                                    log::info!("[Backend Out] {}", line);
+                                    if line.starts_with("READY:") {
+                                        if let Some(port_str) = line.strip_prefix("READY:") {
+                                            if let Ok(port) = port_str.trim().parse::<u16>() {
+                                                log::info!("[Tauri] Backend ready on port {}. Navigating main window...", port);
+                                                let url_str = format!("http://127.0.0.1:{}/", port);
+                                                if let Ok(url) = url_str.parse::<tauri::Url>() {
+                                                    // Try navigating the window, with retry loop if window is initializing
+                                                    for _ in 0..20 {
+                                                        if let Some(window) = app_handle.get_webview_window("main") {
+                                                            let _ = window.navigate(url);
+                                                            break;
+                                                        }
+                                                        thread::sleep(std::time::Duration::from_millis(100));
                                                     }
-                                                    thread::sleep(std::time::Duration::from_millis(100));
                                                 }
+                                                break;
                                             }
-                                            break;
                                         }
                                     }
                                 }
                             }
                         }
+                        Err(e) => {
+                            log::error!("[Tauri] Failed to spawn backend process: {}", e);
+                        }
                     }
-                    Err(e) => {
-                        log::error!("[Tauri] Failed to spawn backend process: {}", e);
-                    }
-                }
-            });
+                });
+            }
+
+            #[cfg(mobile)]
+            {
+                log::info!("[Tauri Mobile] Running mobile application with local SGP4 orbit engine and optional remote AI.");
+            }
 
             Ok(())
         })

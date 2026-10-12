@@ -11,7 +11,12 @@
     "build:sidecar": "python3 scripts/build_sidecar.py",
     "sbom:generate": "python3 scripts/generate_sbom.py",
     "desktop:dev": "tauri dev",
-    "desktop:build": "python3 scripts/build_sidecar.py && tauri build"
+    "desktop:build": "python3 scripts/build_sidecar.py && tauri build",
+    "android:assets": "python3 scripts/generate_store_assets.py",
+    "android:dev": "tauri android dev",
+    "android:build:aab": "tauri android build --apk=false --aab=true",
+    "android:build:apk": "tauri android build --apk=true --aab=false",
+    "android:build:all": "npm run android:assets && npm run android:build:aab && npm run android:build:apk"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.1.0"
