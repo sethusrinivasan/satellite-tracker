@@ -172,9 +172,31 @@ def create_app(config_object="config.Config"):
             "posthog_host": _normalize_posthog_host(app.config.get("POSTHOG_HOST")),
             "posthog_session_replay": bool(app.config.get("POSTHOG_SESSION_REPLAY")),
             "feature_flags": get_feature_flags(),
+            "tle_freshness": _safe_get_tle_freshness(app),
         }
 
+    @app.get("/api/tle/freshness")
+    def api_tle_freshness():
+        from app.services.tle_sync_scheduler import get_tle_freshness
+        return jsonify(get_tle_freshness())
+
+    if not app.config.get("TESTING") and app.config.get("AUTO_TLE_SYNC_ENABLED", False):
+        from app.services.tle_sync_scheduler import start_tle_sync_scheduler
+        start_tle_sync_scheduler(app)
+
     return app
+
+
+def _safe_get_tle_freshness(app):
+    """Context processor helper to avoid breaking pages when datastore is not yet ready."""
+    if not app.config.get("DATASTORE_CONFIGURED") or app.config.get("TESTING"):
+        return {"has_data": False, "freshness_label": "Testing", "is_stale": False}
+    try:
+        from app.services.tle_sync_scheduler import get_tle_freshness
+        return get_tle_freshness()
+    except Exception:
+        return {"has_data": False, "freshness_label": "Unknown", "is_stale": False}
+
 
 
 def _resolve_datastore(app):

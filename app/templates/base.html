@@ -39,6 +39,14 @@
           Admin
         </a>
 
+        <!-- TLE Data Freshness Indicator -->
+        {% if tle_freshness and tle_freshness.has_data %}
+          <div class="tle-freshness-pill" style="display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:var(--radius-sm);background:rgba(255,255,255,0.03);border:1px solid var(--border);font-size:0.75rem;color:{% if tle_freshness.is_stale %}#f59e0b{% else %}#10b981{% endif %};" title="Last TLE epoch/sync: {{ tle_freshness.last_sync_time }}">
+            <span style="font-size:0.7rem;">{% if tle_freshness.is_stale %}⚠️{% else %}🟢{% endif %}</span>
+            <span class="mono">{{ tle_freshness.freshness_label }}</span>
+          </div>
+        {% endif %}
+
         <!-- Auth user pill (shown when signed in) -->
         {% set _admin_user = session.get('admin_user') %}
         {% if _admin_user %}

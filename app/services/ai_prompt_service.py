@@ -28,7 +28,7 @@ Rules:
 - Translate user's query into a valid SQLite SELECT query.
 - Return ONLY the SQLite SELECT query. Do NOT include markdown code blocks (```sql) or explanations.
 - Your query MUST select the 'norad_cat_id' column from the satellites table (e.g. SELECT s.norad_cat_id FROM satellites s ...).
-- If querying epoch parameters like inclination_deg, eccentricity, or mean_motion_rev_day, you MUST JOIN tle_elements (e.g. JOIN tle_elements t ON s.id = t.satellite_id).
+- CRITICAL: If querying or ordering by any epoch parameters (inclination_deg, eccentricity, mean_motion_rev_day, epoch_datetime), you MUST explicitly JOIN tle_elements: JOIN tle_elements t ON s.id = t.satellite_id.
 - Limit the query to 50 results if not specified.
 
 Examples:
@@ -42,7 +42,13 @@ Request: Satellites in polar orbit with inclination near 90 degrees
 Query: SELECT s.norad_cat_id FROM satellites s JOIN tle_elements t ON s.id = t.satellite_id WHERE t.inclination_deg BETWEEN 85 AND 95 LIMIT 50;
 
 Request: Satellites with high orbital eccentricity greater than 0.01
-Query: SELECT s.norad_cat_id FROM satellites s JOIN tle_elements t ON s.id = t.satellite_id WHERE t.eccentricity > 0.01 LIMIT 50;"""
+Query: SELECT s.norad_cat_id FROM satellites s JOIN tle_elements t ON s.id = t.satellite_id WHERE t.eccentricity > 0.01 LIMIT 50;
+
+Request: Active GPS satellites with inclination over 50 and low eccentricity
+Query: SELECT s.norad_cat_id FROM satellites s JOIN tle_elements t ON s.id = t.satellite_id WHERE s.name LIKE '%GPS%' AND t.inclination_deg > 50 AND t.eccentricity < 0.02 LIMIT 50;
+
+Request: Fastest moving Low Earth Orbit satellites ordered by mean motion
+Query: SELECT s.norad_cat_id FROM satellites s JOIN tle_elements t ON s.id = t.satellite_id ORDER BY t.mean_motion_rev_day DESC LIMIT 50;"""
 
 
 def get_ai_system_prompt() -> str:

@@ -283,6 +283,232 @@
         }, { once: true });
       });
     </script>
+    <!-- Observer Look-Angles & Pass Prediction -->
+    <div class="pass-prediction-card" id="pass-prediction-card" style="background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 24px; box-shadow: var(--shadow);">
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
+        <h2 class="section-title" style="font-size: 1.15rem; margin-bottom: 0; display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 1.3rem;">🔭</span> Observer Look-Angles &amp; Pass Predictions (Next 48 Hours)
+        </h2>
+        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+          <button type="button" class="btn btn--secondary" id="btn-detect-location" style="margin-bottom:0; display:flex; align-items:center; gap:6px; font-size:0.85rem;">
+            📍 Detect My Location
+          </button>
+        </div>
+      </div>
+
+      <!-- Observer controls -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 18px; padding: 14px; background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: var(--radius-sm);">
+        <div>
+          <label for="obs-lat" style="display: block; font-size: 0.78rem; color: var(--text-muted); margin-bottom: 4px;">Observer Latitude (°)</label>
+          <input type="number" id="obs-lat" class="form-input" style="width: 100%; padding: 6px 10px; font-size: 0.88rem; background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 4px;" value="37.7749" step="0.0001">
+        </div>
+        <div>
+          <label for="obs-lng" style="display: block; font-size: 0.78rem; color: var(--text-muted); margin-bottom: 4px;">Observer Longitude (°)</label>
+          <input type="number" id="obs-lng" class="form-input" style="width: 100%; padding: 6px 10px; font-size: 0.88rem; background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 4px;" value="-122.4194" step="0.0001">
+        </div>
+        <div>
+          <label for="obs-min-elev" style="display: block; font-size: 0.78rem; color: var(--text-muted); margin-bottom: 4px;">Min Elevation Mask</label>
+          <select id="obs-min-elev" class="form-select" style="width: 100%; padding: 6px 10px; font-size: 0.88rem; background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 4px;">
+            <option value="10" selected>10° (Standard Horizon)</option>
+            <option value="20">20° (Clear View)</option>
+            <option value="30">30° (High Pass)</option>
+            <option value="45">45° (Overhead / Direct)</option>
+          </select>
+        </div>
+        <div style="display: flex; align-items: flex-end;">
+          <button type="button" class="btn btn--primary" id="btn-calc-passes" style="width: 100%; margin-bottom: 0; padding: 7px 14px; font-size: 0.88rem;">
+            🔄 Calculate Passes
+          </button>
+        </div>
+      </div>
+
+      <!-- Passes table container -->
+      <div id="passes-container" style="overflow-x: auto;">
+        <div id="passes-status" style="padding: 16px; text-align: center; color: var(--text-muted); font-size: 0.9rem;">
+          Calculating upcoming visible passes...
+        </div>
+        <table class="table" id="passes-table" style="width: 100%; display: none; font-size: 0.88rem; border-collapse: collapse;">
+          <thead>
+            <tr style="border-bottom: 1px solid var(--border); text-align: left; color: var(--text-muted); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em;">
+              <th style="padding: 10px 8px;">AOS (Start)</th>
+              <th style="padding: 10px 8px;">Max Elevation</th>
+              <th style="padding: 10px 8px;">LOS (End)</th>
+              <th style="padding: 10px 8px;">Duration</th>
+              <th style="padding: 10px 8px;">Azimuth Trajectory</th>
+              <th style="padding: 10px 8px;">Countdown</th>
+            </tr>
+          </thead>
+          <tbody id="passes-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <script>
+      // ── Client-side Pass Prediction Engine ──
+      (function() {
+        const line1 = "{{ elements[0].raw_line1 }}";
+        const line2 = "{{ elements[0].raw_line2 }}";
+
+        function compassHeading(deg) {
+          const dirs = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
+          const idx = Math.round(((deg % 360) + 360) % 360 / 22.5) % 16;
+          return dirs[idx];
+        }
+
+        function calculatePasses() {
+          const latInput = parseFloat(document.getElementById('obs-lat').value) || 0;
+          const lngInput = parseFloat(document.getElementById('obs-lng').value) || 0;
+          const minElev = parseFloat(document.getElementById('obs-min-elev').value) || 10;
+          const statusEl = document.getElementById('passes-status');
+          const tableEl = document.getElementById('passes-table');
+          const tbodyEl = document.getElementById('passes-tbody');
+
+          if (!window.satellite || !line1 || !line2) {
+            statusEl.textContent = 'Orbital propagation library or TLE data unavailable.';
+            statusEl.style.display = 'block';
+            tableEl.style.display = 'none';
+            return;
+          }
+
+          statusEl.textContent = 'Computing passes over observer coordinates...';
+          statusEl.style.display = 'block';
+          tableEl.style.display = 'none';
+
+          setTimeout(() => {
+            try {
+              const satrec = satellite.twoline2satrec(line1, line2);
+              const obsGd = {
+                latitude: latInput * (Math.PI / 180),
+                longitude: lngInput * (Math.PI / 180),
+                height: 0.05 // default 50m above sea level
+              };
+
+              const now = new Date();
+              const passes = [];
+              let inPass = false;
+              let currentPass = null;
+
+              // Scan next 48 hours at 30-second steps (172800 sec / 30 = 5760 steps)
+              for (let s = 0; s < 172800; s += 30) {
+                const t = new Date(now.getTime() + s * 1000);
+                const posVel = satellite.propagate(satrec, t);
+                if (!posVel || !posVel.position) continue;
+
+                const gmst = satellite.gstime(t);
+                const posEcf = satellite.eciToEcf(posVel.position, gmst);
+                const lookAngles = satellite.ecfToLookAngles(obsGd, posEcf);
+
+                const elevDeg = (lookAngles.elevation * 180) / Math.PI;
+                const azDeg = (lookAngles.azimuth * 180) / Math.PI;
+
+                if (elevDeg >= minElev) {
+                  if (!inPass) {
+                    inPass = true;
+                    currentPass = {
+                      aosTime: t,
+                      aosAz: Math.round(azDeg),
+                      maxElev: elevDeg,
+                      maxElevTime: t,
+                      maxAz: Math.round(azDeg),
+                      losTime: t,
+                      losAz: Math.round(azDeg)
+                    };
+                  } else {
+                    if (elevDeg > currentPass.maxElev) {
+                      currentPass.maxElev = elevDeg;
+                      currentPass.maxElevTime = t;
+                      currentPass.maxAz = Math.round(azDeg);
+                    }
+                    currentPass.losTime = t;
+                    currentPass.losAz = Math.round(azDeg);
+                  }
+                } else if (inPass) {
+                  inPass = false;
+                  passes.push(currentPass);
+                  if (passes.length >= 10) break;
+                }
+              }
+
+              if (passes.length === 0) {
+                statusEl.textContent = 'No visible passes above ' + minElev + '° elevation detected in the next 48 hours for this location.';
+                statusEl.style.display = 'block';
+                tableEl.style.display = 'none';
+                return;
+              }
+
+              tbodyEl.innerHTML = passes.map((p, idx) => {
+                const durationSec = Math.round((p.losTime - p.aosTime) / 1000);
+                const durMin = Math.floor(durationSec / 60);
+                const durSec = durationSec % 60;
+                const maxDeg = Math.round(p.maxElev);
+
+                const qualBadge = maxDeg >= 60
+                  ? '<span class="badge" style="background:#10b981; color:#fff; font-weight:700; padding:2px 8px; border-radius:4px; font-size:0.75rem;">' + maxDeg + '° (EXCELLENT)</span>'
+                  : maxDeg >= 30
+                  ? '<span class="badge" style="background:#3b82f6; color:#fff; font-weight:700; padding:2px 8px; border-radius:4px; font-size:0.75rem;">' + maxDeg + '° (GOOD)</span>'
+                  : '<span class="badge" style="background:#64748b; color:#fff; font-weight:700; padding:2px 8px; border-radius:4px; font-size:0.75rem;">' + maxDeg + '° (LOW)</span>';
+
+                const diffMs = p.aosTime - now;
+                const hrsIn = Math.floor(diffMs / 3600000);
+                const minsIn = Math.floor((diffMs % 3600000) / 60000);
+                const countdown = diffMs > 0 ? (hrsIn > 0 ? 'In ' + hrsIn + 'h ' + minsIn + 'm' : 'In ' + minsIn + 'm') : '<span style="color:#10b981; font-weight:700;">Live Now</span>';
+
+                const aosFmt = p.aosTime.toLocaleDateString([], {month:'short', day:'numeric'}) + ' ' + p.aosTime.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+                const losFmt = p.losTime.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+
+                return '<tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">' +
+                  '<td style="padding: 10px 8px;"><strong class="mono">' + aosFmt + '</strong></td>' +
+                  '<td style="padding: 10px 8px;">' + qualBadge + '</td>' +
+                  '<td style="padding: 10px 8px;"><span class="mono">' + losFmt + '</span></td>' +
+                  '<td style="padding: 10px 8px;"><span class="mono">' + durMin + 'm ' + durSec + 's</span></td>' +
+                  '<td style="padding: 10px 8px; font-size: 0.82rem;">' + compassHeading(p.aosAz) + ' (' + p.aosAz + '°) → ' + compassHeading(p.maxAz) + ' → ' + compassHeading(p.losAz) + ' (' + p.losAz + '°)</td>' +
+                  '<td style="padding: 10px 8px;">' + countdown + '</td>' +
+                '</tr>';
+              }).join('');
+
+              statusEl.style.display = 'none';
+              tableEl.style.display = 'table';
+            } catch (err) {
+              console.error('Pass prediction error:', err);
+              statusEl.textContent = 'Error computing look-angles: ' + err.message;
+              statusEl.style.display = 'block';
+              tableEl.style.display = 'none';
+            }
+          }, 20);
+        }
+
+        document.getElementById('btn-calc-passes').addEventListener('click', calculatePasses);
+
+        document.getElementById('btn-detect-location').addEventListener('click', function() {
+          const btn = this;
+          if (!navigator.geolocation) {
+            alert('Geolocation is not supported by your browser.');
+            return;
+          }
+          btn.textContent = '📍 Locating...';
+          btn.disabled = true;
+          navigator.geolocation.getCurrentPosition(
+            function(pos) {
+              document.getElementById('obs-lat').value = (Math.round(pos.coords.latitude * 10000) / 10000).toFixed(4);
+              document.getElementById('obs-lng').value = (Math.round(pos.coords.longitude * 10000) / 10000).toFixed(4);
+              btn.textContent = '📍 Location Set';
+              btn.disabled = false;
+              calculatePasses();
+            },
+            function(err) {
+              console.warn('Geolocation warning:', err);
+              btn.textContent = '📍 Detect My Location';
+              btn.disabled = false;
+              alert('Could not retrieve device location (' + err.message + '). Please enter coordinates manually.');
+            },
+            { enableHighAccuracy: true, timeout: 6000 }
+          );
+        });
+
+        // Compute default pass schedule on page load
+        calculatePasses();
+      })();
+    </script>
     {% endif %}
 
     <!-- Field glossary -->

@@ -411,6 +411,28 @@ def satellites_over_region(
         if len(l1) < 69 or len(l2) < 69:
             continue
 
+        # Fast inclination & orbital bounds pre-filtering:
+        # A satellite's ground track latitude cannot physically exceed min(inc, 180 - inc).
+        # If the bounding box is entirely above the max latitude or below the min latitude,
+        # skip expensive Newton-Raphson Kepler equation solving and geodetic projections.
+        try:
+            inc_deg = float(l2[8:16])
+            max_lat = min(inc_deg, 180.0 - inc_deg)
+            if lat_min > 0 and max_lat < lat_min:
+                continue
+            if lat_max < 0 and (-max_lat) > lat_max:
+                continue
+
+            # Skip decaying or non-orbital records
+            mm = float(l2[52:63])
+            if mm <= 0.0 or mm > 18.0:
+                continue
+            # For standard LEO search (altitude <= 2000 km), skip geostationary orbits
+            if altitude_max_km <= 2000.0 and mm < 1.5:
+                continue
+        except (ValueError, IndexError):
+            pass
+
         pos = propagate_tle(l1, l2, now)
         if pos is None:
             continue
