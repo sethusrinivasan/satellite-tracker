@@ -270,6 +270,7 @@ def index():
         is_custom_prompt_active,
         DEFAULT_AI_SYSTEM_PROMPT,
     )
+    from app.services.ai_provider_service import get_ai_config
 
     return render_template(
         "admin.html",
@@ -286,6 +287,7 @@ def index():
         ai_system_prompt=get_ai_system_prompt(),
         is_custom_prompt=is_custom_prompt_active(),
         default_ai_system_prompt=DEFAULT_AI_SYSTEM_PROMPT.strip(),
+        ai_config=get_ai_config(),
     )
 
 
@@ -372,6 +374,59 @@ def reset_system_prompt():
     except Exception as exc:
         flash(f"Failed to reset system prompt: {exc}", "error")
     return redirect(url_for("admin.index"))
+
+
+@admin_bp.route("/ai-provider", methods=["POST"])
+@admin_required
+def update_ai_provider():
+    from app.services.ai_provider_service import save_ai_config
+
+    provider = request.form.get("provider", "auto").strip()
+    model = request.form.get("model", "").strip()
+    gemini_key = request.form.get("gemini_key", "").strip()
+    openai_key = request.form.get("openai_key", "").strip()
+    anthropic_key = request.form.get("anthropic_key", "").strip()
+    ollama_url = request.form.get("ollama_url", "").strip()
+    custom_url = request.form.get("custom_url", "").strip()
+    custom_key = request.form.get("custom_key", "").strip()
+
+    try:
+        save_ai_config(
+            provider=provider,
+            model=model,
+            gemini_key=gemini_key,
+            openai_key=openai_key,
+            anthropic_key=anthropic_key,
+            ollama_url=ollama_url,
+            custom_url=custom_url,
+            custom_key=custom_key,
+        )
+        flash("AI provider and model settings saved securely.", "success")
+    except Exception as exc:
+        logger.exception("[admin] Failed to save AI provider configuration: %s", exc)
+        flash("Failed to save AI configuration.", "error")
+    return redirect(url_for("admin.index"))
+
+
+@admin_bp.route("/ai-provider/test", methods=["POST"])
+@admin_required
+def test_ai_provider():
+    from app.services.ai_provider_service import check_provider_connection
+
+    payload = request.get_json(silent=True) or request.form or {}
+    provider = payload.get("provider", "local_gguf")
+    api_key = payload.get("api_key")
+    base_url = payload.get("base_url")
+    model = payload.get("model")
+
+    result = check_provider_connection(
+        provider=provider,
+        api_key=api_key,
+        base_url=base_url,
+        model=model,
+    )
+    status_code = 200 if result.get("ok") else 400
+    return jsonify(result), status_code
 
 
 @admin_bp.route("/delete/<int:upload_id>", methods=["POST"])

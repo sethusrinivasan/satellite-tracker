@@ -630,68 +630,31 @@ def natural_query():
             }
         })
 
-    # 1. Ensure model is loaded
+    # 1. Generate SQL with Pluggable Multi-Provider Support (Gemini, OpenAI, Anthropic, Ollama, Local GGUF)
+    from app.services.ai_provider_service import generate_sql_with_fallback, sanitize_error_message
+
     try:
-        t_model_start = time.perf_counter()
-        llm = _get_llm()
-        t_model_dur = time.perf_counter() - t_model_start
-        log.debug("[AI Search] Model handle ready in %.4fs", t_model_dur)
+        generated_sql, provider_used, t_llm_dur = generate_sql_with_fallback(
+            user_prompt, local_llm_getter=_get_llm
+        )
     except FileNotFoundError as e:
         log.warning("[AI Search] AI model file missing: %s", e)
-        return jsonify({"error": "AI model not available. Please download it from the Admin panel."}), 404
+        return jsonify({"error": "AI model not available. Please download it from the Admin panel or configure an external API key (Gemini, OpenAI, Ollama)."}), 404
     except Exception as e:
-        log.exception("[AI Search] Error initializing AI model")
-        return jsonify({"error": "Failed to load the AI model."}), 500
+        sanitized = sanitize_error_message(str(e))
+        log.warning("[AI Search] AI inference failed: %s", sanitized)
+        return jsonify({"error": f"Failed to generate SQL with AI: {sanitized}"}), 500
 
-    # 2. Formulate system prompt for Qwen2.5-Coder
-    from app.services.ai_prompt_service import get_ai_system_prompt
-
-    system_prompt = get_ai_system_prompt()
-
-    prompt = f"<|im_start|>system\n{system_prompt}<|im_end|>\n<|im_start|>user\n{user_prompt}<|im_end|>\n<|im_start|>assistant\n"
+    # 2. Security check
+    if not validate_sql_safety(generated_sql):
+        log.warning("[AI Search] Blocked unsafe SQL query: %s", generated_sql)
+        return jsonify({
+            "error": "Query blocked for security safety.",
+            "sql": generated_sql
+        }), 400
 
     try:
-        log.info("[AI Search] Starting LLM SQL inference generation...")
-        t_llm_start = time.perf_counter()
-        response = llm(
-            prompt,
-            max_tokens=128,
-            stop=["<|im_end|>"],
-            temperature=0.1
-        )
-        t_llm_dur = time.perf_counter() - t_llm_start
-        generated_sql = response["choices"][0]["text"].strip()
-        usage = response.get("usage", {})
-        log.info(
-            "[AI Search] LLM inference completed in %.3fs (prompt_tokens=%s, completion_tokens=%s, total_tokens=%s). Generated SQL: %s",
-            t_llm_dur,
-            usage.get("prompt_tokens"),
-            usage.get("completion_tokens"),
-            usage.get("total_tokens"),
-            generated_sql
-        )
-
-        full_llm_response = response
-
-        # Clean any backticks or formatting
-        if "```" in generated_sql:
-            matches = re.findall(r"```(?:sql)?\s*(.*?)\s*```", generated_sql, re.DOTALL)
-            if matches:
-                generated_sql = matches[0].strip()
-            else:
-                generated_sql = generated_sql.replace("```", "").strip()
-
-        generated_sql = generated_sql.rstrip(";") + ";"
-
-        # 3. Security check
-        if not validate_sql_safety(generated_sql):
-            log.warning("[AI Search] Blocked unsafe SQL query: %s", generated_sql)
-            return jsonify({
-                "error": "Query blocked for security safety.",
-                "sql": generated_sql
-            }), 400
-
-        # 4. Execute query to retrieve NORAD catalog IDs
+        # 3. Execute query to retrieve NORAD catalog IDs
         t_sql_start = time.perf_counter()
         raw_results = db.session.execute(db.text(generated_sql)).fetchall()
         
@@ -712,11 +675,11 @@ def natural_query():
                     "llm_inference_sec": round(t_llm_dur, 3),
                     "db_query_sec": round(time.perf_counter() - t_sql_start, 3),
                     "total_time_sec": round(t_total, 3),
-                    "mode": "offline_llm"
+                    "mode": provider_used,
                 }
             })
 
-        # 5. Fetch full satellite data including TLE elements
+        # 4. Fetch full satellite data including TLE elements
         subquery = (
             db.session.query(TLEElement.satellite_id, func.max(TLEElement.id).label("max_id"))
             .group_by(TLEElement.satellite_id)
@@ -763,17 +726,14 @@ def natural_query():
             "satellites": data,
             "sql": generated_sql,
             "llm_raw_response": {
-                "model": full_llm_response.get("model", "unknown"),
-                "usage": full_llm_response.get("usage", {}),
+                "model": provider_used,
                 "raw_text": generated_sql,
-                "full_raw_text": full_llm_response.get("choices", [{}])[0].get("text", ""),
-                "finish_reason": full_llm_response.get("choices", [{}])[0].get("finish_reason", ""),
             },
             "perf": {
                 "llm_inference_sec": round(t_llm_dur, 3),
                 "db_query_sec": round(t_sql_dur, 3),
                 "total_time_sec": round(t_total, 3),
-                "mode": "offline_llm"
+                "mode": provider_used,
             }
         })
 

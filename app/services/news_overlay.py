@@ -33,6 +33,10 @@ CONVERSATION_FEED = "https://theconversation.com/global/articles.atom"
 CONVERSATION_HOME = "https://theconversation.com"
 DW_FEED = "https://rss.dw.com/rdf/rss-en-all"
 DW_HOME = "https://www.dw.com"
+NASA_NEWS_FEED = "https://www.nasa.gov/news-release/feed/"
+NASA_HOME = "https://www.nasa.gov"
+SPACENEWS_FEED = "https://spacenews.com/feed/"
+SPACENEWS_HOME = "https://spacenews.com"
 REQUEST_TIMEOUT = 18
 MAX_PINS = 100
 MAX_LINKS = 2
@@ -94,7 +98,33 @@ DW_SOURCE = {
         "story; the title opens the DW article."
     ),
 }
-SOURCES = [GDACS_SOURCE, UN_SOURCE, GV_SOURCE, CONVERSATION_SOURCE, DW_SOURCE]
+NASA_SOURCE = {
+    "name": "NASA News",
+    "url": NASA_HOME,
+    "license": "Public domain (US Government)",
+    "attribution": (
+        "Mission announcements and Earth observation telemetry from NASA. "
+        "Title links open the official NASA release."
+    ),
+}
+SPACENEWS_SOURCE = {
+    "name": "SpaceNews",
+    "url": SPACENEWS_HOME,
+    "license": "Aerospace journalism with attribution",
+    "attribution": (
+        "Orbital and aerospace reporting from SpaceNews. "
+        "Title links open the SpaceNews article."
+    ),
+}
+SOURCES = [
+    GDACS_SOURCE,
+    UN_SOURCE,
+    GV_SOURCE,
+    CONVERSATION_SOURCE,
+    DW_SOURCE,
+    NASA_SOURCE,
+    SPACENEWS_SOURCE,
+]
 SOURCE = GDACS_SOURCE
 
 ARTICLE_FEEDS = [
@@ -102,6 +132,8 @@ ARTICLE_FEEDS = [
     {"id": "global-voices", "source": GV_SOURCE, "url": GLOBAL_VOICES_FEED, "region": ""},
     {"id": "conversation", "source": CONVERSATION_SOURCE, "url": CONVERSATION_FEED, "region": ""},
     {"id": "dw", "source": DW_SOURCE, "url": DW_FEED, "region": ""},
+    {"id": "nasa", "source": NASA_SOURCE, "url": NASA_NEWS_FEED, "region": ""},
+    {"id": "spacenews", "source": SPACENEWS_SOURCE, "url": SPACENEWS_FEED, "region": ""},
 ]
 
 GDACS_LABELS = {

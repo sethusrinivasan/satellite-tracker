@@ -9,6 +9,7 @@
     "version:check": "python3 scripts/bump_version.py --check",
     "version:bump": "python3 scripts/bump_version.py --type patch",
     "build:sidecar": "python3 scripts/build_sidecar.py",
+    "sbom:generate": "python3 scripts/generate_sbom.py",
     "desktop:dev": "tauri dev",
     "desktop:build": "python3 scripts/build_sidecar.py && tauri build"
   },

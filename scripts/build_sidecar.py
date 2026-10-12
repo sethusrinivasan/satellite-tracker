@@ -72,6 +72,13 @@ def main() -> None:
         except Exception as exc:
             print(f"Warning: Could not auto-bump version: {exc}", file=sys.stderr)
 
+    # Regenerate CycloneDX SBOM on every build
+    try:
+        from generate_sbom import generate_sbom
+        generate_sbom()
+    except Exception as exc:
+        print(f"Warning: Could not auto-generate SBOM: {exc}", file=sys.stderr)
+
     is_windows = sys.platform.startswith("win")
     exe_suffix = ".exe" if is_windows else ""
 

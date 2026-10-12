@@ -2,129 +2,487 @@
   "$schema": "http://cyclonedx.org/schema/bom-1.5.schema.json",
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:8a2f4e19-9471-4b11-b0e2-satellite-tracker",
-  "version": 2,
+  "serialNumber": "urn:uuid:e406a5e4-d386-44e8-a2f3-f33ec1cbd04e",
+  "version": 1,
   "metadata": {
-    "timestamp": "2026-09-20T20:00:00Z",
+    "timestamp": "2026-10-12T04:23:14.806942+00:00",
     "tools": [
       {
         "vendor": "Antigravity",
         "name": "CycloneDX Generator",
-        "version": "1.0.0"
+        "version": "1.5.0"
       }
     ],
     "component": {
       "group": "sethusrinivasan",
       "name": "satellite-tracker",
-      "version": "1.0.0",
+      "version": "0.1.1",
       "type": "application",
-      "description": "Satellite TLE Tracker & AI Orbital Discovery Platform"
+      "description": "Cross-Platform Real-Time Satellite TLE Tracker & AI Orbital Discovery",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ]
     }
   },
   "components": [
     {
       "type": "library",
       "name": "Flask",
-      "version": "3.1.3",
-      "purl": "pkg:pypi/flask@3.1.3",
-      "licenses": [{"license": {"id": "BSD-3-Clause"}}],
-      "description": "A simple framework for building complex web applications."
+      "version": "unknown",
+      "purl": "pkg:pypi/flask@unknown",
+      "description": "Python package Flask"
     },
     {
       "type": "library",
       "name": "Flask-SQLAlchemy",
-      "version": "3.1.1",
-      "purl": "pkg:pypi/flask-sqlalchemy@3.1.1",
-      "licenses": [{"license": {"id": "BSD-3-Clause"}}],
-      "description": "Adds SQLAlchemy support to your Flask application."
+      "version": "unknown",
+      "purl": "pkg:pypi/flask-sqlalchemy@unknown",
+      "description": "Python package Flask-SQLAlchemy"
     },
     {
       "type": "library",
       "name": "SQLAlchemy",
-      "version": "2.0.50",
-      "purl": "pkg:pypi/sqlalchemy@2.0.50",
-      "licenses": [{"license": {"id": "MIT"}}],
-      "description": "Database Abstraction Library"
+      "version": "unknown",
+      "purl": "pkg:pypi/sqlalchemy@unknown",
+      "description": "Python package SQLAlchemy"
     },
     {
       "type": "library",
       "name": "Werkzeug",
-      "version": "3.1.8",
-      "purl": "pkg:pypi/werkzeug@3.1.8",
-      "licenses": [{"license": {"id": "BSD-3-Clause"}}],
-      "description": "The comprehensive WSGI web application library."
+      "version": "unknown",
+      "purl": "pkg:pypi/werkzeug@unknown",
+      "description": "Python package Werkzeug"
     },
     {
       "type": "library",
       "name": "requests",
-      "version": "2.34.2",
-      "purl": "pkg:pypi/requests@2.34.2",
-      "licenses": [{"license": {"id": "Apache-2.0"}}],
-      "description": "Python HTTP for Humans."
+      "version": "2.32.5",
+      "purl": "pkg:pypi/requests@2.32.5",
+      "description": "Python HTTP for Humans.",
+      "licenses": [
+        {
+          "license": {
+            "name": "Apache-2.0"
+          }
+        }
+      ]
     },
     {
       "type": "library",
-      "name": "llama-cpp-python",
-      "version": "0.3.28",
-      "purl": "pkg:pypi/llama-cpp-python@0.3.28",
-      "licenses": [{"license": {"id": "MIT"}}],
-      "description": "Python bindings for llama.cpp"
+      "name": "authlib",
+      "version": "unknown",
+      "purl": "pkg:pypi/authlib@unknown",
+      "description": "Python package authlib"
     },
     {
       "type": "library",
-      "name": "Authlib",
-      "version": "1.7.2",
-      "purl": "pkg:pypi/authlib@1.7.2",
-      "licenses": [{"license": {"id": "BSD-3-Clause"}}],
-      "description": "The ultimate Python library in building OAuth and OpenID Connect servers and clients."
-    },
-    {
-      "type": "library",
-      "name": "Flask-Login",
-      "version": "0.6.3",
-      "purl": "pkg:pypi/flask-login@0.6.3",
-      "licenses": [{"license": {"id": "MIT"}}],
-      "description": "User session management for Flask."
-    },
-    {
-      "type": "library",
-      "name": "numpy",
-      "version": "2.4.6",
-      "purl": "pkg:pypi/numpy@2.4.6",
-      "licenses": [{"license": {"id": "BSD-3-Clause"}}],
-      "description": "Fundamental package for array computing in Python."
-    },
-    {
-      "type": "library",
-      "name": "satellite.js",
-      "version": "4.1.4",
-      "purl": "pkg:npm/satellite.js@4.1.4",
-      "licenses": [{"license": {"id": "MIT"}}],
-      "description": "A JavaScript library for SGP4/SDP4 satellite propagation."
-    },
-    {
-      "type": "library",
-      "name": "psycopg",
-      "version": "3.2.10",
-      "purl": "pkg:pypi/psycopg@3.2.10",
-      "licenses": [{"license": {"id": "LGPL-3.0-or-later"}}],
-      "description": "PostgreSQL database adapter for Python (psycopg 3)"
+      "name": "flask-login",
+      "version": "unknown",
+      "purl": "pkg:pypi/flask-login@unknown",
+      "description": "Python package flask-login"
     },
     {
       "type": "library",
       "name": "python-dotenv",
-      "version": "1.1.0",
-      "purl": "pkg:pypi/python-dotenv@1.1.0",
-      "licenses": [{"license": {"id": "BSD-3-Clause"}}],
-      "description": "Read key-value pairs from a .env file and set them as environment variables"
+      "version": "unknown",
+      "purl": "pkg:pypi/python-dotenv@unknown",
+      "description": "Python package python-dotenv"
     },
     {
       "type": "library",
       "name": "pytest",
-      "version": "8.4.1",
-      "purl": "pkg:pypi/pytest@8.4.1",
-      "licenses": [{"license": {"id": "MIT"}}],
-      "description": "pytest: simple powerful testing with Python"
+      "version": "unknown",
+      "purl": "pkg:pypi/pytest@unknown",
+      "description": "Python package pytest"
+    },
+    {
+      "type": "library",
+      "name": "psycopg[binary]",
+      "version": "unknown",
+      "purl": "pkg:pypi/psycopg[binary]@unknown",
+      "description": "Python package psycopg[binary]"
+    },
+    {
+      "type": "library",
+      "name": "waitress",
+      "version": "unknown",
+      "purl": "pkg:pypi/waitress@unknown",
+      "description": "Python package waitress"
+    },
+    {
+      "type": "library",
+      "name": "valkey",
+      "version": "unknown",
+      "purl": "pkg:pypi/valkey@unknown",
+      "description": "Python package valkey"
+    },
+    {
+      "type": "library",
+      "name": "valkeylite",
+      "version": "unknown",
+      "purl": "pkg:pypi/valkeylite@unknown",
+      "description": "Python package valkeylite"
+    },
+    {
+      "type": "library",
+      "name": "@tauri-apps/cli",
+      "version": "2.1.0",
+      "purl": "pkg:npm/@tauri-apps/cli@2.1.0",
+      "description": "Node.js package @tauri-apps/cli"
+    },
+    {
+      "type": "library",
+      "name": "adler2",
+      "version": "2.0.1",
+      "purl": "pkg:cargo/adler2@2.0.1",
+      "description": "Rust crate adler2"
+    },
+    {
+      "type": "library",
+      "name": "aho-corasick",
+      "version": "1.1.5",
+      "purl": "pkg:cargo/aho-corasick@1.1.5",
+      "description": "Rust crate aho-corasick"
+    },
+    {
+      "type": "library",
+      "name": "alloc-no-stdlib",
+      "version": "3.0.0",
+      "purl": "pkg:cargo/alloc-no-stdlib@3.0.0",
+      "description": "Rust crate alloc-no-stdlib"
+    },
+    {
+      "type": "library",
+      "name": "alloc-stdlib",
+      "version": "0.3.0",
+      "purl": "pkg:cargo/alloc-stdlib@0.3.0",
+      "description": "Rust crate alloc-stdlib"
+    },
+    {
+      "type": "library",
+      "name": "android_log-sys",
+      "version": "0.3.2",
+      "purl": "pkg:cargo/android_log-sys@0.3.2",
+      "description": "Rust crate android_log-sys"
+    },
+    {
+      "type": "library",
+      "name": "android_logger",
+      "version": "0.15.1",
+      "purl": "pkg:cargo/android_logger@0.15.1",
+      "description": "Rust crate android_logger"
+    },
+    {
+      "type": "library",
+      "name": "android_system_properties",
+      "version": "0.1.6",
+      "purl": "pkg:cargo/android_system_properties@0.1.6",
+      "description": "Rust crate android_system_properties"
+    },
+    {
+      "type": "library",
+      "name": "anyhow",
+      "version": "1.0.104",
+      "purl": "pkg:cargo/anyhow@1.0.104",
+      "description": "Rust crate anyhow"
+    },
+    {
+      "type": "library",
+      "name": "app",
+      "version": "0.1.1",
+      "purl": "pkg:cargo/app@0.1.1",
+      "description": "Rust crate app"
+    },
+    {
+      "type": "library",
+      "name": "atk",
+      "version": "0.18.2",
+      "purl": "pkg:cargo/atk@0.18.2",
+      "description": "Rust crate atk"
+    },
+    {
+      "type": "library",
+      "name": "atk-sys",
+      "version": "0.18.2",
+      "purl": "pkg:cargo/atk-sys@0.18.2",
+      "description": "Rust crate atk-sys"
+    },
+    {
+      "type": "library",
+      "name": "atomic-waker",
+      "version": "1.1.2",
+      "purl": "pkg:cargo/atomic-waker@1.1.2",
+      "description": "Rust crate atomic-waker"
+    },
+    {
+      "type": "library",
+      "name": "autocfg",
+      "version": "1.5.1",
+      "purl": "pkg:cargo/autocfg@1.5.1",
+      "description": "Rust crate autocfg"
+    },
+    {
+      "type": "library",
+      "name": "base64",
+      "version": "0.21.7",
+      "purl": "pkg:cargo/base64@0.21.7",
+      "description": "Rust crate base64"
+    },
+    {
+      "type": "library",
+      "name": "base64",
+      "version": "0.22.1",
+      "purl": "pkg:cargo/base64@0.22.1",
+      "description": "Rust crate base64"
+    },
+    {
+      "type": "library",
+      "name": "base64",
+      "version": "0.23.1",
+      "purl": "pkg:cargo/base64@0.23.1",
+      "description": "Rust crate base64"
+    },
+    {
+      "type": "library",
+      "name": "bit-set",
+      "version": "0.8.0",
+      "purl": "pkg:cargo/bit-set@0.8.0",
+      "description": "Rust crate bit-set"
+    },
+    {
+      "type": "library",
+      "name": "bit-vec",
+      "version": "0.8.0",
+      "purl": "pkg:cargo/bit-vec@0.8.0",
+      "description": "Rust crate bit-vec"
+    },
+    {
+      "type": "library",
+      "name": "bitflags",
+      "version": "1.3.2",
+      "purl": "pkg:cargo/bitflags@1.3.2",
+      "description": "Rust crate bitflags"
+    },
+    {
+      "type": "library",
+      "name": "bitflags",
+      "version": "2.13.2",
+      "purl": "pkg:cargo/bitflags@2.13.2",
+      "description": "Rust crate bitflags"
+    },
+    {
+      "type": "library",
+      "name": "block-buffer",
+      "version": "0.10.4",
+      "purl": "pkg:cargo/block-buffer@0.10.4",
+      "description": "Rust crate block-buffer"
+    },
+    {
+      "type": "library",
+      "name": "block2",
+      "version": "0.6.2",
+      "purl": "pkg:cargo/block2@0.6.2",
+      "description": "Rust crate block2"
+    },
+    {
+      "type": "library",
+      "name": "brotli",
+      "version": "9.0.0",
+      "purl": "pkg:cargo/brotli@9.0.0",
+      "description": "Rust crate brotli"
+    },
+    {
+      "type": "library",
+      "name": "brotli-decompressor",
+      "version": "6.0.1",
+      "purl": "pkg:cargo/brotli-decompressor@6.0.1",
+      "description": "Rust crate brotli-decompressor"
+    },
+    {
+      "type": "library",
+      "name": "bs58",
+      "version": "0.5.1",
+      "purl": "pkg:cargo/bs58@0.5.1",
+      "description": "Rust crate bs58"
+    },
+    {
+      "type": "library",
+      "name": "bumpalo",
+      "version": "3.20.3",
+      "purl": "pkg:cargo/bumpalo@3.20.3",
+      "description": "Rust crate bumpalo"
+    },
+    {
+      "type": "library",
+      "name": "bytemuck",
+      "version": "1.25.2",
+      "purl": "pkg:cargo/bytemuck@1.25.2",
+      "description": "Rust crate bytemuck"
+    },
+    {
+      "type": "library",
+      "name": "byteorder",
+      "version": "1.5.0",
+      "purl": "pkg:cargo/byteorder@1.5.0",
+      "description": "Rust crate byteorder"
+    },
+    {
+      "type": "library",
+      "name": "bytes",
+      "version": "1.12.1",
+      "purl": "pkg:cargo/bytes@1.12.1",
+      "description": "Rust crate bytes"
+    },
+    {
+      "type": "library",
+      "name": "cairo-rs",
+      "version": "0.18.5",
+      "purl": "pkg:cargo/cairo-rs@0.18.5",
+      "description": "Rust crate cairo-rs"
+    },
+    {
+      "type": "library",
+      "name": "cairo-sys-rs",
+      "version": "0.18.2",
+      "purl": "pkg:cargo/cairo-sys-rs@0.18.2",
+      "description": "Rust crate cairo-sys-rs"
+    },
+    {
+      "type": "library",
+      "name": "camino",
+      "version": "1.2.6",
+      "purl": "pkg:cargo/camino@1.2.6",
+      "description": "Rust crate camino"
+    },
+    {
+      "type": "library",
+      "name": "cargo-platform",
+      "version": "0.1.9",
+      "purl": "pkg:cargo/cargo-platform@0.1.9",
+      "description": "Rust crate cargo-platform"
+    },
+    {
+      "type": "library",
+      "name": "cargo_metadata",
+      "version": "0.19.2",
+      "purl": "pkg:cargo/cargo_metadata@0.19.2",
+      "description": "Rust crate cargo_metadata"
+    },
+    {
+      "type": "library",
+      "name": "cargo_toml",
+      "version": "1.0.1",
+      "purl": "pkg:cargo/cargo_toml@1.0.1",
+      "description": "Rust crate cargo_toml"
+    },
+    {
+      "type": "library",
+      "name": "cc",
+      "version": "1.8.0",
+      "purl": "pkg:cargo/cc@1.8.0",
+      "description": "Rust crate cc"
+    },
+    {
+      "type": "library",
+      "name": "cesu8",
+      "version": "1.1.0",
+      "purl": "pkg:cargo/cesu8@1.1.0",
+      "description": "Rust crate cesu8"
+    },
+    {
+      "type": "library",
+      "name": "cfb",
+      "version": "0.14.0",
+      "purl": "pkg:cargo/cfb@0.14.0",
+      "description": "Rust crate cfb"
+    },
+    {
+      "type": "library",
+      "name": "cfg-expr",
+      "version": "0.15.8",
+      "purl": "pkg:cargo/cfg-expr@0.15.8",
+      "description": "Rust crate cfg-expr"
+    },
+    {
+      "type": "library",
+      "name": "cfg-if",
+      "version": "1.0.5",
+      "purl": "pkg:cargo/cfg-if@1.0.5",
+      "description": "Rust crate cfg-if"
+    },
+    {
+      "type": "library",
+      "name": "chrono",
+      "version": "0.4.45",
+      "purl": "pkg:cargo/chrono@0.4.45",
+      "description": "Rust crate chrono"
+    },
+    {
+      "type": "library",
+      "name": "combine",
+      "version": "4.6.8",
+      "purl": "pkg:cargo/combine@4.6.8",
+      "description": "Rust crate combine"
+    },
+    {
+      "type": "library",
+      "name": "cookie",
+      "version": "0.18.2",
+      "purl": "pkg:cargo/cookie@0.18.2",
+      "description": "Rust crate cookie"
+    },
+    {
+      "type": "library",
+      "name": "core-foundation",
+      "version": "0.10.1",
+      "purl": "pkg:cargo/core-foundation@0.10.1",
+      "description": "Rust crate core-foundation"
+    },
+    {
+      "type": "library",
+      "name": "core-foundation-sys",
+      "version": "0.8.7",
+      "purl": "pkg:cargo/core-foundation-sys@0.8.7",
+      "description": "Rust crate core-foundation-sys"
+    },
+    {
+      "type": "library",
+      "name": "core-graphics",
+      "version": "0.25.0",
+      "purl": "pkg:cargo/core-graphics@0.25.0",
+      "description": "Rust crate core-graphics"
+    },
+    {
+      "type": "library",
+      "name": "core-graphics-types",
+      "version": "0.2.0",
+      "purl": "pkg:cargo/core-graphics-types@0.2.0",
+      "description": "Rust crate core-graphics-types"
+    },
+    {
+      "type": "library",
+      "name": "cpufeatures",
+      "version": "0.2.17",
+      "purl": "pkg:cargo/cpufeatures@0.2.17",
+      "description": "Rust crate cpufeatures"
+    },
+    {
+      "type": "library",
+      "name": "crc32fast",
+      "version": "1.5.2",
+      "purl": "pkg:cargo/crc32fast@1.5.2",
+      "description": "Rust crate crc32fast"
+    },
+    {
+      "type": "library",
+      "name": "crossbeam-channel",
+      "version": "0.5.17",
+      "purl": "pkg:cargo/crossbeam-channel@0.5.17",
+      "description": "Rust crate crossbeam-channel"
     }
   ]
 }

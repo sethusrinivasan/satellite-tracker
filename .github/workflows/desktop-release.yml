@@ -2,8 +2,18 @@ name: Build Desktop App and Release
 
 on:
   push:
+    branches:
+      - main
     tags:
       - 'v*'
+    paths:
+      - 'src-tauri/**'
+      - 'desktop_entry.py'
+      - 'desktop.spec'
+      - 'scripts/**'
+      - 'package.json'
+      - 'VERSION'
+      - '.github/workflows/desktop-release.yml'
   release:
     types: [published]
   pull_request:

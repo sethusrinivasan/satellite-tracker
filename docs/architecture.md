@@ -62,10 +62,20 @@ The application is a modular Flask 3 app. Persistence is **SQLAlchemy 2** agains
 - **Country proximity**: `GET /api/proximity/options` returns countries that have both bounding box and center (`list_available_countries`) plus catalogue prefixes (`satellite_name_prefix`: first word, drop parentheticals and hyphen suffixes).
 - **Geo engine** (`app/services/geo_query_service.py`): SGP4 propagation, Haversine sort, decayed-orbit filter.
 
-### 2.4 Offline AI Text-to-SQL Engine (`app/routes/report.py`)
-- **Runtime**: In-process GGUF execution via `llama-cpp-python`. No external web calls required.
-- **Model**: Compact `Qwen2.5-Coder-1.5B-Instruct-Q4_K_M.gguf`.
-- **Safety Filter**: `validate_sql_safety` / cache validator — only `SELECT`. Blocklist includes `DROP`, `DELETE`, `UPDATE`, `INSERT`, `ALTER`, `ATTACH`, `PRAGMA`.
+### 2.4 Pluggable Multi-Provider AI Text-to-SQL Engine (`app/services/ai_provider_service.py`, `app/routes/report.py`)
+- **Pluggable Architecture**: Supports execution across local offline models and enterprise cloud AI providers:
+  - **Local GGUF**: In-process GGUF inference via `llama-cpp-python` with `Qwen2.5-Coder-1.5B-Instruct-Q4_K_M.gguf`.
+  - **Local Ollama**: In-cluster / local loopback REST client (`localhost:11434`, zero cloud keys needed).
+  - **Google Gemini**: Gemini 2.0 / 1.5 Flash via REST API.
+  - **OpenAI**: Chat completions REST API (e.g. `gpt-4o-mini`).
+  - **Anthropic**: Messages REST API (e.g. `claude-3-5-haiku`).
+  - **Custom OpenAI-Compatible**: Self-hosted vLLM, Groq, Together, LocalAI endpoints.
+  - **Auto Fallback Chain**: Transparent fallback (Configured Cloud -> Local Ollama -> Local GGUF).
+- **Customer Key Security Vault**:
+  - Keys stored in environment variables or secured `SystemSetting` records.
+  - Keys are masked (`••••••••` / `sk-...abcd`) in UI and API payloads.
+  - Key queries and Authorization headers are scrubbed from all logs and error messages before raising or returning responses.
+- **Safety Filter**: `validate_sql_safety` enforces read-only `SELECT`/`WITH` statements across all providers. Mutations (`DROP`, `DELETE`, `UPDATE`, `INSERT`, `ALTER`, `PRAGMA`) are strictly blocked.
 
 ### 2.5 Maps (`app/static/js/basemap.js`)
 - Default tiles: Esri World Dark Gray + reference overlay (no API key).
@@ -76,7 +86,7 @@ The application is a modular Flask 3 app. Persistence is **SQLAlchemy 2** agains
   - `GET /api/market-indices` — major world indexes, CNBC last + 1d %, plus 7d / 30d / 1q / 6m / 1y / 2y / 5y / 10y % computed from Yahoo Finance daily closes (`app/services/market_indices.py`).
   - `GET /api/currencies` — local units to buy 1 USD / EUR / yen / oz gold / barrel of WTI / Big Mac, plus 1d / 7d / 30d / 90d / 6m / 1y / 5y FX/gold % (`app/services/currency_overlay.py`; Frankfurter, CNBC, The Economist).
   - `GET /api/flights` — OpenSky Network airborne states plus adsbdb origin/destination and estimated on-time; optional `lamin/lomin/lamax/lomax` (`app/services/flight_overlay.py`).
-  - `GET /api/geo-news` — last-24h GDACS alerts plus UN News, Global Voices, The Conversation, and Deutsche Welle RSS; gazetteer geocode when the feed has no lat/lng (`app/services/news_overlay.py`).
+  - `GET /api/geo-news` — last-24h GDACS disaster alerts, UN News, Global Voices, The Conversation, Deutsche Welle, **NASA News Releases**, and **SpaceNews** RSS; gazetteer geocodes when the feed has no explicit lat/lng (`app/services/news_overlay.py`).
   - `GET /api/shipping` — schematic world sea lanes plus Fintraffic Digitraffic AIS (`app/services/shipping_overlay.py`). Live ships are Finland/Baltic only (CC BY 4.0).
   - `GET /api/webcams` — official public webcam pages worldwide plus OpenStreetMap `webcam:url` via Overpass (world hubs at global scale, current bbox when zoomed in) (`app/services/webcam_overlay.py`).
   - `GET /api/cloud-datacenters` — AWS / Azure / GCP region pins with HTTPS ping p50 / p95 / p99 from this server (`app/services/cloud_datacenters.py`).

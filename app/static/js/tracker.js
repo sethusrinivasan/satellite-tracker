@@ -856,6 +856,8 @@ const NEWS_SOURCE_FALLBACK = [
   { name: 'Global Voices', url: 'https://globalvoices.org' },
   { name: 'The Conversation', url: 'https://theconversation.com' },
   { name: 'Deutsche Welle', url: 'https://www.dw.com' },
+  { name: 'NASA News', url: 'https://www.nasa.gov' },
+  { name: 'SpaceNews', url: 'https://spacenews.com' },
 ];
 let newsSources = NEWS_SOURCE_FALLBACK;
 

@@ -286,6 +286,96 @@
         </div>
         {% endif %}
 
+        <!-- AI Provider & API Key Configuration -->
+        {% if feature_flags.offline_ai_search %}
+        <h2 class="section-title">AI Provider & Model Keys</h2>
+        <div class="danger-zone" style="border-color: var(--border); background: var(--bg-card); margin-bottom: 24px;">
+          <div class="danger-zone__title" style="color: var(--text); display: flex; align-items: center; justify-content: space-between;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--accent);">
+                <rect x="2" y="2" width="20" height="8" rx="2" ry="2"/>
+                <rect x="2" y="14" width="20" height="8" rx="2" ry="2"/>
+                <line x1="6" y1="6" x2="6.01" y2="6"/>
+                <line x1="6" y1="18" x2="6.01" y2="18"/>
+              </svg>
+              <span>Multi-Provider Inference & Keys</span>
+            </div>
+            <span style="font-size:0.75rem; background:rgba(16,185,129,0.15); color:var(--success); border:1px solid rgba(16,185,129,0.3); border-radius:4px; padding:2px 6px; font-weight:600;">🔒 Secure Vault</span>
+          </div>
+          <p class="danger-zone__desc" style="color: var(--text-muted); font-size:0.8rem; line-height:1.4; margin-top:6px;">
+            Choose between offline local inference (Qwen2.5-Coder GGUF or Ollama) or configure secure API credentials for external providers (Google Gemini, OpenAI, Anthropic, or custom OpenAI-compatible endpoints). Customer keys are stored securely in instance datastore, masked in UI, and never exposed in client scripts or error logs.
+          </p>
+
+          <form method="POST" action="{{ url_for('admin.update_ai_provider') }}" style="margin-top:14px;" id="ai-provider-form">
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:12px;">
+              <div>
+                <label style="display:block; font-size:0.8rem; font-weight:600; margin-bottom:4px; color:var(--text);">Active AI Provider</label>
+                <select name="provider" id="ai-provider-select" style="width:100%; box-sizing:border-box; background:var(--bg); color:var(--text); border:1px solid var(--border); border-radius:var(--radius-sm); padding:8px; font-size:0.85rem;" onchange="updateProviderFields()">
+                  <option value="auto" {% if ai_config.provider == 'auto' %}selected{% endif %}>Auto-Fallback (Cloud → Ollama → Local GGUF)</option>
+                  <option value="local_gguf" {% if ai_config.provider == 'local_gguf' %}selected{% endif %}>Local GGUF (In-Process Qwen2.5-Coder)</option>
+                  <option value="ollama" {% if ai_config.provider == 'ollama' %}selected{% endif %}>Local Ollama (REST localhost:11434)</option>
+                  <option value="gemini" {% if ai_config.provider == 'gemini' %}selected{% endif %}>Google Gemini (Gemini 2.0 / 1.5 Flash)</option>
+                  <option value="openai" {% if ai_config.provider == 'openai' %}selected{% endif %}>OpenAI (GPT-4o-mini)</option>
+                  <option value="anthropic" {% if ai_config.provider == 'anthropic' %}selected{% endif %}>Anthropic (Claude 3.5 Haiku)</option>
+                  <option value="custom" {% if ai_config.provider == 'custom' %}selected{% endif %}>Custom OpenAI-Compatible Endpoint</option>
+                </select>
+              </div>
+              <div>
+                <label style="display:block; font-size:0.8rem; font-weight:600; margin-bottom:4px; color:var(--text);">Model Override (Optional)</label>
+                <input type="text" name="model" id="ai-model-input" value="{{ ai_config.model or '' }}" placeholder="e.g. gemini-2.0-flash, gpt-4o-mini" style="width:100%; box-sizing:border-box; background:var(--bg); color:var(--text); border:1px solid var(--border); border-radius:var(--radius-sm); padding:8px; font-size:0.85rem;">
+              </div>
+            </div>
+
+            <!-- Provider Specific Fields -->
+            <div id="field-gemini" style="margin-bottom:12px;">
+              <label style="display:block; font-size:0.8rem; font-weight:600; margin-bottom:4px; color:var(--text);">
+                Google Gemini API Key
+                {% if ai_config.gemini_configured %}<span style="color:var(--success); font-weight:normal; font-size:0.75rem;">(Configured: {{ ai_config.gemini_key_masked }})</span>{% endif %}
+              </label>
+              <input type="password" name="gemini_key" id="input-gemini-key" placeholder="{% if ai_config.gemini_configured %}•••••••••••••••• (Leave blank to keep current){% else %}AIzaSy...{% endif %}" autocomplete="off" style="width:100%; box-sizing:border-box; background:var(--bg); color:var(--text); border:1px solid var(--border); border-radius:var(--radius-sm); padding:8px; font-size:0.85rem;">
+            </div>
+
+            <div id="field-openai" style="margin-bottom:12px;">
+              <label style="display:block; font-size:0.8rem; font-weight:600; margin-bottom:4px; color:var(--text);">
+                OpenAI API Key
+                {% if ai_config.openai_configured %}<span style="color:var(--success); font-weight:normal; font-size:0.75rem;">(Configured: {{ ai_config.openai_key_masked }})</span>{% endif %}
+              </label>
+              <input type="password" name="openai_key" id="input-openai-key" placeholder="{% if ai_config.openai_configured %}•••••••••••••••• (Leave blank to keep current){% else %}sk-...{% endif %}" autocomplete="off" style="width:100%; box-sizing:border-box; background:var(--bg); color:var(--text); border:1px solid var(--border); border-radius:var(--radius-sm); padding:8px; font-size:0.85rem;">
+            </div>
+
+            <div id="field-anthropic" style="margin-bottom:12px;">
+              <label style="display:block; font-size:0.8rem; font-weight:600; margin-bottom:4px; color:var(--text);">
+                Anthropic API Key
+                {% if ai_config.anthropic_configured %}<span style="color:var(--success); font-weight:normal; font-size:0.75rem;">(Configured: {{ ai_config.anthropic_key_masked }})</span>{% endif %}
+              </label>
+              <input type="password" name="anthropic_key" id="input-anthropic-key" placeholder="{% if ai_config.anthropic_configured %}•••••••••••••••• (Leave blank to keep current){% else %}sk-ant-...{% endif %}" autocomplete="off" style="width:100%; box-sizing:border-box; background:var(--bg); color:var(--text); border:1px solid var(--border); border-radius:var(--radius-sm); padding:8px; font-size:0.85rem;">
+            </div>
+
+            <div id="field-ollama" style="margin-bottom:12px;">
+              <label style="display:block; font-size:0.8rem; font-weight:600; margin-bottom:4px; color:var(--text);">Ollama Base URL</label>
+              <input type="text" name="ollama_url" id="input-ollama-url" value="{{ ai_config.ollama_url or 'http://localhost:11434' }}" placeholder="http://localhost:11434" style="width:100%; box-sizing:border-box; background:var(--bg); color:var(--text); border:1px solid var(--border); border-radius:var(--radius-sm); padding:8px; font-size:0.85rem;">
+            </div>
+
+            <div id="field-custom" style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:12px;">
+              <div>
+                <label style="display:block; font-size:0.8rem; font-weight:600; margin-bottom:4px; color:var(--text);">Custom Endpoint URL</label>
+                <input type="text" name="custom_url" id="input-custom-url" value="{{ ai_config.custom_url or '' }}" placeholder="https://api.groq.com/openai/v1" style="width:100%; box-sizing:border-box; background:var(--bg); color:var(--text); border:1px solid var(--border); border-radius:var(--radius-sm); padding:8px; font-size:0.85rem;">
+              </div>
+              <div>
+                <label style="display:block; font-size:0.8rem; font-weight:600; margin-bottom:4px; color:var(--text);">Custom Endpoint API Key</label>
+                <input type="password" name="custom_key" id="input-custom-key" placeholder="{% if ai_config.custom_configured %}•••••••••••••••• (Leave blank to keep current){% else %}gsk_...{% endif %}" autocomplete="off" style="width:100%; box-sizing:border-box; background:var(--bg); color:var(--text); border:1px solid var(--border); border-radius:var(--radius-sm); padding:8px; font-size:0.85rem;">
+              </div>
+            </div>
+
+            <div style="display:flex; gap:10px; margin-top:14px; flex-wrap:wrap;">
+              <button class="btn btn--primary" type="submit" style="flex:1; margin-bottom:0;">Save AI Provider Settings</button>
+              <button class="btn btn--secondary" type="button" style="margin-bottom:0;" onclick="testAiProviderConnection()">Test Connection</button>
+            </div>
+            <div id="ai-test-result" style="margin-top:10px; font-size:0.82rem; display:none; padding:8px 12px; border-radius:var(--radius-sm);"></div>
+          </form>
+        </div>
+        {% endif %}
+
         <!-- Dynamic Text-to-SQL System Prompt & Few-Shot RAG -->
         {% if feature_flags.offline_ai_search %}
         <h2 class="section-title">Text-to-SQL Prompt Tuning</h2>
@@ -553,8 +643,110 @@
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
   }
 
+  function updateProviderFields() {
+    const sel = document.getElementById('ai-provider-select');
+    if (!sel) return;
+    const val = sel.value;
+    const fGemini = document.getElementById('field-gemini');
+    const fOpenai = document.getElementById('field-openai');
+    const fAnthropic = document.getElementById('field-anthropic');
+    const fOllama = document.getElementById('field-ollama');
+    const fCustom = document.getElementById('field-custom');
+
+    if (val === 'gemini') {
+      if (fGemini) fGemini.style.display = 'block';
+      if (fOpenai) fOpenai.style.display = 'none';
+      if (fAnthropic) fAnthropic.style.display = 'none';
+      if (fOllama) fOllama.style.display = 'none';
+      if (fCustom) fCustom.style.display = 'none';
+    } else if (val === 'openai') {
+      if (fGemini) fGemini.style.display = 'none';
+      if (fOpenai) fOpenai.style.display = 'block';
+      if (fAnthropic) fAnthropic.style.display = 'none';
+      if (fOllama) fOllama.style.display = 'none';
+      if (fCustom) fCustom.style.display = 'none';
+    } else if (val === 'anthropic') {
+      if (fGemini) fGemini.style.display = 'none';
+      if (fOpenai) fOpenai.style.display = 'none';
+      if (fAnthropic) fAnthropic.style.display = 'block';
+      if (fOllama) fOllama.style.display = 'none';
+      if (fCustom) fCustom.style.display = 'none';
+    } else if (val === 'ollama') {
+      if (fGemini) fGemini.style.display = 'none';
+      if (fOpenai) fOpenai.style.display = 'none';
+      if (fAnthropic) fAnthropic.style.display = 'none';
+      if (fOllama) fOllama.style.display = 'block';
+      if (fCustom) fCustom.style.display = 'none';
+    } else if (val === 'custom') {
+      if (fGemini) fGemini.style.display = 'none';
+      if (fOpenai) fOpenai.style.display = 'none';
+      if (fAnthropic) fAnthropic.style.display = 'none';
+      if (fOllama) fOllama.style.display = 'none';
+      if (fCustom) fCustom.style.display = 'grid';
+    } else {
+      // auto or local_gguf: show all inputs for convenience
+      if (fGemini) fGemini.style.display = 'block';
+      if (fOpenai) fOpenai.style.display = 'block';
+      if (fAnthropic) fAnthropic.style.display = 'block';
+      if (fOllama) fOllama.style.display = 'block';
+      if (fCustom) fCustom.style.display = 'grid';
+    }
+  }
+
+  async function testAiProviderConnection() {
+    const resBox = document.getElementById('ai-test-result');
+    if (!resBox) return;
+    resBox.style.display = 'block';
+    resBox.style.background = 'rgba(56, 189, 248, 0.1)';
+    resBox.style.color = '#38bdf8';
+    resBox.textContent = 'Testing connection and minimal inference...';
+
+    const provider = document.getElementById('ai-provider-select').value;
+    const model = document.getElementById('ai-model-input').value;
+    let apiKey = '';
+    let baseUrl = '';
+
+    if (provider === 'gemini') {
+      apiKey = document.getElementById('input-gemini-key').value;
+    } else if (provider === 'openai') {
+      apiKey = document.getElementById('input-openai-key').value;
+    } else if (provider === 'anthropic') {
+      apiKey = document.getElementById('input-anthropic-key').value;
+    } else if (provider === 'ollama') {
+      baseUrl = document.getElementById('input-ollama-url').value;
+    } else if (provider === 'custom') {
+      baseUrl = document.getElementById('input-custom-url').value;
+      apiKey = document.getElementById('input-custom-key').value;
+    }
+
+    try {
+      const resp = await fetch('{{ url_for("admin.test_ai_provider") }}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider, model, api_key: apiKey, base_url: baseUrl })
+      });
+      const data = await resp.json();
+      if (data.ok) {
+        resBox.style.background = 'rgba(16, 185, 129, 0.15)';
+        resBox.style.color = 'var(--success)';
+        resBox.innerHTML = `<strong>✓ Connection Successful!</strong> Generated test query in ${data.latency_sec}s with ${data.provider}: <code>${data.sql || ''}</code>`;
+      } else {
+        resBox.style.background = 'rgba(239, 68, 68, 0.15)';
+        resBox.style.color = 'var(--error)';
+        resBox.innerHTML = `<strong>✗ Connection Failed:</strong> ${data.error || 'Unknown error'}`;
+      }
+    } catch (err) {
+      resBox.style.background = 'rgba(239, 68, 68, 0.15)';
+      resBox.style.color = 'var(--error)';
+      resBox.textContent = 'Connection test failed: ' + err.message;
+    }
+  }
+
   // Check model status on load
-  document.addEventListener('DOMContentLoaded', checkModelStatus);
+  document.addEventListener('DOMContentLoaded', () => {
+    checkModelStatus();
+    updateProviderFields();
+  });
 </script>
 <script src="{{ url_for('static', filename='js/datastore.js') }}"></script>
 {% endblock %}
