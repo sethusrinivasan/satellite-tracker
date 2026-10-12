@@ -153,12 +153,15 @@ def save_ai_config(
 
 
 def _clean_sql_output(raw_text: str) -> str:
-    """Clean markdown code fences, comments, and whitespace to extract raw SQL."""
+    """Clean markdown code fences, comments, and whitespace to extract raw SQL without backtracking regex."""
     cleaned = raw_text.strip()
     if "```" in cleaned:
-        matches = re.findall(r"```(?:sql)?\s*([\s\S]*?)```", cleaned, re.IGNORECASE)
-        if matches:
-            cleaned = matches[0].strip()
+        parts = cleaned.split("```")
+        if len(parts) >= 3:
+            fence_content = parts[1].strip()
+            if fence_content.lower().startswith("sql"):
+                fence_content = fence_content[3:].strip()
+            cleaned = fence_content
         else:
             cleaned = cleaned.replace("```", "").strip()
     cleaned = cleaned.rstrip(";") + ";"

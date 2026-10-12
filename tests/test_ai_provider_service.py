@@ -168,3 +168,15 @@ def test_admin_ai_provider_routes(client, app):
         )
         assert test_resp.status_code == 200
         assert test_resp.get_json()["ok"] is True
+
+
+def test_clean_sql_output():
+    from app.services.ai_provider_service import _clean_sql_output
+
+    assert _clean_sql_output("SELECT * FROM satellites;") == "SELECT * FROM satellites;"
+    assert _clean_sql_output("```sql\nSELECT * FROM satellites;\n```") == "SELECT * FROM satellites;"
+    assert _clean_sql_output("```\nSELECT 1;\n```") == "SELECT 1;"
+    assert _clean_sql_output("Here is the SQL:\n```sql\nSELECT * FROM satellites\n```") == "SELECT * FROM satellites;"
+    # Pathological ReDoS probe string (starts with ``` followed by 50,000 spaces without closing ```)
+    probe = "```" + " " * 50000
+    assert _clean_sql_output(probe) == ";"
