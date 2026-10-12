@@ -2,9 +2,14 @@
 Database service — upsert / deduplication logic.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from app import db
 from app.models import Satellite, TLEElement, Upload
+
+
+def _utcnow() -> datetime:
+    """Return current naive UTC datetime for database compatibility."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 def upsert_tle_records(
@@ -29,7 +34,7 @@ def upsert_tle_records(
     # Create the upload audit record first
     upload = Upload(
         filename=filename,
-        upload_time=datetime.utcnow(),
+        upload_time=_utcnow(),
         total_records_in_file=len(parsed_records),
         source=source,
         is_seed=is_seed,
@@ -55,8 +60,8 @@ def upsert_tle_records(
                 name=rec["name"],
                 classification=rec.get("classification", "U"),
                 int_designator=rec.get("int_designator", ""),
-                first_seen=datetime.utcnow(),
-                last_updated=datetime.utcnow(),
+                first_seen=_utcnow(),
+                last_updated=_utcnow(),
             )
             db.session.add(satellite)
             db.session.flush()  # get satellite.id
@@ -64,7 +69,7 @@ def upsert_tle_records(
         else:
             # Update mutable metadata
             satellite.name = rec["name"]
-            satellite.last_updated = datetime.utcnow()
+            satellite.last_updated = _utcnow()
             updated_satellites += 1
 
         # ── Dedup on epoch ────────────────────────────────────────────────────

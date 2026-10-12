@@ -30,7 +30,7 @@ android {
                 storeFile = targetKeystore
                 storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "androidstorepass"
                 keyAlias = System.getenv("KEY_ALIAS") ?: "satellitetracker"
-                keyPassword = System.getenv("KEY_PASSWORD") ?: "androidkeypass"
+                keyPassword = System.getenv("KEY_PASSWORD") ?: (System.getenv("KEYSTORE_PASSWORD") ?: "androidstorepass")
             }
         }
     }

@@ -104,4 +104,4 @@ def test_run_and_save_sql_query_in_database(client, app):
     assert deleted.status_code == 200
     assert deleted.get_json()["ok"] is True
     with app.app_context():
-        assert SavedQuery.query.get(entry["id"]) is None
+        assert db.session.get(SavedQuery, entry["id"]) is None

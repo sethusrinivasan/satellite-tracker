@@ -156,7 +156,7 @@ def _clean_sql_output(raw_text: str) -> str:
     """Clean markdown code fences, comments, and whitespace to extract raw SQL."""
     cleaned = raw_text.strip()
     if "```" in cleaned:
-        matches = re.findall(r"```(?:sql)?\s*(.*?)\s*```", cleaned, re.DOTALL | re.IGNORECASE)
+        matches = re.findall(r"```(?:sql)?\s*([\s\S]*?)```", cleaned, re.IGNORECASE)
         if matches:
             cleaned = matches[0].strip()
         else:
@@ -503,6 +503,13 @@ def check_provider_connection(
         else:
             return {"ok": False, "error": f"Unsupported provider: {provider}"}
 
+    except requests.Timeout:
+        logger.warning("Provider connection test timed out for provider: %s", provider)
+        return {"ok": False, "error": "Connection timed out while contacting the provider endpoint.", "latency_sec": round(time.perf_counter() - t0, 3)}
+    except requests.ConnectionError:
+        logger.warning("Provider connection failed to reach provider: %s", provider)
+        return {"ok": False, "error": "Unable to connect to provider endpoint. Please verify URL and network connectivity.", "latency_sec": round(time.perf_counter() - t0, 3)}
     except Exception as exc:
         sanitized = sanitize_error_message(str(exc))
-        return {"ok": False, "error": sanitized, "latency_sec": round(time.perf_counter() - t0, 3)}
+        logger.warning("Provider connection test failed for %s: %s", provider, sanitized)
+        return {"ok": False, "error": "Provider connection test failed. Please verify provider settings and credentials.", "latency_sec": round(time.perf_counter() - t0, 3)}

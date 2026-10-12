@@ -5,11 +5,20 @@ from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
 block_cipher = None
 
+# Determine repository root directory
+_spec_dir = os.path.dirname(os.path.abspath(SPEC)) if "SPEC" in locals() else os.path.dirname(os.path.abspath(__file__))
+if os.path.exists(os.path.join(_spec_dir, "app")):
+    root_dir = _spec_dir
+elif os.path.exists(os.path.join(_spec_dir, "..", "app")):
+    root_dir = os.path.abspath(os.path.join(_spec_dir, ".."))
+else:
+    root_dir = os.getcwd()
+
 datas = [
-    ('app/templates', 'app/templates'),
-    ('app/static', 'app/static'),
-    ('data', 'data'),
-    ('VERSION', '.'),
+    (os.path.join(root_dir, 'app', 'templates'), 'app/templates'),
+    (os.path.join(root_dir, 'app', 'static'), 'app/static'),
+    (os.path.join(root_dir, 'data'), 'data'),
+    (os.path.join(root_dir, 'VERSION'), '.'),
 ]
 
 hiddenimports = [
@@ -61,9 +70,13 @@ try:
 except ImportError:
     pass
 
+entry_file = os.path.join(root_dir, 'desktop', 'desktop_entry.py')
+if not os.path.exists(entry_file):
+    entry_file = os.path.join(root_dir, 'desktop_entry.py')
+
 a = Analysis(
-    ['desktop_entry.py'],
-    pathex=['.'],
+    [entry_file],
+    pathex=[root_dir, os.path.join(root_dir, 'desktop')],
     binaries=[],
     datas=datas,
     hiddenimports=hiddenimports,

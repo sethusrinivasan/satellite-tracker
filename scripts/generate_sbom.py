@@ -102,7 +102,9 @@ def collect_node_components() -> list[dict]:
 
 def collect_rust_components() -> list[dict]:
     """Extract direct dependencies from Cargo.lock."""
-    cargo_file = os.path.join(ROOT_DIR, "src-tauri", "Cargo.lock")
+    cargo_file = os.path.join(ROOT_DIR, "desktop", "src-tauri", "Cargo.lock")
+    if not os.path.exists(cargo_file):
+        cargo_file = os.path.join(ROOT_DIR, "src-tauri", "Cargo.lock")
     components = []
     if not os.path.exists(cargo_file):
         return components

@@ -104,11 +104,11 @@ jobs:
             echo "Generating self-signed release keystore for CI builds"
             keytool -genkey -v -keystore keystore/release.keystore -alias satellitetracker \
               -keyalg RSA -keysize 2048 -validity 10000 \
-              -storepass "androidstorepass" -keypass "androidkeypass" \
+              -storepass "androidstorepass" -keypass "androidstorepass" \
               -dname "CN=Sethu Srinivasan, O=SatTrack, C=US"
             echo "KEYSTORE_PASSWORD=androidstorepass" >> $GITHUB_ENV
             echo "KEY_ALIAS=satellitetracker" >> $GITHUB_ENV
-            echo "KEY_PASSWORD=androidkeypass" >> $GITHUB_ENV
+            echo "KEY_PASSWORD=androidstorepass" >> $GITHUB_ENV
           fi
 
       - name: Build Google Play Android App Bundle (.aab)

@@ -1,6 +1,11 @@
 from app import db
-from datetime import datetime
+from datetime import datetime, timezone
 import enum
+
+
+def _utcnow() -> datetime:
+    """Return naive UTC timestamp for SQLAlchemy column defaults."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 class Upload(db.Model):
@@ -9,7 +14,7 @@ class Upload(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     filename = db.Column(db.Text, nullable=False)
-    upload_time = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    upload_time = db.Column(db.DateTime, default=_utcnow, nullable=False)
     total_records_in_file = db.Column(db.Integer, default=0)
     new_satellites = db.Column(db.Integer, default=0)
     updated_satellites = db.Column(db.Integer, default=0)
@@ -35,8 +40,8 @@ class Satellite(db.Model):
     name = db.Column(db.Text, nullable=False)
     classification = db.Column(db.String(1))          # U=Unclassified, C=Classified, S=Secret
     int_designator = db.Column(db.Text)               # e.g. "98067A" = ISS launch 1998
-    first_seen = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    last_updated = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    first_seen = db.Column(db.DateTime, default=_utcnow, nullable=False)
+    last_updated = db.Column(db.DateTime, default=_utcnow, onupdate=_utcnow, nullable=False)
 
     tle_elements = db.relationship("TLEElement", back_populates="satellite", lazy="dynamic",
                                    cascade="all, delete-orphan")
@@ -115,7 +120,7 @@ class SavedQuery(db.Model):
     name = db.Column(db.Text, nullable=False)
     sql = db.Column(db.Text, nullable=False)
     row_limit = db.Column(db.Integer, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    created_at = db.Column(db.DateTime, default=_utcnow, nullable=False)
     last_run_at = db.Column(db.DateTime, nullable=True)
     last_run_ms = db.Column(db.Float, nullable=True)
     last_run_row_count = db.Column(db.Integer, nullable=True)

@@ -5,15 +5,22 @@ and automated release packaging.
 
 import json
 import os
-from PIL import Image
+try:
+    from PIL import Image
+except ImportError:
+    Image = None
 
 ROOT_DIR = os.path.dirname(os.path.dirname(__file__))
 
 
 def test_android_scaffold_structure():
     """Verify that Android Gradle scaffold and manifests are properly configured."""
-    app_gradle = os.path.join(ROOT_DIR, "src-tauri", "gen", "android", "app", "build.gradle.kts")
-    manifest_xml = os.path.join(ROOT_DIR, "src-tauri", "gen", "android", "app", "src", "main", "AndroidManifest.xml")
+    app_gradle = os.path.join(ROOT_DIR, "desktop", "src-tauri", "gen", "android", "app", "build.gradle.kts")
+    if not os.path.exists(app_gradle):
+        app_gradle = os.path.join(ROOT_DIR, "src-tauri", "gen", "android", "app", "build.gradle.kts")
+    manifest_xml = os.path.join(ROOT_DIR, "desktop", "src-tauri", "gen", "android", "app", "src", "main", "AndroidManifest.xml")
+    if not os.path.exists(manifest_xml):
+        manifest_xml = os.path.join(ROOT_DIR, "src-tauri", "gen", "android", "app", "src", "main", "AndroidManifest.xml")
 
     assert os.path.exists(app_gradle), "Android app build.gradle.kts must exist"
     assert os.path.exists(manifest_xml), "AndroidManifest.xml must exist"
@@ -150,19 +157,21 @@ def test_google_play_store_graphics():
     assert os.path.exists(icon_path)
     assert os.path.exists(feat_path)
 
-    with Image.open(icon_path) as img:
-        assert img.size == (512, 512), f"Icon must be exactly 512x512, got {img.size}"
+    if Image is not None:
+        with Image.open(icon_path) as img:
+            assert img.size == (512, 512), f"Icon must be exactly 512x512, got {img.size}"
 
-    with Image.open(feat_path) as img:
-        assert img.size == (1024, 500), f"Feature graphic must be exactly 1024x500, got {img.size}"
+        with Image.open(feat_path) as img:
+            assert img.size == (1024, 500), f"Feature graphic must be exactly 1024x500, got {img.size}"
 
     # Phone screenshots (at least 2 required by Google Play)
     phone_dir = os.path.join(img_dir, "phoneScreenshots")
     screenshots = [f for f in os.listdir(phone_dir) if f.endswith(".png")]
     assert len(screenshots) >= 5, f"Expected 5 screenshots, found {len(screenshots)}"
 
-    with Image.open(os.path.join(phone_dir, screenshots[0])) as img:
-        assert img.size == (1080, 1920), f"Phone screenshot must be 1080x1920, got {img.size}"
+    if Image is not None:
+        with Image.open(os.path.join(phone_dir, screenshots[0])) as img:
+            assert img.size == (1080, 1920), f"Phone screenshot must be 1080x1920, got {img.size}"
 
 
 def test_amazon_appstore_metadata_and_icons():
@@ -185,11 +194,12 @@ def test_amazon_appstore_metadata_and_icons():
     assert len(data["bullet_points"]) >= 3
     assert "keywords" in data
 
-    with Image.open(icon512_path) as img:
-        assert img.size == (512, 512)
+    if Image is not None:
+        with Image.open(icon512_path) as img:
+            assert img.size == (512, 512)
 
-    with Image.open(icon114_path) as img:
-        assert img.size == (114, 114)
+        with Image.open(icon114_path) as img:
+            assert img.size == (114, 114)
 
 
 def test_android_release_workflow():

@@ -86,8 +86,10 @@ def update_all_files(root_dir: str, new_version: str, dry_run: bool = False) -> 
                 f.write("\n")
         updated.append("package.json")
 
-    # 3. src-tauri/tauri.conf.json
-    tauri_file = os.path.join(root_dir, "src-tauri", "tauri.conf.json")
+    # 3. desktop/src-tauri/tauri.conf.json
+    tauri_file = os.path.join(root_dir, "desktop", "src-tauri", "tauri.conf.json")
+    if not os.path.exists(tauri_file):
+        tauri_file = os.path.join(root_dir, "src-tauri", "tauri.conf.json")
     if os.path.exists(tauri_file):
         with open(tauri_file, "r", encoding="utf-8") as f:
             tauri_cfg = json.load(f)
@@ -96,10 +98,12 @@ def update_all_files(root_dir: str, new_version: str, dry_run: bool = False) -> 
             with open(tauri_file, "w", encoding="utf-8") as f:
                 json.dump(tauri_cfg, f, indent=2)
                 f.write("\n")
-        updated.append("src-tauri/tauri.conf.json")
+        updated.append("desktop/src-tauri/tauri.conf.json")
 
-    # 4. src-tauri/Cargo.toml
-    cargo_file = os.path.join(root_dir, "src-tauri", "Cargo.toml")
+    # 4. desktop/src-tauri/Cargo.toml
+    cargo_file = os.path.join(root_dir, "desktop", "src-tauri", "Cargo.toml")
+    if not os.path.exists(cargo_file):
+        cargo_file = os.path.join(root_dir, "src-tauri", "Cargo.toml")
     if os.path.exists(cargo_file):
         with open(cargo_file, "r", encoding="utf-8") as f:
             content = f.read()
@@ -162,12 +166,16 @@ def check_version_sync(root_dir: str) -> tuple[bool, dict[str, str]]:
         with open(pkg_file, "r", encoding="utf-8") as f:
             versions["package.json"] = json.load(f).get("version", "")
 
-    tauri_file = os.path.join(root, "src-tauri", "tauri.conf.json")
+    tauri_file = os.path.join(root, "desktop", "src-tauri", "tauri.conf.json")
+    if not os.path.exists(tauri_file):
+        tauri_file = os.path.join(root, "src-tauri", "tauri.conf.json")
     if os.path.exists(tauri_file):
         with open(tauri_file, "r", encoding="utf-8") as f:
             versions["tauri.conf.json"] = json.load(f).get("version", "")
 
-    cargo_file = os.path.join(root, "src-tauri", "Cargo.toml")
+    cargo_file = os.path.join(root, "desktop", "src-tauri", "Cargo.toml")
+    if not os.path.exists(cargo_file):
+        cargo_file = os.path.join(root, "src-tauri", "Cargo.toml")
     if os.path.exists(cargo_file):
         with open(cargo_file, "r", encoding="utf-8") as f:
             m = re.search(r'version\s*=\s*"([^"]+)"', f.read())

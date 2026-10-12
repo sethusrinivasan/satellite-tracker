@@ -82,9 +82,11 @@ def main() -> None:
     is_windows = sys.platform.startswith("win")
     exe_suffix = ".exe" if is_windows else ""
 
-    spec_file = "desktop.spec"
+    spec_file = os.path.join("desktop", "desktop.spec")
     if not os.path.exists(spec_file):
-        print(f"ERROR: {spec_file} not found in {root_dir}", file=sys.stderr)
+        spec_file = "desktop.spec"
+    if not os.path.exists(spec_file):
+        print(f"ERROR: spec file not found in desktop/ or {root_dir}", file=sys.stderr)
         sys.exit(1)
 
     has_uv = shutil.which("uv") is not None
@@ -123,23 +125,31 @@ def main() -> None:
         print(f"ERROR: Expected binary at {src_binary} was not found!", file=sys.stderr)
         sys.exit(1)
 
-    binaries_dir = os.path.join("src-tauri", "binaries")
-    os.makedirs(binaries_dir, exist_ok=True)
+    target_dirs = [
+        os.path.join("desktop", "src-tauri", "binaries"),
+        os.path.join("src-tauri", "binaries"),
+    ]
+    seen_dirs = set()
+    for b_dir in target_dirs:
+        real_b_dir = os.path.realpath(b_dir)
+        if real_b_dir in seen_dirs:
+            continue
+        seen_dirs.add(real_b_dir)
+        os.makedirs(b_dir, exist_ok=True)
 
-    dest_triple_binary = os.path.join(
-        binaries_dir, f"sattrack-backend-{target_triple}{exe_suffix}"
-    )
-    shutil.copy2(src_binary, dest_triple_binary)
-    if not is_windows:
-        os.chmod(dest_triple_binary, 0o755)
+        dest_triple_binary = os.path.join(
+            b_dir, f"sattrack-backend-{target_triple}{exe_suffix}"
+        )
+        shutil.copy2(src_binary, dest_triple_binary)
+        if not is_windows:
+            os.chmod(dest_triple_binary, 0o755)
 
-    print(f"==> Successfully staged sidecar binary: {dest_triple_binary}")
+        print(f"==> Successfully staged sidecar binary: {dest_triple_binary}")
 
-    # Also keep non-triple copy for direct execution if needed
-    dest_standard_binary = os.path.join(binaries_dir, f"sattrack-backend{exe_suffix}")
-    shutil.copy2(src_binary, dest_standard_binary)
-    if not is_windows:
-        os.chmod(dest_standard_binary, 0o755)
+        dest_standard_binary = os.path.join(b_dir, f"sattrack-backend{exe_suffix}")
+        shutil.copy2(src_binary, dest_standard_binary)
+        if not is_windows:
+            os.chmod(dest_standard_binary, 0o755)
 
 
 if __name__ == "__main__":

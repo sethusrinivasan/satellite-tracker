@@ -254,7 +254,7 @@ def index():
         sessions = _build_session_list()
         total_satellites = Satellite.query.count()
         total_elements = TLEElement.query.count()
-        seed_imported = SystemSetting.query.get("kaggle_seed_imported") is not None
+        seed_imported = db.session.get(SystemSetting, "kaggle_seed_imported") is not None
     except Exception as exc:
         db_error = str(exc)
 

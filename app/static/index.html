@@ -516,18 +516,15 @@
       // On desktop, check for running local Python backend
       const interval = setInterval(advance, 250);
       const params = new URLSearchParams(window.location.search);
-      const p = params.get('port') || '5000';
+      const rawPort = parseInt(params.get('port') || '5000', 10);
+      const validPort = (Number.isInteger(rawPort) && rawPort >= 1024 && rawPort <= 65535) ? rawPort : 5000;
 
       function probe() {
-        if (!/^\d{1,5}$/.test(p)) {
-          dismissSplash();
-          return;
-        }
-        fetch('http://127.0.0.1:' + p + '/health', { mode: 'cors', cache: 'no-store' })
+        fetch('http://127.0.0.1:' + validPort + '/health', { mode: 'cors', cache: 'no-store' })
           .then(function(r) {
             if (r.ok) {
               clearInterval(interval);
-              window.location.href = 'http://127.0.0.1:' + p + '/';
+              window.location.replace('http://127.0.0.1:' + validPort + '/');
             } else {
               dismissSplash();
             }

@@ -735,12 +735,14 @@
 
       const bubble = document.createElement('div');
       bubble.className = `chat-bubble chat-bubble-${role}`;
-      bubble.innerHTML = `<div>${content}</div>`;
+      const textDiv = document.createElement('div');
+      textDiv.textContent = content;
+      bubble.appendChild(textDiv);
 
       actions.forEach(act => {
         const btn = document.createElement('button');
         btn.className = 'ai-action-btn';
-        btn.innerHTML = act.label;
+        btn.textContent = act.label;
         btn.onclick = act.onClick;
         bubble.appendChild(btn);
       });
@@ -941,11 +943,11 @@
       const sats = root.MobileSatelliteCatalog.search(q, category);
 
       if (sats.length === 0) {
-        container.innerHTML = `
-          <div style="text-align:center; padding: 40px 16px; color: var(--text-muted);">
-            🔍 No satellites matching "${q}"
-          </div>
-        `;
+        container.innerHTML = '';
+        const emptyDiv = document.createElement('div');
+        emptyDiv.style.cssText = 'text-align:center; padding: 40px 16px; color: var(--text-muted);';
+        emptyDiv.textContent = `🔍 No satellites matching "${q}"`;
+        container.appendChild(emptyDiv);
         return;
       }
 

@@ -643,7 +643,7 @@ def natural_query():
     except Exception as e:
         sanitized = sanitize_error_message(str(e))
         log.warning("[AI Search] AI inference failed: %s", sanitized)
-        return jsonify({"error": f"Failed to generate SQL with AI: {sanitized}"}), 500
+        return jsonify({"error": "Failed to generate SQL with AI due to an internal processing error."}), 500
 
     # 2. Security check
     if not validate_sql_safety(generated_sql):

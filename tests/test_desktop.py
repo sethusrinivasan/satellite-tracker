@@ -133,7 +133,9 @@ def test_desktop_app_descriptions():
     """Verify that tauri.conf.json and package.json have consistent, descriptive short text."""
     root_dir = os.path.dirname(os.path.dirname(__file__))
 
-    tauri_conf_path = os.path.join(root_dir, "src-tauri", "tauri.conf.json")
+    tauri_conf_path = os.path.join(root_dir, "desktop", "src-tauri", "tauri.conf.json")
+    if not os.path.exists(tauri_conf_path):
+        tauri_conf_path = os.path.join(root_dir, "src-tauri", "tauri.conf.json")
     with open(tauri_conf_path, "r", encoding="utf-8") as f:
         tauri_conf = json.load(f)
 

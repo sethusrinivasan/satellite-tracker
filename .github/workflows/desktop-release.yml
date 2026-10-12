@@ -7,6 +7,7 @@ on:
     tags:
       - 'v*'
     paths:
+      - 'desktop/**'
       - 'src-tauri/**'
       - 'desktop_entry.py'
       - 'desktop.spec'
@@ -18,6 +19,7 @@ on:
     types: [published]
   pull_request:
     paths:
+      - 'desktop/**'
       - 'src-tauri/**'
       - 'desktop_entry.py'
       - 'desktop.spec'
@@ -101,7 +103,9 @@ jobs:
         run: python scripts/build_sidecar.py
 
       - name: Build Tauri Desktop application
-        run: npx tauri build --bundles ${{ matrix.bundle_targets }}
+        run: |
+          cd desktop
+          npx tauri build --bundles ${{ matrix.bundle_targets }}
 
       - name: Stage bundle artifacts for upload
         id: stage_artifacts
@@ -109,24 +113,28 @@ jobs:
         run: |
           mkdir -p staged-artifacts
           # Copy bundles from target/release/bundle
-          if [ -d "src-tauri/target/release/bundle" ]; then
-            find src-tauri/target/release/bundle -type f \( \
-              -name "*.deb" -o \
-              -name "*.AppImage" -o \
-              -name "*.dmg" -o \
-              -name "*.msi" -o \
-              -name "*.exe" \
-            \) -exec cp {} staged-artifacts/ \;
-          fi
+          for b_path in "desktop/src-tauri/target/release/bundle" "src-tauri/target/release/bundle"; do
+            if [ -d "$b_path" ]; then
+              find "$b_path" -type f \( \
+                -name "*.deb" -o \
+                -name "*.AppImage" -o \
+                -name "*.dmg" -o \
+                -name "*.msi" -o \
+                -name "*.exe" \
+              \) -exec cp {} staged-artifacts/ \;
+            fi
+          done
           # Also stage raw standalone binary as fallback artifact
           for b_name in "app" "SatelliteTracker" "satellite-tracker"; do
-            if [ -f "src-tauri/target/release/$b_name" ]; then
-              cp "src-tauri/target/release/$b_name" "staged-artifacts/satellite-tracker-${{ matrix.platform }}"
-              break
-            elif [ -f "src-tauri/target/release/$b_name.exe" ]; then
-              cp "src-tauri/target/release/$b_name.exe" "staged-artifacts/satellite-tracker-${{ matrix.platform }}.exe"
-              break
-            fi
+            for r_path in "desktop/src-tauri/target/release" "src-tauri/target/release"; do
+              if [ -f "$r_path/$b_name" ]; then
+                cp "$r_path/$b_name" "staged-artifacts/satellite-tracker-${{ matrix.platform }}"
+                break 2
+              elif [ -f "$r_path/$b_name.exe" ]; then
+                cp "$r_path/$b_name.exe" "staged-artifacts/satellite-tracker-${{ matrix.platform }}.exe"
+                break 2
+              fi
+            done
           done
           echo "Staged files:"
           ls -la staged-artifacts

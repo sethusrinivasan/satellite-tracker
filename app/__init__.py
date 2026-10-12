@@ -262,7 +262,7 @@ def _seed_kaggle_data_if_needed(app):
 
     SEED_KEY = "kaggle_seed_imported"
     try:
-        already_seeded = SystemSetting.query.get(SEED_KEY)
+        already_seeded = db.session.get(SystemSetting, SEED_KEY)
     except Exception as exc:
         log.warning("[seed] Cannot read system_settings yet: %s", exc)
         return
