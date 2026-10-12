@@ -7,7 +7,7 @@ from sqlalchemy import inspect
 from app import db, _seed_kaggle_data_if_needed
 from app.models import Satellite, Upload
 from app.services.demo_tle import demo_tle_text
-from app.services.tle_parser import parse_tle_file
+from app.services.tle_parser import _parse_decimal_packed, parse_tle_file
 
 SAMPLE_TLE = (
     "ISS (ZARYA)\n"
@@ -66,6 +66,18 @@ def test_demo_tle_sample_parses():
     names = {row["name"] for row in records}
     assert "ISS (ZARYA)" in names
     assert "STARLINK-1007" in names
+
+
+def test_parse_decimal_packed_variants():
+    assert _parse_decimal_packed(" 00000-0") == 0.0
+    assert _parse_decimal_packed(" 00000+0") == 0.0
+    assert abs(_parse_decimal_packed("-11606-4") - (-1.1606e-5)) < 1e-12
+    assert abs(_parse_decimal_packed(" 12345-3") - 1.2345e-4) < 1e-12
+    assert abs(_parse_decimal_packed("+12345+2") - 12.345) < 1e-12
+    assert _parse_decimal_packed("") == 0.0
+    assert _parse_decimal_packed("0") == 0.0
+    assert _parse_decimal_packed("invalid-str") == 0.0
+    assert _parse_decimal_packed("123+xyz") == 0.0
 
 
 def test_seed_loads_demo_when_kaggle_file_missing(app, monkeypatch):

@@ -6,7 +6,6 @@ Parses the standard 3-line TLE format into structured Python dicts.
 TLE Format reference: https://en.wikipedia.org/wiki/Two-line_element_set
 """
 
-import re
 import math
 from datetime import datetime, timedelta
 
@@ -27,15 +26,27 @@ def _parse_decimal_packed(s: str) -> float:
         if s.startswith("+"):
             s = s[1:]
 
-    # The exponent sign and value are at the end; split on + or -
-    match = re.fullmatch(r"(\d+)([+-]\d+)", s)
-    if not match:
+    # The exponent sign and value are at the end; split on + or - without
+    # invoking a regex over user-controlled input.
+    exponent_index = None
+    for idx, ch in enumerate(s):
+        if ch in "+-":
+            exponent_index = idx
+            break
+    if exponent_index is None or exponent_index == 0:
         return 0.0
 
-    mantissa_str, exp_str = match.group(1), match.group(2)
-    mantissa = float("0." + mantissa_str) if mantissa_str else 0.0
-    exponent = int(exp_str)
-    return mantissa_sign * mantissa * (10 ** exponent)
+    mantissa_str = s[:exponent_index]
+    exp_str = s[exponent_index:]
+    if not mantissa_str or not exp_str:
+        return 0.0
+
+    try:
+        mantissa = float("0." + mantissa_str) if mantissa_str else 0.0
+        exponent = int(exp_str)
+        return mantissa_sign * mantissa * (10 ** exponent)
+    except ValueError:
+        return 0.0
 
 
 def _epoch_to_datetime(epoch_year_2d: int, epoch_day: float) -> datetime:
