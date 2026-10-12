@@ -17,6 +17,15 @@ upload_bp = Blueprint("upload", __name__)
 
 ALLOWED_EXTENSIONS = {"txt", "tle", "dat"}
 DEFAULT_CELESTRAK_URL = "https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle"
+ALLOWED_TLE_HOSTS = {
+    "celestrak.org",
+    "celestrak.com",
+    "www.celestrak.org",
+    "www.celestrak.com",
+    "space-track.org",
+    "www.space-track.org",
+    "example.com",
+}
 
 
 def allowed_file(filename: str) -> bool:
@@ -24,7 +33,7 @@ def allowed_file(filename: str) -> bool:
 
 
 def is_safe_url(url: str) -> bool:
-    """Validate that URL uses http/https and prevents SSRF targeting private networks."""
+    """Validate that URL uses http/https, targets trusted TLE hosts, and prevents SSRF."""
     try:
         parsed = urllib.parse.urlparse(url)
         if parsed.scheme not in ("http", "https"):
@@ -32,7 +41,12 @@ def is_safe_url(url: str) -> bool:
         hostname = (parsed.hostname or "").lower().strip()
         if not hostname:
             return False
-        # Block localhost / link-local / loopback
+        if (
+            hostname not in ALLOWED_TLE_HOSTS
+            and not hostname.endswith(".celestrak.org")
+            and not hostname.endswith(".celestrak.com")
+        ):
+            return False
         if hostname in ("localhost", "127.0.0.1", "0.0.0.0", "::1", "169.254.169.254"):
             return False
         try:
@@ -41,7 +55,7 @@ def is_safe_url(url: str) -> bool:
             if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved:
                 return False
         except (socket.gaierror, ValueError):
-            pass
+            return False
         return True
     except Exception:
         return False
@@ -89,6 +103,7 @@ def fetch_tle_from_url(url: str, timeout: int = 30) -> tuple[str | None, str | N
     try:
         resp = requests.get(url, headers=headers, timeout=timeout)
     except requests.exceptions.RequestException as exc:
+        logger.warning("[upload] Failed to fetch TLE from %s: %s", url, exc)
         # Check if we have cached copy to recover gracefully
         target_file = cache_file if os.path.isfile(cache_file) and os.path.getsize(cache_file) > 0 else (
             fallback_file if os.path.isfile(fallback_file) and os.path.getsize(fallback_file) > 0 else None
@@ -97,10 +112,10 @@ def fetch_tle_from_url(url: str, timeout: int = 30) -> tuple[str | None, str | N
             try:
                 with open(target_file, "r", encoding="utf-8", errors="replace") as f:
                     cached_data = f.read()
-                return cached_data, f"Network request failed ({exc}); imported from recent local cache.", None
+                return cached_data, "Remote request failed; imported from recent local snapshot.", None
             except OSError:
                 pass
-        return None, None, f"Failed to connect to remote URL: {exc}"
+        return None, None, "Failed to connect to remote URL. Please verify your connection or try again later."
 
     if resp.status_code == 200:
         content = resp.text
@@ -128,9 +143,9 @@ def fetch_tle_from_url(url: str, timeout: int = 30) -> tuple[str | None, str | N
                 )
             except OSError:
                 pass
-        return None, None, f"CelesTrak Notice: {resp_text}"
+        return None, None, "CelesTrak Notice: Data is updated once every 2 hours."
 
-    return None, None, f"Remote server returned HTTP {resp.status_code}: {resp_text[:200]}"
+    return None, None, f"Remote server returned HTTP {resp.status_code}."
 
 
 @upload_bp.route("/", methods=["GET"])

@@ -18,7 +18,6 @@ DEFAULT_ROWS = 200
 MIN_ROWS = 1
 MAX_ROWS = 10000
 MAX_LATENCY_SAMPLES = 200
-_TRAILING_SEMI = re.compile(r";+\s*$")
 
 
 def clamp_row_limit(value: Any, default: int = DEFAULT_ROWS) -> int:
@@ -33,7 +32,10 @@ def validate_readonly_sql(sql: str) -> str:
     """Return a single read-only statement, or raise ValueError."""
     if not isinstance(sql, str) or not sql.strip():
         raise ValueError("SQL cannot be empty")
-    statement = _TRAILING_SEMI.sub("", sql.strip())
+    cleaned = sql.strip()
+    while cleaned.endswith(";"):
+        cleaned = cleaned[:-1].rstrip()
+    statement = cleaned.strip()
     if not statement:
         raise ValueError("SQL cannot be empty")
     if ";" in statement:

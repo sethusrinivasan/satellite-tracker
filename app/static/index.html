@@ -291,6 +291,7 @@
       // Even if Tauri does window.navigate(), if opened directly or if navigation is pending,
       // probe common ports (5000, 5001, 8080) and query parameters to automatically navigate
       function checkHealth(url) {
+        if (!/^http:\/\/127\.0\.0\.1:\d{1,5}\/$/.test(url)) return;
         fetch(url + 'health', { mode: 'cors', cache: 'no-store' })
           .then(function(res) {
             if (res.ok) {
@@ -308,9 +309,11 @@
 
       const params = new URLSearchParams(window.location.search);
       const targetPort = params.get('port');
-      if (targetPort) {
+      const portNum = targetPort ? parseInt(targetPort, 10) : NaN;
+      if (/^\d{1,5}$/.test(targetPort || '') && portNum >= 1 && portNum <= 65535) {
+        const safeLoopbackUrl = 'http://127.0.0.1:' + portNum + '/';
         pollTimer = setInterval(function() {
-          checkHealth('http://127.0.0.1:' + targetPort + '/');
+          checkHealth(safeLoopbackUrl);
         }, 500);
       } else {
         pollTimer = setInterval(function() {

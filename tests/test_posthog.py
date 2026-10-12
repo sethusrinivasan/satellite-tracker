@@ -1,7 +1,10 @@
+import re
+
+
 def test_posthog_snippet_absent_without_key(client):
     html = client.get("/report").get_data(as_text=True)
     assert "posthog.init" not in html
-    assert "us.i.posthog.com" not in html
+    assert not re.search(r"us\.i\.posthog\.com", html)
 
 
 def test_posthog_snippet_renders_when_key_configured(app, client):
@@ -12,7 +15,7 @@ def test_posthog_snippet_renders_when_key_configured(app, client):
     html = client.get("/report").get_data(as_text=True)
     assert "posthog.init" in html
     assert "phc_test_project_key" in html
-    assert "https://eu.i.posthog.com" in html
+    assert re.search(r'api_host:\s*"' + re.escape(app.config["POSTHOG_HOST"]) + r'"', html) is not None
     assert "disable_session_recording: true" in html
     assert "identified_only" in html
 

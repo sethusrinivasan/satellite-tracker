@@ -12,6 +12,7 @@ from typing import Any
 from urllib.parse import quote_plus, unquote, urlparse
 
 from sqlalchemy import create_engine, inspect, text
+from werkzeug.utils import secure_filename
 
 log = logging.getLogger(__name__)
 
@@ -90,14 +91,34 @@ def resolve_sqlite_path(path: str | None) -> str:
         pass
     if not path or path == ":memory:":
         return path or default
-    if not os.path.isabs(path):
-        return os.path.join(instance_dir, os.path.basename(path) or "satellites.db")
-    path_abs = os.path.abspath(path)
-    parent = os.path.dirname(path_abs)
-    if parent == os.path.abspath(instance_dir) or os.path.isdir(parent):
-        return path_abs
-    remapped = os.path.join(instance_dir, os.path.basename(path_abs) or "satellites.db")
-    log.info("[datastore] SQLite path %s is not available; using %s", path, remapped)
+
+    raw_filename = os.path.basename(path)
+    safe_name = secure_filename(raw_filename) if raw_filename else "satellites.db"
+    if not safe_name.endswith(".db") and not safe_name.endswith(".sqlite"):
+        safe_name = f"{safe_name}.db"
+
+    # Restrict allowed SQLite storage locations to instance, project root, and temp directories
+    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+    allowed_roots = (
+        os.path.abspath(instance_dir),
+        os.path.abspath(base_dir),
+        "/tmp",
+    )
+
+    path_norm = os.path.abspath(os.path.normpath(path))
+    is_allowed_root = any(
+        path_norm == root or path_norm.startswith(root + os.sep)
+        for root in allowed_roots
+    )
+
+    if is_allowed_root:
+        parent = os.path.dirname(path_norm)
+        if os.path.isdir(parent):
+            return path_norm
+
+    remapped = os.path.join(instance_dir, safe_name)
+    if path_norm != remapped:
+        log.info("[datastore] SQLite path %s is not available or outside allowed root; using %s", path, remapped)
     return remapped
 
 
@@ -287,7 +308,8 @@ def test_connection(uri: str) -> tuple[bool, str]:
         dialect = engine.dialect.name
         return True, f"Connected successfully ({dialect})"
     except Exception as exc:
-        return False, str(exc)
+        log.warning("[datastore] Database connection probe failed: %s", exc)
+        return False, "Failed to connect to the database. Please verify host, port, credentials, and permissions."
     finally:
         if engine is not None:
             engine.dispose()

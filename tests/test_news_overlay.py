@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+import re
 
 from app.services import news_overlay
 
@@ -196,9 +197,6 @@ def test_tracker_has_news_checkbox(client):
     assert 'id="news-overlay"' in html
     assert "toggleNewsOverlay" in js
     assert 'target="_blank"' in js
-    assert "gdacs.org" in js
-    assert "news.un.org" in js
-    assert "globalvoices.org" in js
-    assert "theconversation.com" in js
-    assert "dw.com" in js
-    assert "wikipedia.org" not in js
+    for source in ("gdacs.org", "news.un.org", "globalvoices.org", "theconversation.com", "dw.com"):
+        assert re.search(rf"\b{re.escape(source)}\b", js) is not None
+    assert not re.search(r"\bwikipedia\.org\b", js)

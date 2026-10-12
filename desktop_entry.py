@@ -158,7 +158,8 @@ def main() -> None:
             port,
             data_dir,
         )
-        app.run(host=args.host, port=port, debug=True, use_reloader=False)
+        debug_mode = os.getenv("FLASK_DEBUG", "").lower() in ("1", "true", "yes", "on")
+        app.run(host=args.host, port=port, debug=debug_mode, use_reloader=False)
     else:
         try:
             from waitress.server import create_server

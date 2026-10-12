@@ -67,5 +67,5 @@ def test():
         uri = build_database_uri(cfg)
         ok, message = test_connection(uri)
         return jsonify({"ok": ok, "message": message, "engine": cfg.get("engine")}), (200 if ok else 400)
-    except Exception as exc:
-        return jsonify({"ok": False, "message": str(exc)}), 400
+    except Exception:
+        return jsonify({"ok": False, "message": "Failed to test database connection."}), 400

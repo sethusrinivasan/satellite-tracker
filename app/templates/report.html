@@ -342,7 +342,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="https://cdnjs.cloudflare.com/ajax/libs/satellite.js/4.1.4/satellite.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/satellite.js/4.1.4/satellite.min.js" integrity="sha512-4dDvlrcmelc78pYvEzXJMTfSvaUUsubnPQoUW4IEDjb3r+cwiWlJi0Kv/bQUP5ZIPG6GNNnP7p3BbiTmp3l5Gw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script>
 // ========== Utility ==========
 function toRad(d) { return d * Math.PI / 180; }
@@ -702,8 +702,8 @@ async function runAiSearch() {
     }
 
     if (data.sql) {
-      const escapedPrompt = prompt.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-      const escapedSql = data.sql.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+      const escapedPrompt = prompt.replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/"/g, '&quot;');
+      const escapedSql = data.sql.replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/"/g, '&quot;');
       summaryHtml += `
         <div class="generated-sql-box" style="position:relative;">
           <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:4px; font-weight:600; display:flex; justify-content:space-between; align-items:center;">
@@ -1069,9 +1069,12 @@ function wireCheckboxListeners() {
 
 function trackSelected() {
   const checked = document.querySelectorAll('.sat-checkbox:checked');
-  const ids = Array.from(checked).map(cb => cb.value).join(',');
-  if (ids) {
-    window.location.href = "{{ url_for('report.tracker') }}?ids=" + ids;
+  const idList = Array.from(checked)
+    .map(cb => cb.value)
+    .filter(v => /^\d+$/.test(v));
+  if (idList.length > 0) {
+    const params = new URLSearchParams({ ids: idList.join(',') });
+    window.location.href = "{{ url_for('report.tracker') }}?" + params.toString();
   }
 }
 

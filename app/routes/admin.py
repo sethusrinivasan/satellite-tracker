@@ -325,7 +325,8 @@ def test_datastore():
         ok, message = test_connection(uri)
         return jsonify({"ok": ok, "message": message, "engine": cfg.get("engine")}), (200 if ok else 400)
     except Exception as exc:
-        return jsonify({"ok": False, "message": str(exc)}), 400
+        log.warning("[admin] Error testing datastore config: %s", exc)
+        return jsonify({"ok": False, "message": "Failed to test database connection."}), 400
 
 
 @admin_bp.route("/feature-flags", methods=["POST"])
@@ -539,8 +540,11 @@ def database_query():
             except (TypeError, ValueError):
                 pass
         return jsonify({"ok": True, **result})
-    except Exception as exc:
+    except ValueError as exc:
         return jsonify({"ok": False, "error": str(exc)}), 400
+    except Exception as exc:
+        log.exception("[admin] Database query execution failed: %s", exc)
+        return jsonify({"ok": False, "error": "Query execution failed."}), 400
 
 
 @admin_bp.route("/database/saved", methods=["GET", "POST"])
@@ -561,8 +565,11 @@ def database_saved_queries():
             row_count=payload.get("row_count"),
         )
         return jsonify({"ok": True, "query": entry}), 201
-    except Exception as exc:
+    except ValueError as exc:
         return jsonify({"ok": False, "error": str(exc)}), 400
+    except Exception as exc:
+        log.exception("[admin] Failed to save query: %s", exc)
+        return jsonify({"ok": False, "error": "Failed to save query."}), 400
 
 
 @admin_bp.route("/database/saved/<int:query_id>", methods=["DELETE"])
