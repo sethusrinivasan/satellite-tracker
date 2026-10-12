@@ -15,20 +15,16 @@ ROOT_DIR = os.path.dirname(os.path.dirname(__file__))
 
 def test_android_scaffold_structure():
     """Verify that Android Gradle scaffold and manifests are properly configured."""
-    app_gradle = os.path.join(ROOT_DIR, "desktop", "src-tauri", "gen", "android", "app", "build.gradle.kts")
-    if not os.path.exists(app_gradle):
-        app_gradle = os.path.join(ROOT_DIR, "src-tauri", "gen", "android", "app", "build.gradle.kts")
-    manifest_xml = os.path.join(ROOT_DIR, "desktop", "src-tauri", "gen", "android", "app", "src", "main", "AndroidManifest.xml")
-    if not os.path.exists(manifest_xml):
-        manifest_xml = os.path.join(ROOT_DIR, "src-tauri", "gen", "android", "app", "src", "main", "AndroidManifest.xml")
+    app_gradle = os.path.join(ROOT_DIR, "android", "app", "build.gradle.kts")
+    manifest_xml = os.path.join(ROOT_DIR, "android", "app", "src", "main", "AndroidManifest.xml")
 
     assert os.path.exists(app_gradle), "Android app build.gradle.kts must exist"
     assert os.path.exists(manifest_xml), "AndroidManifest.xml must exist"
 
     with open(app_gradle, "r", encoding="utf-8") as f:
         gradle_content = f.read()
-    assert 'namespace = "com.sethusrinivasan.satellitetracker"' in gradle_content
-    assert "targetSdk = 37" in gradle_content
+    assert 'namespace = "com.sattrack"' in gradle_content
+    assert "targetSdk = 35" in gradle_content
     assert "minSdk = 24" in gradle_content
 
     with open(manifest_xml, "r", encoding="utf-8") as f:
