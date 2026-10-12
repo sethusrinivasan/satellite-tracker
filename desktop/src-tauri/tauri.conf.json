@@ -4,7 +4,7 @@
   "version": "0.1.1",
   "identifier": "com.sethusrinivasan.satellitetracker",
   "build": {
-    "frontendDist": "../app/static",
+    "frontendDist": "../../app/static",
     "devUrl": "http://localhost:5000"
   },
   "app": {
