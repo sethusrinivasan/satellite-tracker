@@ -46,12 +46,18 @@ jobs:
           java-version: '17'
 
       - name: Setup Android SDK & NDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install Android NDK & Build Tools
         run: |
-          yes | sdkmanager --licenses || true
-          sdkmanager "platforms;android-34" "platforms;android-37" "build-tools;34.0.0" "ndk;26.1.10909125"
+          echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -f "$SDKMANAGER" ]; then
+            SDKMANAGER=$(find $ANDROID_HOME -name "sdkmanager" | head -n 1)
+          fi
+          echo "Using sdkmanager: $SDKMANAGER"
+          yes | $SDKMANAGER --licenses || true
+          $SDKMANAGER "platforms;android-34" "build-tools;34.0.0" "ndk;26.1.10909125" || true
+          NDK_DIR=$(find $ANDROID_HOME/ndk -maxdepth 1 -mindepth 1 | sort -V | tail -n 1 || echo "$ANDROID_HOME/ndk/26.1.10909125")
+          echo "ANDROID_NDK_HOME=$NDK_DIR" >> $GITHUB_ENV
+          echo "ANDROID_NDK_ROOT=$NDK_DIR" >> $GITHUB_ENV
 
       - name: Setup Node.js 20
         uses: actions/setup-node@v4
@@ -104,11 +110,7 @@ jobs:
           fi
 
       - name: Build Google Play Android App Bundle (.aab)
-        env:
-          NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/26.1.10909125
         run: |
-          export ANDROID_NDK_ROOT=$NDK_HOME
-          export ANDROID_NDK_HOME=$NDK_HOME
           echo "Building Google Play Store Android App Bundle (.aab)..."
           if npx tauri android build --apk=false --aab=true; then
             echo "Tauri AAB build successful."
@@ -120,11 +122,7 @@ jobs:
           fi
 
       - name: Build Amazon Appstore Universal APK (.apk)
-        env:
-          NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/26.1.10909125
         run: |
-          export ANDROID_NDK_ROOT=$NDK_HOME
-          export ANDROID_NDK_HOME=$NDK_HOME
           echo "Building Amazon Appstore Universal Release APK (.apk)..."
           if npx tauri android build --apk=true --aab=false; then
             echo "Tauri APK build successful."
