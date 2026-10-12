@@ -10,6 +10,7 @@ All routes require Google OAuth authentication via @admin_required.
 """
 
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, current_app
+import logging
 import os
 import threading
 import requests
@@ -28,6 +29,8 @@ from app.services.datastore import (
     test_connection,
 )
 from app.services.feature_flags import FEATURES, feature_enabled, get_feature_flags, set_feature_flags
+
+logger = logging.getLogger(__name__)
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 
@@ -541,9 +544,19 @@ def database_query():
                 pass
         return jsonify({"ok": True, **result})
     except ValueError as exc:
-        return jsonify({"ok": False, "error": str(exc)}), 400
+        msg = str(exc)
+        logger.warning("[admin] Query validation error: %s", msg)
+        if "Blocked keyword" in msg:
+            user_err = "Blocked keyword: mutating and administrative statements are not permitted."
+        elif "Only SELECT" in msg:
+            user_err = "Only SELECT (or WITH / EXPLAIN) queries are allowed."
+        elif "Only a single SQL" in msg:
+            user_err = "Only a single SQL statement is allowed."
+        else:
+            user_err = "SQL query cannot be empty or invalid."
+        return jsonify({"ok": False, "error": user_err}), 400
     except Exception as exc:
-        log.exception("[admin] Database query execution failed: %s", exc)
+        logger.exception("[admin] Database query execution failed: %s", exc)
         return jsonify({"ok": False, "error": "Query execution failed."}), 400
 
 
@@ -566,9 +579,17 @@ def database_saved_queries():
         )
         return jsonify({"ok": True, "query": entry}), 201
     except ValueError as exc:
-        return jsonify({"ok": False, "error": str(exc)}), 400
+        msg = str(exc)
+        logger.warning("[admin] Save query validation error: %s", msg)
+        if "Query name" in msg:
+            user_err = "Query name and SQL are required (name up to 120 characters)."
+        elif "Blocked keyword" in msg:
+            user_err = "Blocked keyword: mutating statements cannot be saved."
+        else:
+            user_err = "Invalid query or parameters."
+        return jsonify({"ok": False, "error": user_err}), 400
     except Exception as exc:
-        log.exception("[admin] Failed to save query: %s", exc)
+        logger.exception("[admin] Failed to save query: %s", exc)
         return jsonify({"ok": False, "error": "Failed to save query."}), 400
 
 

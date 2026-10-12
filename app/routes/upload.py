@@ -83,10 +83,21 @@ def fetch_tle_from_url(url: str, timeout: int = 30) -> tuple[str | None, str | N
     Fetch TLE content from a remote URL with CelesTrak rate-policy handling and local caching.
     Returns: (content, warning_or_info_msg, error_msg)
     """
+    parsed = urllib.parse.urlparse(url)
+    scheme = (parsed.scheme or "").lower()
+    hostname = (parsed.hostname or "").lower()
+    if scheme not in ("http", "https") or (
+        hostname not in ALLOWED_TLE_HOSTS
+        and not hostname.endswith(".celestrak.org")
+        and not hostname.endswith(".celestrak.com")
+    ):
+        return None, None, "Invalid or prohibited URL. Only public http/https URLs are permitted."
+
     if not is_safe_url(url):
         return None, None, "Invalid or prohibited URL. Only public http/https URLs are permitted."
 
-    filename = derive_filename_from_url(url)
+    clean_target_url = urllib.parse.urlunsplit((scheme, hostname, parsed.path, parsed.query, ""))
+    filename = derive_filename_from_url(clean_target_url)
     cache_dir = os.path.join(current_app.instance_path, "celestrak_cache")
     os.makedirs(cache_dir, exist_ok=True)
     cache_file = os.path.join(cache_dir, filename)
@@ -101,7 +112,7 @@ def fetch_tle_from_url(url: str, timeout: int = 30) -> tuple[str | None, str | N
     }
 
     try:
-        resp = requests.get(url, headers=headers, timeout=timeout)
+        resp = requests.get(clean_target_url, headers=headers, timeout=timeout)
     except requests.exceptions.RequestException as exc:
         logger.warning("[upload] Failed to fetch TLE from %s: %s", url, exc)
         # Check if we have cached copy to recover gracefully

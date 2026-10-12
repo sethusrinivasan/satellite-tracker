@@ -99,26 +99,21 @@ def resolve_sqlite_path(path: str | None) -> str:
 
     # Restrict allowed SQLite storage locations to instance, project root, and temp directories
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-    allowed_roots = (
-        os.path.abspath(instance_dir),
-        os.path.abspath(base_dir),
-        "/tmp",
-    )
+    instance_norm = os.path.abspath(instance_dir)
+    base_norm = os.path.abspath(base_dir)
+    tmp_norm = os.path.abspath("/tmp")
 
-    path_norm = os.path.abspath(os.path.normpath(path))
-    is_allowed_root = any(
-        path_norm == root or path_norm.startswith(root + os.sep)
-        for root in allowed_roots
-    )
-
-    if is_allowed_root:
-        parent = os.path.dirname(path_norm)
-        if os.path.isdir(parent):
-            return path_norm
+    path_norm = os.path.normpath(os.path.abspath(path))
+    if (
+        path_norm.startswith(instance_norm + os.sep)
+        or path_norm.startswith(base_norm + os.sep)
+        or path_norm.startswith(tmp_norm + os.sep)
+    ):
+        return path_norm
 
     remapped = os.path.join(instance_dir, safe_name)
     if path_norm != remapped:
-        log.info("[datastore] SQLite path %s is not available or outside allowed root; using %s", path, remapped)
+        log.info("[datastore] SQLite path %s is remapped to safe location %s", path, remapped)
     return remapped
 
 
