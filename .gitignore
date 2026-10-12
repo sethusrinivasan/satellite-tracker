@@ -69,4 +69,13 @@ src-tauri/gen/
 staged-artifacts/
 release-assets/
 
+# Android & Gradle Build Artifacts
+.gradle/
+.kotlin/
+*.iml
+local.properties
+dist-android-store/
+satellite-tracker-android-store-bundle.zip
+
+
 

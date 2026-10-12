@@ -29,6 +29,55 @@ def test_android_scaffold_structure():
     assert 'android:name="android.permission.INTERNET"' in manifest_content
 
 
+def test_native_android_first_principles_project():
+    """Verify that pure native Jetpack Compose Android app is implemented with first principles."""
+    native_app_gradle = os.path.join(ROOT_DIR, "android", "app", "build.gradle.kts")
+    native_manifest = os.path.join(ROOT_DIR, "android", "app", "src", "main", "AndroidManifest.xml")
+    main_activity = os.path.join(ROOT_DIR, "android", "app", "src", "main", "java", "com", "sattrack", "MainActivity.kt")
+    sgp4_engine = os.path.join(ROOT_DIR, "android", "app", "src", "main", "java", "com", "sattrack", "domain", "sgp4", "Sgp4Engine.kt")
+    pass_predictor = os.path.join(ROOT_DIR, "android", "app", "src", "main", "java", "com", "sattrack", "domain", "pass", "PassPredictorEngine.kt")
+    query_parser = os.path.join(ROOT_DIR, "android", "app", "src", "main", "java", "com", "sattrack", "domain", "ai", "LocalQueryParser.kt")
+
+    assert os.path.exists(native_app_gradle)
+    assert os.path.exists(native_manifest)
+    assert os.path.exists(main_activity)
+    assert os.path.exists(sgp4_engine)
+    assert os.path.exists(pass_predictor)
+    assert os.path.exists(query_parser)
+
+    with open(sgp4_engine, "r", encoding="utf-8") as f:
+        sgp4_code = f.read()
+    assert "EARTH_RADIUS_KM" in sgp4_code
+    assert "MU_EARTH" in sgp4_code
+    assert "propagateTle" in sgp4_code
+    assert "computeGroundTrack" in sgp4_code
+
+    with open(main_activity, "r", encoding="utf-8") as f:
+        main_code = f.read()
+    assert "setContent" in main_code
+    assert "SatelliteTrackerTheme" in main_code
+
+    with open(native_app_gradle, "r", encoding="utf-8") as f:
+        gradle_code = f.read()
+    assert "com.android.application" in gradle_code
+    assert "signingConfigs" in gradle_code
+    assert 'namespace = "com.sattrack"' in gradle_code
+
+    screens_dir = os.path.join(ROOT_DIR, "android", "app", "src", "main", "java", "com", "sattrack", "ui", "screens")
+    expected_screens = ["TrackerScreen.kt", "GlobeScreen.kt", "CatalogScreen.kt", "PassesScreen.kt", "AiDiscoveryScreen.kt", "SettingsDialog.kt"]
+    for sc in expected_screens:
+        assert os.path.exists(os.path.join(screens_dir, sc)), f"Screen {sc} must exist"
+
+    components_dir = os.path.join(ROOT_DIR, "android", "app", "src", "main", "java", "com", "sattrack", "ui", "components")
+    expected_components = ["OrbitMapView.kt", "Globe3DView.kt", "TelemetryBottomSheet.kt", "TopAppBar.kt", "BottomNavigationBar.kt"]
+    for cp in expected_components:
+        assert os.path.exists(os.path.join(components_dir, cp)), f"Component {cp} must exist"
+
+    tests_dir = os.path.join(ROOT_DIR, "android", "app", "src", "test", "java", "com", "sattrack")
+    for kt_test in ["Sgp4EngineTest.kt", "PassPredictorTest.kt", "LocalQueryParserTest.kt"]:
+        assert os.path.exists(os.path.join(tests_dir, kt_test)), f"Kotlin test {kt_test} must exist"
+
+
 def test_mobile_bundled_runtime_assets():
     """Verify that all offline SGP4, 2D Leaflet, 3D Three.js, and catalog assets are bundled locally."""
     required_assets = [

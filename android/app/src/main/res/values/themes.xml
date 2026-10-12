@@ -1,0 +1,7 @@
+<resources>
+    <style name="Theme.SatelliteTracker" parent="android:Theme.Material.NoActionBar">
+        <item name="android:statusBarColor">#080D1A</item>
+        <item name="android:navigationBarColor">#080D1A</item>
+        <item name="android:windowBackground">#080D1A</item>
+    </style>
+</resources>

@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">Satellite TLE Tracker</string>
+    <string name="title_track">Track</string>
+    <string name="title_globe">Globe</string>
+    <string name="title_catalog">Catalog</string>
+    <string name="title_passes">Passes</string>
+    <string name="title_ai">AI Assist</string>
+</resources>
