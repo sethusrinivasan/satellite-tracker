@@ -13,9 +13,10 @@
     "desktop:dev": "cd desktop && npx tauri dev",
     "desktop:build": "python3 scripts/build_sidecar.py && (cd desktop && npx tauri build)",
     "android:assets": "python3 scripts/generate_store_assets.py",
-    "android:dev": "tauri android dev",
-    "android:build:aab": "tauri android build --apk=false --aab=true",
-    "android:build:apk": "tauri android build --apk=true --aab=false",
+    "android:dev": "cd mobile/android && ./gradlew installDebug",
+    "android:build:aab": "cd mobile/android && ./gradlew bundleRelease",
+    "android:build:apk": "cd mobile/android && ./gradlew assembleRelease",
+    "android:test": "cd mobile/android && ./gradlew test",
     "android:build:all": "npm run android:assets && npm run android:build:aab && npm run android:build:apk"
   },
   "devDependencies": {

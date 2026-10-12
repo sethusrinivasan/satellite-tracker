@@ -7,8 +7,10 @@ on:
     tags:
       - 'v*'
     paths:
+      - 'mobile/**'
       - 'android/**'
       - 'src-tauri/gen/android/**'
+      - 'desktop/**'
       - 'src-tauri/**'
       - 'app/static/**'
       - 'scripts/**'
@@ -17,8 +19,10 @@ on:
       - '.github/workflows/android-release.yml'
   pull_request:
     paths:
+      - 'mobile/**'
       - 'android/**'
       - 'src-tauri/gen/android/**'
+      - 'desktop/**'
       - 'src-tauri/**'
       - 'app/static/**'
       - '.github/workflows/android-release.yml'
@@ -114,24 +118,32 @@ jobs:
       - name: Build Google Play Android App Bundle (.aab)
         run: |
           echo "Building Google Play Store Android App Bundle (.aab)..."
-          if [ -d "android" ]; then
+          if [ -d "mobile/android" ]; then
+            cd mobile/android
+            ./gradlew :app:bundleRelease --no-daemon || true
+            cd ../..
+          elif [ -d "android" ]; then
             cd android
             ./gradlew :app:bundleRelease --no-daemon || true
             cd ..
           fi
-          if [ ! -f "android/app/build/outputs/bundle/release/app-release.aab" ] && [ ! -f "dist-android-store/google-play/app-release.aab" ]; then
+          if [ ! -f "mobile/android/app/build/outputs/bundle/release/app-release.aab" ] && [ ! -f "android/app/build/outputs/bundle/release/app-release.aab" ] && [ ! -f "dist-android-store/google-play/app-release.aab" ]; then
             npx tauri android build --apk=false --aab=true || (cd src-tauri/gen/android && ./gradlew :app:bundleRelease --no-daemon) || true
           fi
 
       - name: Build Amazon Appstore Universal APK (.apk)
         run: |
           echo "Building Amazon Appstore Universal Release APK (.apk)..."
-          if [ -d "android" ]; then
+          if [ -d "mobile/android" ]; then
+            cd mobile/android
+            ./gradlew :app:assembleRelease --no-daemon || true
+            cd ../..
+          elif [ -d "android" ]; then
             cd android
             ./gradlew :app:assembleRelease --no-daemon || true
             cd ..
           fi
-          if [ ! -f "android/app/build/outputs/apk/release/app-release.apk" ] && [ ! -f "dist-android-store/amazon-appstore/app-release-universal.apk" ]; then
+          if [ ! -f "mobile/android/app/build/outputs/apk/release/app-release.apk" ] && [ ! -f "android/app/build/outputs/apk/release/app-release.apk" ] && [ ! -f "dist-android-store/amazon-appstore/app-release-universal.apk" ]; then
             npx tauri android build --apk=true --aab=false || (cd src-tauri/gen/android && ./gradlew :app:assembleRelease --no-daemon) || true
           fi
 
@@ -142,17 +154,17 @@ jobs:
           mkdir -p dist-android-store/docs
 
           # 1. Locate and copy .aab for Google Play
-          AAB_FILE=$(find android src-tauri/gen/android -name "*release*.aab" 2>/dev/null | head -n 1)
+          AAB_FILE=$(find mobile/android android src-tauri/gen/android -name "*release*.aab" 2>/dev/null | head -n 1)
           if [ -f "$AAB_FILE" ]; then
             cp "$AAB_FILE" dist-android-store/google-play/app-release.aab
             echo "Found Play Store bundle: $AAB_FILE"
           else
             echo "Warning: AAB file not found at expected gradle path; checking alternate paths"
-            find android src-tauri/gen/android -name "*.aab" 2>/dev/null -exec cp {} dist-android-store/google-play/app-release.aab \;
+            find mobile/android android src-tauri/gen/android -name "*.aab" 2>/dev/null -exec cp {} dist-android-store/google-play/app-release.aab \;
           fi
 
           # 2. Locate and copy ProGuard mapping file
-          MAPPING_FILE=$(find android src-tauri/gen/android -name "mapping.txt" 2>/dev/null | head -n 1)
+          MAPPING_FILE=$(find mobile/android android src-tauri/gen/android -name "mapping.txt" 2>/dev/null | head -n 1)
           if [ -f "$MAPPING_FILE" ]; then
             cp "$MAPPING_FILE" dist-android-store/google-play/mapping.txt
             echo "Found ProGuard mapping: $MAPPING_FILE"
@@ -162,13 +174,13 @@ jobs:
           cp -r fastlane/metadata/android/ dist-android-store/google-play/metadata/
 
           # 4. Locate and copy Universal .apk for Amazon Appstore
-          APK_FILE=$(find android src-tauri/gen/android -name "*release*.apk" 2>/dev/null | head -n 1)
+          APK_FILE=$(find mobile/android android src-tauri/gen/android -name "*release*.apk" 2>/dev/null | head -n 1)
           if [ -f "$APK_FILE" ]; then
             cp "$APK_FILE" dist-android-store/amazon-appstore/app-release-universal.apk
             echo "Found Amazon Appstore APK: $APK_FILE"
           else
             echo "Warning: APK file not found at expected gradle path; checking alternate paths"
-            find android src-tauri/gen/android -name "*.apk" 2>/dev/null -exec cp {} dist-android-store/amazon-appstore/app-release-universal.apk \;
+            find mobile/android android src-tauri/gen/android -name "*.apk" 2>/dev/null -exec cp {} dist-android-store/amazon-appstore/app-release-universal.apk \;
           fi
 
           # 5. Copy Amazon Appstore listing metadata & graphics

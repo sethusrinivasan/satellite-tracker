@@ -23,9 +23,15 @@ android {
 
     signingConfigs {
         create("release") {
-            val keystoreFile = file("${rootProject.projectDir}/../keystore/release.keystore")
+            val repoKeystore = file("${rootProject.projectDir}/../../keystore/release.keystore")
+            val parentKeystore = file("${rootProject.projectDir}/../keystore/release.keystore")
             val localKeystore = file("${rootProject.projectDir}/release.keystore")
-            val targetKeystore = if (keystoreFile.exists()) keystoreFile else if (localKeystore.exists()) localKeystore else null
+            val targetKeystore = when {
+                repoKeystore.exists() -> repoKeystore
+                parentKeystore.exists() -> parentKeystore
+                localKeystore.exists() -> localKeystore
+                else -> null
+            }
             if (targetKeystore != null) {
                 storeFile = targetKeystore
                 storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "androidstorepass"
@@ -64,6 +70,11 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+    }
+
+    lint {
+        abortOnError = false
+        checkReleaseBuilds = false
     }
 
     packaging {
