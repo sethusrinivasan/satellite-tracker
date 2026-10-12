@@ -200,3 +200,25 @@ def test_dev_bypass_disabled_in_production_docker(monkeypatch):
     with app.test_client() as client:
         response = client.get("/auth/dev-bypass", follow_redirects=False)
         assert response.status_code == 403
+
+
+def test_sqlite_connection_pragmas_wal_and_busy_timeout(tmp_path):
+    """Verify that file-based SQLite connections apply WAL journal mode, 5000ms busy timeout, and NORMAL sync."""
+    db_file = tmp_path / "pragmas_test.db"
+
+    class FileDbConfig(TestConfig):
+        SQLALCHEMY_DATABASE_URI = f"sqlite:///{db_file}"
+        DATASTORE_CONFIGURED = True
+        DATASTORE_ENGINE = "sqlite"
+
+    app = create_app(config_object=FileDbConfig)
+    with app.app_context():
+        with db.engine.connect() as conn:
+            mode = conn.exec_driver_sql("PRAGMA journal_mode;").scalar()
+            busy = conn.exec_driver_sql("PRAGMA busy_timeout;").scalar()
+            sync = conn.exec_driver_sql("PRAGMA synchronous;").scalar()
+
+            assert str(mode).upper() == "WAL"
+            assert busy == 5000
+            assert sync == 1  # 1 corresponds to NORMAL in SQLite
+

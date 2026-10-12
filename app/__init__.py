@@ -3,6 +3,9 @@ import os
 import logging
 from flask import Flask, jsonify, redirect, request, url_for
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import event
+from sqlalchemy.engine import Engine
+import sqlite3
 
 logging.basicConfig(
     level=logging.INFO,
@@ -13,6 +16,21 @@ logging.basicConfig(
 
 log = logging.getLogger(__name__)
 db = SQLAlchemy()
+
+
+@event.listens_for(Engine, "connect")
+def _set_sqlite_pragma(dbapi_connection, connection_record):
+    """Mitigate SQLite concurrency locking: WAL mode, busy timeout, and normal sync."""
+    if isinstance(dbapi_connection, sqlite3.Connection):
+        cursor = dbapi_connection.cursor()
+        try:
+            cursor.execute("PRAGMA journal_mode = WAL")
+            cursor.execute("PRAGMA busy_timeout = 5000")
+            cursor.execute("PRAGMA synchronous = NORMAL")
+        except Exception as exc:
+            log.warning("[datastore] Could not set SQLite pragmas: %s", exc)
+        finally:
+            cursor.close()
 
 _SETUP_ENDPOINTS = {
     "setup.index",
