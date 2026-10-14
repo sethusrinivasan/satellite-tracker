@@ -199,7 +199,7 @@ jobs:
           zip -r satellite-tracker-android-store-bundle.zip dist-android-store/
 
       - name: Upload Store Submission Bundle Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: satellite-tracker-android-submission-bundle
           path: |
